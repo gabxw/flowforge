@@ -1,0 +1,15 @@
+.git
+.agents
+.codex
+.local
+.env
+.env.*
+**/bin
+**/obj
+**/node_modules
+**/dist
+**/TestResults
+**/coverage
+.node_repl_cell_*.mjs
+Novo(a) Documento de Texto.txt
+.serena
