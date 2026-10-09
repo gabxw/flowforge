@@ -36,7 +36,7 @@ Revisão: ausência de dependências proibidas no Domain/Application, segredos f
 
 Não inclui: entidades, EF Core, migrations, fila, consumers, autenticação, credenciais ou engine. PostgreSQL e RabbitMQ sobem como infraestrutura preparada, sem integração com os hosts.
 
-Commit sugerido: feat: bootstrap solution and development environment.
+Commit sugerido: Preparar solução e ambiente de desenvolvimento.
 
 ## Fase 2 — Domínio de workflows
 
@@ -46,7 +46,7 @@ Critério de saída: testes unitários de um trigger, reachability, ciclo, porta
 
 Revisão: regras não dependem de EF, ASP.NET ou broker; não há abstração genérica maior que o problema existente.
 
-Commit sugerido: feat: add workflow domain and graph validation.
+Commit sugerido: Implementar domínio de workflows e validação do grafo.
 
 ## Fase 3 — Persistência PostgreSQL
 
@@ -56,7 +56,7 @@ Critério de saída: integração com Testcontainers/PostgreSQL para aplicar mig
 
 Revisão: transações curtas, índices ligados a consultas reais e comportamento de arquivamento/remoção explícito.
 
-Commit sugerido: feat: persist workflow versions in PostgreSQL.
+Commit sugerido: Persistir versões de workflows no PostgreSQL.
 
 ## Fase 4 — API CRUD de workflows
 
@@ -66,7 +66,7 @@ Critério de saída: integração HTTP de CRUD, publicação de grafo válido, e
 
 Revisão: controllers/endpoints delegam casos de uso; publicação fixa o contrato do grafo que a engine consumirá.
 
-Commit sugerido: feat: expose workflow management API.
+Commit sugerido: Disponibilizar API de gerenciamento de workflows.
 
 ## Fase 5 — RabbitMQ e Worker
 
@@ -76,7 +76,7 @@ Critério de saída: Testcontainers para PostgreSQL/RabbitMQ; criar execução e
 
 Revisão: a falha entre commit e publish não perde execução; a falha entre confirm e atualização da outbox não executa trabalho duplicado. Received na inbox não é tratado como Done.
 
-Commit sugerido: feat: dispatch workflow execution through transactional outbox.
+Commit sugerido: Despachar execuções com outbox transacional.
 
 ## Fase 6 — Execution Engine
 
@@ -86,7 +86,7 @@ Critério de saída: unitários de travessia e transições; integração de exe
 
 Revisão: um executor não determina sozinho o próximo node; a engine controla fluxo e persistência. Checkpoint não afirma garantia sobre efeitos externos.
 
-Commit sugerido: feat: implement sequential workflow execution engine.
+Commit sugerido: Implementar execução sequencial de workflows.
 
 ## Fase 7 — Webhook Trigger
 
@@ -96,7 +96,7 @@ Critério de saída: requests válidos, segredo errado, endpoint desativado, pay
 
 Revisão: segredo ausente em URL, logs e traces; aceitação não aguarda a automação; eventos distintos com payload igual não são indevidamente descartados.
 
-Commit sugerido: feat: accept authenticated webhook executions.
+Commit sugerido: Receber execuções por webhook autenticado.
 
 ## Fase 8 — HTTP Request Node e Credentials
 
@@ -106,7 +106,7 @@ Critério de saída: servidor externo controlado para sucesso, falha, timeout, b
 
 Revisão: validar hostname sem controlar a conexão é insuficiente. Timeout não é prova de ausência de efeito remoto; política de rotação de credenciais entre tentativas fica explícita.
 
-Commit sugerido: feat: execute guarded HTTP requests with protected credentials.
+Commit sugerido: Executar requisições HTTP com destinos e credenciais protegidos.
 
 ## Fase 9 — Condition, Transform e Delay
 
@@ -116,7 +116,7 @@ Critério de saída: testes de paths ausentes, tipos incompatíveis, limites de 
 
 Revisão: nenhum eval/script/shell; convergência não marca como Skipped um node que ainda pertence ao caminho escolhido; inputs e outputs têm contrato determinístico.
 
-Commit sugerido: feat: add conditional paths JSON transforms and durable delays.
+Commit sugerido: Adicionar condições transformações JSON e esperas duráveis.
 
 ## Fase 10 — Retry, DLQ e idempotência
 
@@ -128,7 +128,7 @@ Revisão: medir garantia at-least-once e registrar efeitos externos desconhecido
 
 Marco: MVP de backend concluído somente se o fluxo completo webhook → Condition → HTTP Request → Log e um fluxo com Transform/Delay forem executáveis e os testes de falha passarem.
 
-Commits sugeridos: feat: add bounded retries and delivery recovery; test: cover workflow execution failure scenarios.
+Commits sugeridos: Implementar tentativas limitadas e recuperação de entregas; Cobrir cenários de falha das execuções.
 
 ## Fase 11 — Frontend funcional
 
@@ -138,7 +138,7 @@ Critério de saída: lint/typecheck/build; teste de uma jornada de criação e c
 
 Revisão: interface mostra o estado do backend; não gera sucesso otimista para publicação ou cancelamento ainda pendente.
 
-Commit sugerido: feat: add workflow and execution screens.
+Commit sugerido: Criar telas de workflows e execuções.
 
 ## Fase 12 — Editor visual
 
@@ -148,7 +148,7 @@ Critério de saída: editar/salvar/reabrir sem perder configuração; representa
 
 Revisão: backend continua sendo autoridade da validação; nenhuma animação ou polimento visual bloqueia contrato correto.
 
-Commit sugerido: feat: add visual workflow editor.
+Commit sugerido: Implementar editor visual de workflows.
 
 ## Fase 13 — Autenticação e RBAC
 
@@ -158,7 +158,7 @@ Critério de saída: login, expiração, rotação concorrente definida, logout,
 
 Revisão: endpoints não confiam em OwnerUserId fornecido pelo cliente; tokens e passwords ausentes dos logs.
 
-Commit sugerido: feat: secure workflow access and rotate refresh sessions.
+Commit sugerido: Proteger acesso e rotacionar sessões de atualização.
 
 ## Fase 14 — Observabilidade
 
@@ -168,7 +168,7 @@ Critério de saída: acompanhar um webhook da aceitação ao node externo; obser
 
 Revisão: ExecutionId e outros IDs únicos não são labels de métricas; logs e traces continuam sanitizados; coleta tem configuração explícita.
 
-Commit sugerido: feat: trace workflow execution across API and worker.
+Commit sugerido: Rastrear execuções entre API e Worker.
 
 ## Fase 15 — Testes e CI/CD
 
@@ -178,7 +178,7 @@ Critério de saída: pipeline reproduzível em clone limpo, PR com falha real se
 
 Revisão: testes verificam comportamento e falhas relevantes; não apenas getters, mocks ou detalhes internos. Flakiness e custo têm tratamento explícito.
 
-Commit sugerido: ci: validate backend frontend and container builds.
+Commit sugerido: Automatizar validação do backend frontend e containers.
 
 ## Fase 16 — Refino para portfólio
 
@@ -188,7 +188,7 @@ Critério de saída: outra pessoa inicia ambiente com configuração documentada
 
 Revisão: toda tecnologia tem justificativa; material distingue garantia local de efeito externo; nenhuma decisão arquitetural importante está escondida em código gerado.
 
-Commit sugerido: docs: present workflow platform architecture and operational guide.
+Commit sugerido: Documentar arquitetura e operação da plataforma.
 
 ## Como trabalhar em cada fase
 
