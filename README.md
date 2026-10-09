@@ -6,13 +6,13 @@ O problema central é aceitar eventos rapidamente e processar etapas externas de
 
 ## Estado atual
 
-**Fase 2 concluída: domínio de workflows, validação de DAG e publicação imutável.**
+**Fases 1 e 2 concluídas; Fase 3 aprovada no CI, aguardando integração à main.**
 
-Disponível: solução .NET, API com liveness e OpenAPI, host Worker, shell React, Dockerfiles, Compose, testes de inicialização e CI. A Fase 2 acrescenta definições tipadas, validação de DAG, ciclo de rascunho/publicação/arquivamento e políticas iniciais de transição no Domain. API/Worker ainda não acessam PostgreSQL ou RabbitMQ. Persistência, CRUD HTTP, consumers, engine, autenticação e editor pertencem às próximas fases.
+Disponível: solução .NET, API com liveness e OpenAPI, host Worker, shell React, Dockerfiles, Compose, testes de inicialização e CI. A Fase 2 acrescenta definições tipadas, validação de DAG, ciclo de rascunho/publicação/arquivamento e políticas iniciais de transição no Domain. A Fase 3 adiciona persistência EF Core/PostgreSQL, migrations e testes com Testcontainers. API/Worker ainda não usam esses adaptadores. CRUD HTTP, consumers, engine, autenticação e editor pertencem às próximas fases.
 
 A [execução do CI da Fase 2](https://github.com/gabxw/flowforge/actions/runs/37960021364), no commit [544fb9b](https://github.com/gabxw/flowforge/commit/544fb9b8048db9b137bbf034566c369d5697dcf5), aprovou os três jobs: backend, frontend e containers. Restore travado/build da solução completa e 685 testes xUnit passaram; npm ci, lint/build do frontend e auditoria npm passaram; imagens, Compose, proxy HTTP, recriação da API, profile Redis e encerramento do Worker foram verificados.
 
-Os lockfiles NuGet e npm são versionados e verificados contra os manifests. A verificação local do backend também passou, incluindo a main após integração, com build Release sem avisos/erros e 685 testes (682 Domain + 3 API). As revisões da [Fase 1](docs/phase-1-review.md) e da [Fase 2](docs/phase-2-review.md) registram evidências, decisões e riscos. A Fase 3 não foi iniciada.
+Os lockfiles NuGet e npm são versionados e verificados contra os manifests. A verificação local do backend também passou, incluindo a main após integração, com build Release sem avisos/erros e 685 testes (682 Domain + 3 API). As revisões da [Fase 1](docs/phase-1-review.md) e da [Fase 2](docs/phase-2-review.md) registram evidências, decisões e riscos. A [revisão da Fase 3](docs/phase-3-review.md) registra os [781 testes aprovados no CI](https://github.com/gabxw/flowforge/actions/runs/37970990301), incluindo PostgreSQL real, migrations e os três jobs do ambiente.
 
 ## Arquitetura
 
@@ -43,6 +43,7 @@ src/
 tests/
   FlowForge.Domain.Tests/    # Definições, DAG, publicação e transições
   FlowForge.Api.Tests/       # Smoke do host com xUnit
+  FlowForge.IntegrationTests/ # Codec, schema, stores e PostgreSQL real
 frontend/                   # React/TypeScript/Vite/Tailwind
 docs/                       # Arquitetura, modelo, ADR e roadmap
 scripts/                    # Verificações e smoke do Compose
@@ -50,7 +51,7 @@ scripts/                    # Verificações e smoke do Compose
 compose.yaml
 ```
 
-Domain não referencia outros projetos ou pacotes externos. Application referencia Domain; Infrastructure referencia Application/Domain; API e Worker referenciam Application/Infrastructure para compor dependências. Application e Infrastructure continuam sem casos de uso ou adaptadores antecipados.
+Domain não referencia outros projetos ou pacotes externos. Application referencia Domain; Infrastructure referencia Application/Domain; API e Worker referenciam Application/Infrastructure para compor dependências. Application expõe portas específicas de armazenamento; Infrastructure implementa os adaptadores PostgreSQL e o codec de configuração. Casos de uso HTTP entram na Fase 4.
 
 ## Stack e entrada por fase
 
@@ -107,7 +108,7 @@ O smoke verifica HTTP direto e pelo proxy do frontend. Os scripts locais preserv
 
 ## Executar e verificar sem Docker
 
-Pré-requisitos: SDK .NET 10 e Node.js 22.12 ou posterior na linha 22. A Fase 1 inicia os hosts sem banco/fila. Nas fases seguintes, testes de integração exigirão Docker.
+Pré-requisitos: SDK .NET 10 e Node.js 22.12 ou posterior na linha 22. Os hosts iniciam sem banco/fila. A suíte completa agora exige Docker para os testes de integração da persistência; veja [como operar migrations e testes](docs/persistence.md).
 
 ```powershell
 dotnet restore FlowForge.slnx --locked-mode
@@ -164,11 +165,14 @@ No domínio, um rascunho pode ficar incompleto enquanto é editado. Publicar exi
 ## Documentação e roadmap
 
 - [Arquitetura, requisitos e limites do MVP](docs/architecture.md)
-- [Modelo inicial do banco](docs/data-model.md) — conceitual; sem migrations implementadas
+- [Modelo inicial do banco](docs/data-model.md) — cinco tabelas implementadas e demais entidades planejadas
 - [Roadmap técnico das 16 fases](docs/roadmap.md)
 - [Decisões e alternativas](docs/decisions/0001-architecture-and-scope.md)
 - [Revisão e validações da Fase 1](docs/phase-1-review.md)
 - [Revisão e validações da Fase 2](docs/phase-2-review.md)
+- [Persistência, migrations e testes](docs/persistence.md)
+- [Decisões da persistência](docs/decisions/0003-postgresql-persistence.md)
+- [Revisão e validações da Fase 3](docs/phase-3-review.md)
 
 Novos commits usam mensagens curtas e descritivas em português, sem qualquer prefixo; o histórico existente é preservado. A preferência pela conta gabxw e as demais regras do projeto estão em [AGENTS.md](AGENTS.md).
 
