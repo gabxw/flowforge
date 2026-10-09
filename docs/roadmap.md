@@ -1,6 +1,6 @@
 # Roadmap técnico
 
-O trabalho é incremental. Cada fase entrega um comportamento executável, documentação atualizada e revisão técnica antes da próxima. As Fases 1 e 2 estão concluídas. A Fase 3 está aprovada no CI e aguarda integração à main; evidências registradas em [phase-3-review.md](phase-3-review.md). As Fases 4 a 16 permanecem planejadas.
+O trabalho é incremental. Cada fase entrega um comportamento executável, documentação atualizada e revisão técnica antes da próxima. As Fases 1, 2 e 3 estão concluídas e integradas à main; as evidências mais recentes estão em [phase-3-review.md](phase-3-review.md). As Fases 4 a 16 permanecem planejadas.
 
 Não se avança só porque uma pasta ou endpoint existe. O critério de saída inclui build, testes pertinentes e verificação do comportamento anunciado. Uma verificação impedida pelo ambiente permanece pendente e deve ser informada; ela não equivale a um resultado aprovado.
 
@@ -54,7 +54,7 @@ Commit sugerido: Implementar domínio de workflows e validação do grafo.
 
 ## Fase 3 — Persistência PostgreSQL
 
-Status: aprovada no CI com PostgreSQL real; integração à main pendente. Decisão em [ADR 0003](decisions/0003-postgresql-persistence.md), operação em [persistence.md](persistence.md) e revisão em [phase-3-review.md](phase-3-review.md).
+Status: concluída e integrada à main pelo [PR #1](https://github.com/gabxw/flowforge/pull/1), com [CI aprovado após o merge](https://github.com/gabxw/flowforge/actions/runs/37973035349). Decisão em [ADR 0003](decisions/0003-postgresql-persistence.md), operação em [persistence.md](persistence.md) e revisão em [phase-3-review.md](phase-3-review.md).
 
 Entregas: EF Core/Npgsql, DbContext, mappings e migrations somente para o domínio já definido. Registro User técnico mínimo para ownership/FKs, sem senha/login; FKs de nodes/conexões conscientes da versão e concorrência do rascunho.
 

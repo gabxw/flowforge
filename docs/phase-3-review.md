@@ -1,6 +1,6 @@
 # Revisão técnica da Fase 3
 
-Data: 2026-10-09. Status: implementação e revisão aprovadas no CI; integração da branch fase-3-persistencia à main pendente.
+Data: 2026-10-09. Status: concluída, revisada e integrada à main pelo [PR #1](https://github.com/gabxw/flowforge/pull/1).
 
 ## Entrega
 
@@ -25,6 +25,8 @@ A [execução 7](https://github.com/gabxw/flowforge/actions/runs/37970990301), n
 
 Frontend: npm ci, lint, build e auditoria npm. Containers: build de imagens, configuração Compose, Nginx, HTTP direto/proxy, recuperação após recriar API, profile Redis e encerramento normal do Worker. Os TRX, locks e migrations.sql estão no artefato validacao-backend.
 
+A [execução 8 do PR](https://github.com/gabxw/flowforge/actions/runs/37972114330) também aprovou os três checks antes do merge. Após a integração do commit [a91327f](https://github.com/gabxw/flowforge/commit/a91327fa4c8b1cc601bfc19a6946d697b064c8eb), a [execução 9 da main](https://github.com/gabxw/flowforge/actions/runs/37973035349) passou em 2m 11s: backend em 43s, frontend em 14s e containers em 1m 21s. Os logs da main confirmam novamente 726 testes Domain, 3 API e 52 Integration, sem falhas ou testes ignorados.
+
 ## Revisão de engenharia
 
 Revisão técnica realizada no incremento integrado, sem alegar uma revisão independente. Foi verificada a ordem de insert/promoção/delete, a proteção do CAS e rollback, o escopo de ownership, a manutenção do histórico e a leitura do grafo em um snapshot coerente.
@@ -37,4 +39,4 @@ O teste de concorrência usa duas leituras e saves concorrentes por contextos in
 
 API/Worker não usam os stores nesta fase. User é somente registro técnico, sem auth. Credential é referência; não há tabela/valor secreto. DAG e imutabilidade histórica não são garantidos contra SQL administrativo direto. Substituir o draft inteiro custa mais escrita, aceitável para os limites do MVP.
 
-CI completo aprovado; concluir a integração à main e preservar o vínculo entre o código e suas evidências. Fase 4 não iniciada. Operação: [persistence.md](persistence.md); decisão: [ADR 0003](decisions/0003-postgresql-persistence.md).
+CI completo aprovado antes e depois do merge. Fase 3 encerrada; Fase 4 não iniciada. Operação: [persistence.md](persistence.md); decisão: [ADR 0003](decisions/0003-postgresql-persistence.md).
