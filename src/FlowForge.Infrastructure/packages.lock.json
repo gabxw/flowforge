@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0": {
+      "flowforge.application": {
+        "type": "Project",
+        "dependencies": {
+          "FlowForge.Domain": "[1.0.0, )"
+        }
+      },
+      "flowforge.domain": {
+        "type": "Project"
+      }
+    }
+  }
+}
