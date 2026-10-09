@@ -1,6 +1,6 @@
 # Arquitetura e escopo do FlowForge
 
-Status: proposta técnica adotada no scaffold inicial, sujeita à revisão do usuário; somente o scaffold da Fase 1 faz parte da implementação atual. Os mecanismos de domínio, banco, mensageria, segurança e operação descritos abaixo serão construídos nas fases indicadas.
+Status: direção técnica adotada. Fase 1 concluída; domínio de definição, publicação e políticas iniciais de estado implementados na Fase 2, com fechamento pendente do CI. Banco, mensageria, executores, autenticação e operação continuam planejados para as fases indicadas.
 
 ## Problema e requisitos
 
@@ -38,6 +38,8 @@ Antes da Fase 13, a ausência de autenticação impede exposição pública. A d
 
 Uma conexão liga a porta de saída de um node à entrada de outro na mesma versão. Nodes comuns possuem no máximo uma saída. Condition possui exatamente uma saída true e uma false; somente uma delas é escolhida em uma execução. Não existe processamento paralelo no MVP.
 
+O contrato da Fase 2 exige uma conexão por porta de Condition ao publicar, aceita convergências e permite um trigger sozinho. O rascunho pode ficar incompleto durante a edição. Valores/configurações são imutáveis e somente Workflow controla as alterações de WorkflowVersion; uma publicação rejeitada preserva o estado anterior. Detalhes e alternativas estão na [ADR 0002](decisions/0002-workflow-domain-and-publication.md).
+
 Todos os nodes devem ser alcançáveis a partir do único trigger. A validação de publicação rejeita ciclos, IDs duplicados, referências quebradas, portas inválidas, configuração incompatível com o tipo e credenciais de outro proprietário. Uma versão publicada não pode ser editada; uma nova publicação cria outra versão.
 
 ```mermaid
@@ -48,7 +50,7 @@ flowchart LR
     H --> L2[Log: resultado da chamada]
 ```
 
-O caminho executado é sequencial. Nodes fora do caminho escolhido recebem Skipped ao encerrar a execução; um node de convergência ainda alcançável pelo ramo escolhido não pode ser descartado prematuramente. Cada node recebe o output do predecessor escolhido. Condition apenas avalia um predicado e repassa o input; Transform produz um novo JSON.
+A futura engine executará um caminho sequencial. Nodes fora do caminho escolhido receberão Skipped ao encerrar a execução; um node de convergência ainda alcançável pelo ramo escolhido não poderá ser descartado prematuramente. Cada node receberá o output do predecessor escolhido. Condition avaliará um predicado e repassará o input; Transform produzirá um novo JSON. A Fase 2 define e valida o contrato dessas configurações.
 
 ## Arquitetura proposta
 
@@ -66,7 +68,7 @@ flowchart LR
     W --> E[Destinos HTTP autorizados]
 ```
 
-A imagem mostra o fluxo previsto a partir da Fase 5. Na Fase 1, API e Worker apenas inicializam; não acessam PostgreSQL ou RabbitMQ.
+A imagem mostra o fluxo previsto a partir da Fase 5. Os hosts atuais apenas inicializam; não acessam PostgreSQL ou RabbitMQ.
 
 ### Projetos .NET e dependências
 
@@ -77,7 +79,7 @@ A imagem mostra o fluxo previsto a partir da Fase 5. Na Fase 1, API e Worker ape
 | FlowForge.Infrastructure | EF Core/PostgreSQL, RabbitMQ, HTTP seguro, proteção de credenciais e adaptadores | Application, Domain |
 | FlowForge.Api | HTTP, validação de transporte, autenticação, OpenAPI e composição de dependências | Application, Infrastructure |
 | FlowForge.Worker | Hospedagem dos consumers, dispatcher, retomadas e composição de dependências | Application, Infrastructure |
-| FlowForge.Domain.Tests | Testes de invariantes e transições quando existirem | Domain |
+| FlowForge.Domain.Tests | Testes de definições, DAG, publicação e transições | Domain |
 | FlowForge.Application.Tests | Testes de casos de uso e engine quando existirem | Application, Domain |
 | FlowForge.Api.Tests | Smoke de inicialização e integração HTTP | Api |
 | FlowForge.IntegrationTests (futuro) | Adaptadores e Worker com serviços reais | Hosts e adaptadores sob teste |
@@ -142,9 +144,9 @@ A DLQ trata mensagens inválidas, contratos não suportados e falhas de entrega/
 
 ### Cancelamento
 
-CancelRequestedAt registra o pedido. O Worker observa o pedido entre nodes e durante operações canceláveis. Nodes ainda não iniciados ficam Skipped; o node interrompido recebe Cancelled. Isso propõe acrescentar Cancelled aos estados originais de NodeExecution para não representar cancelamento como falha ou sucesso.
+Na futura execução, CancelRequestedAt registrará o pedido. O Worker observará o pedido entre nodes e durante operações canceláveis. Nodes ainda não iniciados ficarão Skipped; o node interrompido receberá Cancelled. A Fase 2 adota Cancelled no enum e na política de transição para não representar cancelamento como falha ou sucesso, sem implementar o processamento do pedido.
 
-WorkflowExecution permanece com Pending, Running, Succeeded, Failed e Cancelled. Uma execução pode estar Running enquanto espera um Delay; ResumeAt expressa a suspensão sem introduzir um estado novo no MVP.
+WorkflowExecutionStatus contém Pending, Running, Succeeded, Failed e Cancelled. NodeExecutionStatus inclui Cancelled como decisão da Fase 2, junto de Pending, Running, Succeeded, Failed, Retrying e Skipped. As políticas puras de transição não criam entidades de execução, persistência ou processamento. Uma execução futura poderá estar Running enquanto espera um Delay; ResumeAt expressará a suspensão sem introduzir um estado novo no MVP.
 
 Cancelamento é cooperativo. Interromper a espera local não prova que uma chamada remota não produziu efeitos.
 
@@ -188,7 +190,7 @@ A Fase 13 implementa access token JWT de curta duração e refresh tokens opacos
 
 A interface usa refresh token em cookie HttpOnly/Secure com SameSite definido para o modo de implantação; access token em memória. A escolha de cookie exige tratar CSRF conforme o contrato da aplicação.
 
-Limites propostos, ainda sem implementação: 50 nodes por versão, webhook e resposta HTTP até 1 MiB, snapshot por input/output até 32 KiB, HTTP timeout de 10 segundos, Delay até 24 horas e prazo total de execução de 48 horas. Os valores serão calibrados nos testes; nomes e unidades farão parte da configuração. Rate limits por endpoint/proprietário entram junto dos fluxos correspondentes.
+Limites de definição adotados na Fase 2: 50 nodes/100 conexões por versão, 50 campos de Transform, JSON Pointer de até 1.024 unidades UTF-16/32 segmentos e Delay configurado de até 24 horas. O domínio valida a configuração; não executa esperas ou transformações. Permanecem propostas futuras: webhook e resposta HTTP até 1 MiB, snapshot por input/output até 32 KiB, HTTP timeout de 10 segundos e prazo total de execução de 48 horas. Rate limits por endpoint/proprietário entram junto dos fluxos correspondentes.
 
 ## Observabilidade e testes
 

@@ -1,4 +1,4 @@
-name: Validação da Fase 1
+name: Validação do projeto
 
 on:
   push:

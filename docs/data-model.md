@@ -1,6 +1,6 @@
 # Modelo inicial de dados
 
-Status: modelo conceitual para orientar as Fases 2 e 3. A Fase 1 não implementa entidades, DbContext, SQL, migrations, tabelas ou acesso ao PostgreSQL. Os nomes e índices abaixo ainda serão traduzidos em migrations revisadas.
+Status: modelo de persistência conceitual. A Fase 2 implementa as definições de Workflow, WorkflowVersion, WorkflowNode e WorkflowConnection em memória; DbContext, SQL, migrations, tabelas e acesso ao PostgreSQL permanecem para a Fase 3. As demais entidades entram nas fases indicadas. Campos redundantes para FKs e índices abaixo ainda serão traduzidos em mapeamentos/migrations revisados.
 
 PostgreSQL é a fonte de verdade. UUID identifica os recursos; datas são instantes UTC, armazenados como timestamptz. Estados têm valores explícitos e transições validadas, sem depender da ordem numérica de enums. Configurações variáveis usam JSONB; identidade, ownership, relações e campos consultáveis usam colunas.
 
@@ -48,9 +48,9 @@ A posição visual pertence à definição; não influencia ordem de execução.
 
 WorkflowExecution: Pending → Running → Succeeded, Failed ou Cancelled. Pode passar diretamente de Pending para Cancelled. Retomada depois de uma suspensão não cria uma segunda execução. Running com ResumeAt futuro representa Delay ou retry durável.
 
-NodeExecution: Pending, Running, Succeeded, Failed, Retrying e Skipped. Propomos incluir Cancelled para um node interrompido pelo cancelamento cooperativo. Pending pode terminar como Skipped quando o ramo não foi escolhido ou o workflow foi encerrado. Retrying aguarda uma nova tentativa sem apagar as anteriores.
+NodeExecutionStatus: Pending, Running, Succeeded, Failed, Retrying, Skipped e Cancelled. Cancelled foi adotado na Fase 2 para um node interrompido. Pending pode transicionar para Running ou Skipped; Running para Succeeded, Failed, Retrying ou Cancelled; Retrying para Running ou Cancelled. A execução futura usará Skipped para nodes não iniciados e preservará as tentativas anteriores ao retomar Retrying.
 
-As transições válidas serão definidas no domínio e testadas na Fase 2. Uma atualização SQL não pode transformar uma execução terminal de volta em Running por causa de redelivery.
+As políticas puras de transição da Fase 2 rejeitam estados desconhecidos, repetições e saídas de estados terminais. Elas não implementam redelivery nem persistência: os futuros casos de uso precisam aplicá-las e garantir que uma atualização SQL não transforme uma execução terminal de volta em Running.
 
 ## Registros de confiabilidade e autenticação
 
@@ -121,7 +121,7 @@ Configuration armazena somente parâmetros permitidos pelo schema do node, inclu
 
 TriggerInput, Input e Output preservam snapshots sanitizados e limitados. A captura de um resultado truncado inclui um indicador de truncamento e o tamanho original; ele não pode ser reaproveitado silenciosamente como input real de outro node. O contexto de execução e os snapshots de auditoria são conceitos diferentes: a engine trabalha com conteúdo permitido dentro do limite operacional, e a visualização recebe sua representação sanitizada.
 
-Conteúdo necessário para retomada deve estar durável antes de confirmar a mensagem. ExecutionContextProtected contém o contexto operacional serializado, limitado e criptografado, em bytea, separado dos snapshots JSONB. O contexto cifra e retém payload privado: inclui o input inicial e o resultado corrente necessários ao próximo node, mas nunca material de credenciais resolvidas ou headers secretos. Limites de tamanho, política de captura e prazos de retenção são propostas do MVP a validar, sem implementação na Fase 1. CheckpointRevision e fencing protegem sua atualização. A engine não pode depender exclusivamente de objetos em memória nem usar um snapshot truncado para continuar depois de uma queda. O keyring persistente precisa existir antes dessa persistência, com purpose distinto do utilizado para Credential.
+Conteúdo necessário para retomada deve estar durável antes de confirmar a mensagem. ExecutionContextProtected contém o contexto operacional serializado, limitado e criptografado, em bytea, separado dos snapshots JSONB. O contexto cifra e retém payload privado: inclui o input inicial e o resultado corrente necessários ao próximo node, mas nunca material de credenciais resolvidas ou headers secretos. Limites de tamanho, política de captura e prazos de retenção são propostas do MVP a validar, ainda sem implementação. CheckpointRevision e fencing protegem sua atualização. A engine não pode depender exclusivamente de objetos em memória nem usar um snapshot truncado para continuar depois de uma queda. O keyring persistente precisa existir antes dessa persistência, com purpose distinto do utilizado para Credential.
 
 Direção inicial de retenção, ainda configurável e pendente de implementação:
 

@@ -6,7 +6,7 @@
 - Construir de forma incremental, mantendo o sistema executável, testável e documentado.
 - Implementar apenas a fase ou o incremento solicitado; não iniciar a fase seguinte por iniciativa própria.
 - Seguir o MVP e os critérios definidos em [docs/roadmap.md](docs/roadmap.md).
-- Consultar [README.md](README.md) e [docs/phase-1-review.md](docs/phase-1-review.md) para o estado atual.
+- Consultar [README.md](README.md) e a revisão da fase mais recente ([Fase 2](docs/phase-2-review.md)) para o estado atual. A [revisão da Fase 1](docs/phase-1-review.md) preserva as evidências da base.
 
 ## Arquitetura e aprendizado
 

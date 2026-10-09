@@ -6,13 +6,13 @@ O problema central é aceitar eventos rapidamente e processar etapas externas de
 
 ## Estado atual
 
-**Fase 1 concluída: estrutura, ambiente Docker e reprodução com dependências travadas aprovados.**
+**Fase 1 concluída; Fase 2 implementada e verificada localmente, aguardando o CI.**
 
-Disponível: solução .NET, API com liveness e OpenAPI, host Worker, shell React, Dockerfiles, Compose, testes de inicialização e CI inicial. API/Worker ainda não acessam PostgreSQL ou RabbitMQ. Não há entidades, migrations, CRUD, consumers, engine, autenticação ou editor.
+Disponível: solução .NET, API com liveness e OpenAPI, host Worker, shell React, Dockerfiles, Compose, testes de inicialização e CI. A Fase 2 acrescenta definições tipadas, validação de DAG, ciclo de rascunho/publicação/arquivamento e políticas iniciais de transição no Domain. API/Worker ainda não acessam PostgreSQL ou RabbitMQ. Persistência, CRUD HTTP, consumers, engine, autenticação e editor pertencem às próximas fases.
 
 A [execução do CI](https://github.com/gabxw/flowforge/actions/runs/37939333118), no commit [fe18380](https://github.com/gabxw/flowforge/commit/fe1838036dd707014b5333b55b02bd0d7194a410), aprovou os três jobs: backend, frontend e containers. Restore travado/build da solução completa e 3 testes xUnit passaram; npm ci, lint/build do frontend e auditoria npm passaram; imagens, Compose, proxy HTTP, recriação da API, profile Redis e encerramento do Worker foram verificados. A reprodução local também passou, com 0 vulnerabilidades na auditoria npm.
 
-Os seis lockfiles NuGet e o lockfile npm estão versionados e foram verificados contra os manifests. O Git local está sincronizado com o histórico remoto. Evidências e riscos de manutenção estão na [revisão da Fase 1](docs/phase-1-review.md). A Fase 2 ainda não foi iniciada e depende de solicitação explícita.
+Os lockfiles NuGet e npm são versionados e verificados contra os manifests. As evidências da base reproduzível estão na [revisão da Fase 1](docs/phase-1-review.md). A solução integrada da Fase 2 passou em restore travado, build Release sem avisos/erros e 685 testes (682 Domain + 3 API), com revisões independentes aprovadas. O fechamento depende do CI; detalhes na [revisão da Fase 2](docs/phase-2-review.md).
 
 ## Arquitetura
 
@@ -30,7 +30,7 @@ flowchart LR
     Worker --> HTTP[Destinos HTTP autorizados]
 ```
 
-O diagrama representa o sistema planejado a partir da Fase 5. O scaffold atual verifica somente inicialização.
+O diagrama representa o sistema planejado a partir da Fase 5. Os hosts atuais verificam inicialização; as regras de domínio são exercitadas por testes unitários.
 
 ```text
 FlowForge.slnx
@@ -41,15 +41,16 @@ src/
   FlowForge.Api/             # Host HTTP e composição
   FlowForge.Worker/          # Host de processamento assíncrono
 tests/
+  FlowForge.Domain.Tests/    # Definições, DAG, publicação e transições
   FlowForge.Api.Tests/       # Smoke do host com xUnit
 frontend/                   # React/TypeScript/Vite/Tailwind
 docs/                       # Arquitetura, modelo, ADR e roadmap
 scripts/                    # Verificações e smoke do Compose
-.github/workflows/          # Validação inicial da Fase 1
+.github/workflows/          # Backend, frontend e containers
 compose.yaml
 ```
 
-Domain não referencia outros projetos. Application referencia Domain; Infrastructure referencia Application/Domain; API e Worker referenciam Application/Infrastructure para compor dependências. As bibliotecas internas começam vazias, sem classes ou interfaces fictícias.
+Domain não referencia outros projetos ou pacotes externos. Application referencia Domain; Infrastructure referencia Application/Domain; API e Worker referenciam Application/Infrastructure para compor dependências. Application e Infrastructure continuam sem casos de uso ou adaptadores antecipados.
 
 ## Stack e entrada por fase
 
@@ -60,7 +61,7 @@ Domain não referencia outros projetos. Application referencia Domain; Infrastru
 | PostgreSQL / EF Core / Npgsql | Infraestrutura preparada; persistência na Fase 3 |
 | RabbitMQ | Infraestrutura preparada; publicação/consumo na Fase 5 |
 | Redis | Profile opcional; integração depende de necessidade demonstrada |
-| xUnit | Testes de host na Fase 1; regras testadas quando implementadas |
+| xUnit | Testes de host e regras de domínio das Fases 1 e 2 |
 | Testcontainers | Primeiros testes de adaptadores com serviços reais |
 | OpenAPI | Documento nativo em Development na Fase 1; interface Swagger avaliada junto da API funcional |
 | React Flow | Editor visual na Fase 12 |
@@ -133,7 +134,7 @@ Para executar a sequência de restore, build, testes, lint e validação do Comp
 
 ## Exemplo e MVP
 
-Workflow planejado:
+Definição de exemplo (execução prevista para as fases da engine):
 
 ```text
 Webhook → Condition (total > 100)
@@ -156,7 +157,9 @@ A versão de portfólio termina na Fase 16, com interface/editor, autenticação
 - HTTP Node começa com allowlist e proteção contra SSRF na resolução/conexão, além de timeout e limite de corpo.
 - Credenciais e contexto operacional terão proteção de chave fora do banco, separada dos snapshots sanitizados.
 
-Alternativas, trade-offs e formas de explicar essas escolhas em entrevista estão no [ADR 0001](docs/decisions/0001-architecture-and-scope.md).
+Alternativas, trade-offs e formas de explicar essas escolhas em entrevista estão no [ADR 0001](docs/decisions/0001-architecture-and-scope.md) e na [ADR 0002, sobre domínio e publicação](docs/decisions/0002-workflow-domain-and-publication.md).
+
+No domínio, um rascunho pode ficar incompleto enquanto é editado. Publicar exige exatamente um trigger, alcance de todos os nodes, ausência de ciclos e portas válidas. Condition tem uma conexão true e uma false; os ramos podem convergir. Publicações expõem valores imutáveis e coleções protegidas. Editar novamente cria outra versão, preservando o grafo anterior. O [contrato da Fase 2](docs/superpowers/specs/2026-10-09-phase-2-domain-design.md) define limites e as configurações declarativas de Condition/Transform; avaliar payloads fica para a Fase 9.
 
 ## Documentação e roadmap
 
@@ -165,6 +168,7 @@ Alternativas, trade-offs e formas de explicar essas escolhas em entrevista estã
 - [Roadmap técnico das 16 fases](docs/roadmap.md)
 - [Decisões e alternativas](docs/decisions/0001-architecture-and-scope.md)
 - [Revisão e validações da Fase 1](docs/phase-1-review.md)
+- [Revisão e validações da Fase 2](docs/phase-2-review.md)
 
 Novos commits usam mensagens curtas e descritivas em português, sem qualquer prefixo; o histórico existente é preservado. A preferência pela conta gabxw e as demais regras do projeto estão em [AGENTS.md](AGENTS.md).
 
