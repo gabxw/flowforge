@@ -8,7 +8,7 @@ using Npgsql;
 
 namespace FlowForge.Api;
 
-internal sealed class ApiExceptionHandler(IProblemDetailsService problems) : IExceptionHandler
+internal sealed class ApiExceptionHandler : IExceptionHandler
 {
     public async ValueTask<bool> TryHandleAsync(HttpContext context, Exception exception, CancellationToken cancellationToken)
     {
@@ -32,6 +32,8 @@ internal sealed class ApiExceptionHandler(IProblemDetailsService problems) : IEx
         context.Response.StatusCode = status;
         var problem = new ProblemDetails { Status = status, Title = title, Detail = detail };
         if (exception is WorkflowValidationException validation) problem.Extensions["errors"] = validation.Errors;
-        return await problems.TryWriteAsync(new ProblemDetailsContext { HttpContext = context, ProblemDetails = problem });
+        // Results.Problem fornece fallback JSON mesmo quando Accept recusa o writer padrão.
+        await Results.Problem(problem).ExecuteAsync(context);
+        return true;
     }
 }

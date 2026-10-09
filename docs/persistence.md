@@ -1,6 +1,6 @@
 # Operar a persistência da Fase 3
 
-A API e o Worker continuam iniciando sem conexão ao banco. Esta fase disponibiliza adaptadores e migrations; os testes são a primeira composição real. Não há seed automático de usuário, endpoint CRUD ou credenciais de login.
+A Fase 3 disponibilizou adaptadores e migrations. A Fase 4 compõe a API com esses stores; veja [operação e contrato HTTP](api.md). Criar workflow assegura o usuário técnico configurado no servidor, sem senha/login. O Worker ainda não utiliza o banco.
 
 ## Verificação completa
 
@@ -13,7 +13,7 @@ dotnet build FlowForge.slnx -c Release --no-restore
 dotnet test FlowForge.slnx -c Release --no-build
 ~~~
 
-Para executar somente regras que não exigem banco, use Domain.Tests e Api.Tests. A suíte inteira de IntegrationTests inclui o container real; não desabilite esses testes no CI para obter um resultado verde.
+Api.Tests agora também contém integração HTTP com PostgreSQL. Para verificar somente regras sem Docker, execute Domain.Tests e filtre Api.Tests por BootstrapTests, RuntimeContractTests ou WorkflowCommandTests. A suíte inteira exige containers reais; não desabilite esses testes no CI para obter um resultado verde.
 
 ## Verificar e gerar migrations
 
@@ -39,11 +39,11 @@ dotnet ef database update --project src/FlowForge.Infrastructure --startup-proje
 Remove-Item Env:FLOWFORGE_POSTGRES_CONNECTION_STRING
 ~~~
 
-Esse comando exige um banco acessível pelo host. O Compose atual mantém PostgreSQL sem porta publicada e não é alterado por esses exemplos. Para esse ambiente, aplique o SQL revisado por uma ferramenta administrativa dentro da rede Docker. Não abra portas ou reutilize credenciais de produção para os testes. Nenhum banco existente foi alterado para implementar esta fase.
+Esse comando exige um banco acessível pelo host. No Compose, PostgreSQL permanece sem porta publicada; scripts/migrate-compose.ps1 gera SQL idempotente e aplica por psql dentro do container, com opção -GenerateOnly para revisão. Não abra portas ou reutilize credenciais de produção para os testes.
 
 ## Uso dos adaptadores
 
-Na composição futura, configure IDbContextFactory<FlowForgeDbContext> com UseNpgsql e injete PostgresWorkflowStore/PostgresTechnicalUserStore. Cada operação cria e descarta seu próprio DbContext. Não habilite sensitive-data logging.
+A API configura IDbContextFactory<FlowForgeDbContext> com UseNpgsql e injeta PostgresWorkflowStore/PostgresTechnicalUserStore. Cada operação cria e descarta seu próprio DbContext. Não habilite sensitive-data logging.
 
 EnsureExistsAsync cria somente o proprietário técnico, preservando o CreatedAt original quando repetido. Get e List sempre recebem o proprietário; Save recebe o agregado alterado e a revisão originalmente lida. Em WorkflowConcurrencyException, recarregue o estado e trate a decisão de edição no caso de uso. Um novo DbContext é usado após falhas; não tente salvar o mesmo contexto que sofreu erro SQL.
 

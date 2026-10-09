@@ -27,7 +27,10 @@ builder.Services.AddWorkflowRuntime();
 
 var app = builder.Build();
 app.UseExceptionHandler();
-app.UseStatusCodePages();
+app.UseStatusCodePages(async status => await Results.Problem(
+    statusCode: status.HttpContext.Response.StatusCode,
+    title: "Requisição não atendida.",
+    detail: "Verifique o caminho e o método HTTP.").ExecuteAsync(status.HttpContext));
 
 // Liveness não depende de configuração, conectividade ou migrations do banco.
 app.MapHealthChecks("/health/live");

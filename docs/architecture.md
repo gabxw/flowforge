@@ -1,6 +1,6 @@
 # Arquitetura e escopo do FlowForge
 
-Status: Fases 1 e 2 concluídas. A Fase 3 implementa adaptadores de persistência PostgreSQL e migrations, com validação registrada em [phase-3-review.md](phase-3-review.md). Composição HTTP, mensageria, executores e autenticação continuam nas fases indicadas.
+Status: Fases 1 a 3 concluídas; Fase 4 implementa API privada composta com PostgreSQL, casos de uso, revisão otimista e DTOs próprios. Validação final em [phase-4-review.md](phase-4-review.md). Mensageria, executores e autenticação continuam nas fases indicadas.
 
 ## Problema e requisitos
 
@@ -68,7 +68,7 @@ flowchart LR
     W --> E[Destinos HTTP autorizados]
 ```
 
-A imagem mostra o fluxo previsto a partir da Fase 5. Os hosts atuais apenas inicializam; não acessam PostgreSQL ou RabbitMQ.
+A imagem mostra o fluxo previsto a partir da Fase 5. A API já acessa PostgreSQL para definições; Worker, outbox e RabbitMQ ainda não integram o processamento.
 
 ### Projetos .NET e dependências
 
@@ -82,7 +82,7 @@ A imagem mostra o fluxo previsto a partir da Fase 5. Os hosts atuais apenas inic
 | FlowForge.Domain.Tests | Testes de definições, DAG, publicação e transições | Domain |
 | FlowForge.Application.Tests | Testes de casos de uso e engine quando existirem | Application, Domain |
 | FlowForge.Api.Tests | Smoke de inicialização e integração HTTP | Api |
-| FlowForge.IntegrationTests (futuro) | Adaptadores e Worker com serviços reais | Hosts e adaptadores sob teste |
+| FlowForge.IntegrationTests | Adaptadores, schema e PostgreSQL real; Worker em fase futura | Hosts e adaptadores sob teste |
 
 Api e Worker são composition roots: podem conhecer implementações para registrar dependências, mas regras de negócio ficam fora deles. Domain não referencia ASP.NET Core, EF Core ou RabbitMQ. Application não acessa diretamente HttpContext, DbContext ou canais AMQP.
 
@@ -210,4 +210,4 @@ A arquitetura deve crescer a partir de medições e requisitos: primeiro execuç
 
 ## Persistência implementada na Fase 3
 
-Portas de armazenamento em Application, registros EF internos em Infrastructure e reidratação validada em Domain mantêm as regras independentes do banco. A gravação compara a revisão esperada e preserva o histórico sob uma transação; a leitura detalhada usa Repeatable Read. API/Worker ainda não compõem esses adaptadores. Alternativas, custos e roteiro para entrevista: [ADR 0003](decisions/0003-postgresql-persistence.md).
+Portas de armazenamento em Application, registros EF internos em Infrastructure e reidratação validada em Domain mantêm as regras independentes do banco. A gravação compara a revisão esperada e preserva o histórico sob uma transação; a leitura detalhada usa Repeatable Read. A API compõe esses adaptadores desde a Fase 4; o Worker permanece sem persistência. Alternativas e custos: [ADR 0003](decisions/0003-postgresql-persistence.md) e [ADR 0004](decisions/0004-private-workflow-api.md).

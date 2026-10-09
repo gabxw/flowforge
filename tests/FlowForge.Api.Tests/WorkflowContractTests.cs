@@ -44,6 +44,7 @@ public sealed class WorkflowContractTests(WorkflowApiFixture fixture)
     [InlineData("{\"type\":\"condition\",\"sourcePointer\":\"/x\",\"operation\":\"greaterThan\",\"expectedValue\":1e100}")]
     [InlineData("{\"type\":\"transformJson\",\"fields\":[{\"targetProperty\":\"x\"}]}")]
     [InlineData("{\"type\":\"transformJson\",\"fields\":[{\"targetProperty\":\"x\",\"sourcePointer\":\"\",\"literal\":null}]}")]
+    [InlineData("{\"type\":\"transformJson\",\"fields\":[{\"targetProperty\":\"x\",\"literal\":{\"a\":1,\"a\":2}}]}")]
     [InlineData("null")]
     public async Task Invalid_node_configuration_is_rejected_without_saving(string configuration)
     {

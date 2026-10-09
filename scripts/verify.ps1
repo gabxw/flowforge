@@ -29,7 +29,7 @@ try {
 
     Invoke-Check 'docker' @('compose', 'config', '--quiet')
     Write-Host 'Build, tests, frontend and Compose configuration checks passed.'
-    Write-Host 'Run docker compose up, then scripts/smoke-compose.ps1 to verify containers.'
+    Write-Host 'Depois de docker compose up, execute migrate-compose.ps1, smoke-compose.ps1 e smoke-workflows.ps1.'
 } finally {
     Pop-Location
 }

@@ -1,6 +1,6 @@
 # Roadmap técnico
 
-O trabalho é incremental. Cada fase entrega um comportamento executável, documentação atualizada e revisão técnica antes da próxima. As Fases 1, 2 e 3 estão concluídas e integradas à main; as evidências mais recentes estão em [phase-3-review.md](phase-3-review.md). As Fases 4 a 16 permanecem planejadas.
+O trabalho é incremental. Cada fase entrega um comportamento executável, documentação atualizada e revisão técnica antes da próxima. As Fases 1 a 3 estão concluídas; a Fase 4 está implementada em validação final, com evidências em [phase-4-review.md](phase-4-review.md). As Fases 5 a 16 permanecem planejadas.
 
 Não se avança só porque uma pasta ou endpoint existe. O critério de saída inclui build, testes pertinentes e verificação do comportamento anunciado. Uma verificação impedida pelo ambiente permanece pendente e deve ser informada; ela não equivale a um resultado aprovado.
 
@@ -65,6 +65,8 @@ Revisão: transações curtas, índices ligados a consultas reais e comportament
 Commit sugerido: Persistir versões de workflows no PostgreSQL.
 
 ## Fase 4 — API CRUD de workflows
+
+Status: implementada, em validação final. Contrato e operação em [api.md](api.md), decisão em [ADR 0004](decisions/0004-private-workflow-api.md), evidências em [phase-4-review.md](phase-4-review.md).
 
 Entregas: criar/listar/editar rascunho, consultar detalhe, publicar e arquivar; DTOs, paginação, validação de transporte, Problem Details e OpenAPI. Proprietário técnico explícito enquanto o ambiente continuar privado.
 

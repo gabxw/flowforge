@@ -1,6 +1,6 @@
 name: flowforge
 
-# Local development only. No workflow processing or persistence integration in phase 1.
+# Ambiente privado/local; API persiste definições. Migrations são uma operação explícita.
 services:
   api:
     build:
@@ -9,8 +9,18 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_HTTP_PORTS: 8080
+      FlowForge__TechnicalOwnerId: ${FLOWFORGE_TECHNICAL_OWNER_ID:-843ca847-7868-4d1c-bd21-fc1db0d224a7}
+      FlowForge__Postgres__Host: postgres
+      FlowForge__Postgres__Database: flowforge
+      FlowForge__Postgres__Username: flowforge
+      FlowForge__Postgres__PasswordFile: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
-      - "127.0.0.1:5080:8080"
+      - "127.0.0.1:${FLOWFORGE_API_PORT:-5080}:8080"
     init: true
     stop_grace_period: 15s
 
@@ -66,7 +76,7 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
     ports:
-      - "127.0.0.1:5173:8080"
+      - "127.0.0.1:${FLOWFORGE_FRONTEND_PORT:-5173}:8080"
     depends_on:
       api:
         condition: service_started

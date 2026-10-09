@@ -52,7 +52,7 @@ internal static class WorkflowEndpoints
                 request.Nodes.Select(WorkflowTransport.ToDefinition).ToArray(),
                 request.Connections.Select(WorkflowTransport.ToDefinition).ToArray(), ct)));
         }).WithName("ReplaceWorkflowDraft").Accepts<ReplaceDraftRequest>("application/json")
-            .Produces<WorkflowDto>().Errors(400, 404, 409, 422, 503);
+            .Produces<WorkflowDto>().Errors(400, 404, 409, 415, 422, 503);
 
         group.MapPost("/{id:guid}/publish", async (Guid id, RevisionRequest request, WorkflowService service, TechnicalOwner owner, CancellationToken ct) =>
             Results.Ok(WorkflowTransport.ToDto(await service.PublishAsync(owner.Id, id, request.ExpectedRevision, ct))))

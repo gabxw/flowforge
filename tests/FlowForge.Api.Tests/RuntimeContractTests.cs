@@ -1,8 +1,11 @@
 using System.Net;
 using System.Text.Json;
+using FlowForge.Application.Workflows;
+using FlowForge.Domain.Workflows;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 using static FlowForge.Api.Tests.WorkflowEndpointTests;
 
@@ -10,6 +13,29 @@ namespace FlowForge.Api.Tests;
 
 public sealed class RuntimeContractTests
 {
+    [Fact]
+    public async Task Errors_remain_sanitized_problem_details_when_Accept_prefers_plain_text_in_Development()
+    {
+        await using var api = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment("Development");
+            builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["FlowForge:TechnicalOwnerId"] = Guid.NewGuid().ToString(),
+                ["FLOWFORGE_POSTGRES_CONNECTION_STRING"] = "Host=127.0.0.1;Database=unused"
+            }));
+            builder.ConfigureServices(services => services.AddScoped<IWorkflowStore, FailingStore>());
+        });
+        using var client = api.CreateClient();
+        client.DefaultRequestHeaders.Accept.ParseAdd("text/plain");
+        using var error = await client.GetAsync("/api/workflows");
+        var problem = await Problem(error, HttpStatusCode.InternalServerError);
+        Assert.DoesNotContain("secret-sentinel", problem.ToJsonString());
+        Assert.DoesNotContain(nameof(InvalidOperationException), problem.ToJsonString());
+        using var missing = await client.GetAsync("/route-that-does-not-exist");
+        await Problem(missing, HttpStatusCode.NotFound);
+    }
+
     [Theory]
     [InlineData(null, null)]
     [InlineData("invalid-owner", "Host=127.0.0.1;Database=unused")]
@@ -58,5 +84,14 @@ public sealed class RuntimeContractTests
         var configurations = schemas.EnumerateObject().Single(p => p.Name == "ConfigurationDto").Value;
         Assert.Equal("type", configurations.GetProperty("discriminator").GetProperty("propertyName").GetString());
         Assert.Equal(6, configurations.GetProperty("discriminator").GetProperty("mapping").EnumerateObject().Count());
+    }
+
+    private sealed class FailingStore : IWorkflowStore
+    {
+        public Task AddAsync(Workflow workflow, CancellationToken cancellationToken = default) => throw new InvalidOperationException("secret-sentinel");
+        public Task<Workflow?> GetAsync(Guid workflowId, Guid ownerUserId, CancellationToken cancellationToken = default) => throw new InvalidOperationException("secret-sentinel");
+        public Task SaveAsync(Workflow workflow, int expectedRevision, CancellationToken cancellationToken = default) => throw new InvalidOperationException("secret-sentinel");
+        public Task<IReadOnlyList<WorkflowSummary>> ListAsync(Guid ownerUserId, int offset = 0, int limit = 20, bool includeArchived = false,
+            CancellationToken cancellationToken = default) => throw new InvalidOperationException("secret-sentinel");
     }
 }

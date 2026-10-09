@@ -6,13 +6,13 @@ O problema central é aceitar eventos rapidamente e processar etapas externas de
 
 ## Estado atual
 
-**Fases 1, 2 e 3 concluídas e integradas à main.**
+**Fases 1, 2 e 3 concluídas. Fase 4 implementada, em validação final.**
 
-Disponível: solução .NET, API com liveness e OpenAPI, host Worker, shell React, Dockerfiles, Compose, testes de inicialização e CI. A Fase 2 acrescenta definições tipadas, validação de DAG, ciclo de rascunho/publicação/arquivamento e políticas iniciais de transição no Domain. A Fase 3 adiciona persistência EF Core/PostgreSQL, migrations e testes com Testcontainers. API/Worker ainda não usam esses adaptadores. CRUD HTTP, consumers, engine, autenticação e editor pertencem às próximas fases.
+Disponível: API privada para criar/listar/editar/publicar/arquivar workflows, domínio tipado com validação de DAG, persistência EF Core/PostgreSQL, migrations explícitas, Problem Details e OpenAPI. Há testes HTTP com banco real, controle de revisão e isolamento por proprietário técnico do servidor. Worker e frontend continuam como hosts iniciais; consumers, engine, autenticação e editor pertencem às próximas fases.
 
-A persistência foi integrada pelo [PR #1](https://github.com/gabxw/flowforge/pull/1), no commit [a91327f](https://github.com/gabxw/flowforge/commit/a91327fa4c8b1cc601bfc19a6946d697b064c8eb). A [validação da main](https://github.com/gabxw/flowforge/actions/runs/37973035349) aprovou backend, frontend e containers: restore travado com auditoria online, build Release, verificação das migrations e **781 testes xUnit sem falhas ou testes ignorados** (726 Domain + 3 API + 52 Integration, incluindo 27 com PostgreSQL real). Lint/build/auditoria do frontend e smoke do Compose também passaram.
+A base da Fase 3 foi integrada pelo [PR #1](https://github.com/gabxw/flowforge/pull/1), com [CI aprovado](https://github.com/gabxw/flowforge/actions/runs/37973035349). A Fase 4 passou localmente em **849 testes xUnit** (726 Domain + 71 API + 52 Integration), incluindo PostgreSQL real, sem falhas ou ignorados. O roteiro e as evidências atuais estão na [revisão da Fase 4](docs/phase-4-review.md).
 
-Os lockfiles NuGet e npm são versionados. Localmente, build Release sem avisos/erros e 754 testes sem banco foram aprovados; a sessão não teve acesso ao Docker local, e os testes com PostgreSQL foram confirmados no CI. As revisões das [Fases 1](docs/phase-1-review.md), [2](docs/phase-2-review.md) e [3](docs/phase-3-review.md) preservam resultados, decisões e limites.
+Os lockfiles NuGet e npm são versionados. As revisões das [Fases 1](docs/phase-1-review.md), [2](docs/phase-2-review.md) e [3](docs/phase-3-review.md) preservam o histórico; a [operação da API](docs/api.md) descreve o contrato e o exemplo executável atual.
 
 ## Arquitetura
 
@@ -30,7 +30,7 @@ flowchart LR
     Worker --> HTTP[Destinos HTTP autorizados]
 ```
 
-O diagrama representa o sistema planejado a partir da Fase 5. Os hosts atuais verificam inicialização; as regras de domínio são exercitadas por testes unitários.
+O diagrama representa o sistema planejado a partir da Fase 5. A API já persiste definições no PostgreSQL; outbox, mensageria, webhook e execução pelo Worker ainda são planejados.
 
 ```text
 FlowForge.slnx
@@ -42,7 +42,7 @@ src/
   FlowForge.Worker/          # Host de processamento assíncrono
 tests/
   FlowForge.Domain.Tests/    # Definições, DAG, publicação e transições
-  FlowForge.Api.Tests/       # Smoke do host com xUnit
+  FlowForge.Api.Tests/       # Contrato HTTP, casos de uso e PostgreSQL real
   FlowForge.IntegrationTests/ # Codec, schema, stores e PostgreSQL real
 frontend/                   # React/TypeScript/Vite/Tailwind
 docs/                       # Arquitetura, modelo, ADR e roadmap
@@ -51,7 +51,7 @@ scripts/                    # Verificações e smoke do Compose
 compose.yaml
 ```
 
-Domain não referencia outros projetos ou pacotes externos. Application referencia Domain; Infrastructure referencia Application/Domain; API e Worker referenciam Application/Infrastructure para compor dependências. Application expõe portas específicas de armazenamento; Infrastructure implementa os adaptadores PostgreSQL e o codec de configuração. Casos de uso HTTP entram na Fase 4.
+Domain não referencia outros projetos ou pacotes externos. Application referencia Domain e coordena casos de uso/portas de armazenamento; Infrastructure implementa PostgreSQL e o codec. API compõe dependências e converte DTOs HTTP, mantendo regras fora dos endpoints.
 
 ## Stack e entrada por fase
 
@@ -83,15 +83,17 @@ $env:FLOWFORGE_POSTGRES_PASSWORD = [System.Net.NetworkCredential]::new(
   '', (Read-Host 'Senha local do PostgreSQL' -AsSecureString)
 ).Password
 
-docker compose up
+docker compose up --build --detach --wait
+.\scripts\migrate-compose.ps1
 ```
 
-A variável fornece um Docker Compose secret, montado como arquivo no container. O Compose contém somente seu nome. Use o mesmo segredo enquanto reutilizar o volume PostgreSQL: trocar a variável não altera a senha de um banco já inicializado. Não execute comandos de diagnóstico que imprimam valores de secrets.
+A variável fornece um Docker Compose secret, montado em API/PostgreSQL. Use o mesmo segredo enquanto reutilizar o volume: trocar a variável não altera a senha de um banco já inicializado. Migrations exigem SDK .NET 10 e PowerShell 7; use -GenerateOnly para revisar .local/migrations.sql antes de aplicar. Não há migration automática no startup. Detalhes em [docs/api.md](docs/api.md).
 
 | Endereço | Finalidade |
 | --- | --- |
 | http://127.0.0.1:5173 | Shell frontend e consulta de liveness via proxy |
 | http://127.0.0.1:5080/health/live | API liveness |
+| http://127.0.0.1:5080/api/workflows | API privada de workflows |
 | http://127.0.0.1:5080/openapi/v1.json | OpenAPI em Development |
 
 O frontend repete a checagem de inicialização durante uma janela limitada. Liveness confirma que a API responde; não afirma prontidão de banco/fila.
@@ -102,11 +104,12 @@ Quando os serviços estiverem ativos:
 
 ```powershell
 .\scripts\smoke-compose.ps1
+.\scripts\smoke-workflows.ps1
 ```
 
-O smoke verifica HTTP direto e pelo proxy do frontend. Os scripts locais preservam os volumes Docker. No CI, a limpeza com `docker compose down --volumes` ocorre somente no runner descartável.
+O primeiro smoke verifica host/proxy. O segundo percorre criação, edição, erros, publicação dos seis tipos, nova versão e arquivamento com PostgreSQL; deixa um exemplo arquivado, sem executar nodes. Os scripts locais preservam volumes. No CI, down --volumes ocorre somente no runner descartável.
 
-## Executar e verificar sem Docker
+## Executar hosts no computador e verificar
 
 Pré-requisitos: SDK .NET 10 e Node.js 22.12 ou posterior na linha 22. Os hosts iniciam sem banco/fila. A suíte completa agora exige Docker para os testes de integração da persistência; veja [como operar migrations e testes](docs/persistence.md).
 
@@ -127,7 +130,7 @@ npm run build
 npm run dev
 ```
 
-O proxy Vite encaminha /api para http://localhost:5080. Em Docker, Nginx encaminha para api:8080. Assim, o scaffold não precisa de CORS irrestrito.
+Vite encaminha /api para http://localhost:5080 e Nginx para api:8080, preservando o prefixo. O shell continua usando /api/health/live; não é necessário CORS irrestrito.
 
 Use `npm ci` no frontend e `dotnet restore --locked-mode` no backend. Os scripts, o CI e os Dockerfiles usam esses comandos para validar os manifests contra os lockfiles. Ao alterar dependências deliberadamente, regenere os locks com `npm install` ou `dotnet restore --force-evaluate`, revise o diff e versione os arquivos juntos.
 
@@ -173,6 +176,9 @@ No domínio, um rascunho pode ficar incompleto enquanto é editado. Publicar exi
 - [Persistência, migrations e testes](docs/persistence.md)
 - [Decisões da persistência](docs/decisions/0003-postgresql-persistence.md)
 - [Revisão e validações da Fase 3](docs/phase-3-review.md)
+- [Operação e contrato HTTP](docs/api.md)
+- [Decisão da API privada e revisão](docs/decisions/0004-private-workflow-api.md)
+- [Revisão e validações da Fase 4](docs/phase-4-review.md)
 
 Novos commits usam mensagens curtas e descritivas em português, sem qualquer prefixo; o histórico existente é preservado. A preferência pela conta gabxw e as demais regras do projeto estão em [AGENTS.md](AGENTS.md).
 

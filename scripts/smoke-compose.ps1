@@ -1,11 +1,14 @@
 [CmdletBinding()]
-param()
+param(
+    [string] $ApiBaseUri = 'http://127.0.0.1:5080',
+    [string] $FrontendBaseUri = 'http://127.0.0.1:5173'
+)
 
 $ErrorActionPreference = 'Stop'
 $targets = @(
-    @{ Uri = 'http://127.0.0.1:5080/health/live'; ExpectedText = 'Healthy' },
-    @{ Uri = 'http://127.0.0.1:5173/api/health/live'; ExpectedText = 'Healthy' },
-    @{ Uri = 'http://127.0.0.1:5173/'; ExpectedText = 'id="root"' }
+    @{ Uri = "$ApiBaseUri/health/live"; ExpectedText = 'Healthy' },
+    @{ Uri = "$FrontendBaseUri/api/health/live"; ExpectedText = 'Healthy' },
+    @{ Uri = "$FrontendBaseUri/"; ExpectedText = 'id="root"' }
 )
 
 foreach ($target in $targets) {
@@ -16,4 +19,4 @@ foreach ($target in $targets) {
     Write-Host "PASS $($target.Uri)"
 }
 
-Write-Host 'HTTP smoke passed. This checks phase 1 liveness and proxy, not database/broker integration.'
+Write-Host 'Liveness, shell e proxy aprovados. Use smoke-workflows.ps1 para verificar a API e o PostgreSQL.'
