@@ -1,0 +1,142 @@
+name: Validação da Fase 1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/**
+      - tests/**
+      - frontend/**
+      - scripts/**
+      - "*.slnx"
+      - global.json
+      - Directory.Build.props
+      - NuGet.Config
+      - compose.yaml
+      - .github/workflows/**
+  pull_request:
+    paths:
+      - src/**
+      - tests/**
+      - frontend/**
+      - scripts/**
+      - "*.slnx"
+      - global.json
+      - Directory.Build.props
+      - NuGet.Config
+      - compose.yaml
+      - .github/workflows/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Build e testes do backend
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2 # v5.3.0
+        with:
+          dotnet-version: 10.0.x
+      - name: Restaurar dependências
+        id: restaurar
+        run: dotnet restore FlowForge.slnx
+      - name: Compilar solução
+        run: dotnet build FlowForge.slnx -c Release --no-restore
+      - name: Executar testes
+        run: dotnet test FlowForge.slnx -c Release --no-build --logger trx --results-directory TestResults
+      - name: Guardar lockfiles e resultados
+        if: ${{ !cancelled() && steps.restaurar.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: validacao-backend
+          path: |
+            src/**/packages.lock.json
+            tests/**/packages.lock.json
+            TestResults/*.trx
+          retention-days: 7
+
+  frontend:
+    name: Lint e build do frontend
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Instalar dependências
+        id: instalar
+        run: |
+          if test -f package-lock.json; then npm ci; else npm install; fi
+      - name: Executar lint
+        run: npm run lint
+      - name: Compilar frontend
+        run: npm run build
+      - name: Auditar dependências
+        run: npm audit --audit-level=high
+      - name: Guardar lockfile
+        if: ${{ !cancelled() && steps.instalar.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: validacao-frontend
+          path: frontend/package-lock.json
+          retention-days: 7
+
+  containers:
+    name: Ambiente Docker e encerramento do Worker
+    needs: [backend, frontend]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - name: Validar ambiente completo
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:FLOWFORGE_POSTGRES_PASSWORD = [Guid]::NewGuid().ToString('N')
+          function Invoke-Check([string[]] $Arguments) {
+            & docker @Arguments
+            if ($LASTEXITCODE -ne 0) { throw "Falha no comando Docker (código $LASTEXITCODE)." }
+          }
+          try {
+            Invoke-Check @('compose', 'config', '--quiet')
+            Invoke-Check @('compose', 'build')
+            Invoke-Check @('compose', 'run', '--rm', '--no-deps', 'frontend', 'nginx', '-t')
+            Invoke-Check @('compose', 'up', '--detach', '--wait', '--wait-timeout', '180')
+            ./scripts/smoke-compose.ps1
+            $workerId = docker compose ps -q worker
+            if ($LASTEXITCODE -ne 0 -or -not $workerId) { throw 'Worker não foi criado.' }
+            $workerRunning = docker inspect -f '{{.State.Running}}' $workerId
+            if ($LASTEXITCODE -ne 0 -or $workerRunning -ne 'true') { throw 'Worker não está ativo.' }
+            Invoke-Check @('compose', 'up', '--detach', '--force-recreate', '--no-deps', 'api')
+            $proxyOk = $false
+            for ($attempt = 0; $attempt -lt 30; $attempt++) {
+              try {
+                $response = Invoke-WebRequest 'http://localhost:5173/api/health/live' -TimeoutSec 2
+                if ($response.StatusCode -eq 200 -and $response.Content -eq 'Healthy') { $proxyOk = $true; break }
+              } catch {}
+              Start-Sleep -Milliseconds 500
+            }
+            if (-not $proxyOk) { throw 'Proxy não recuperou após recriação da API.' }
+            Invoke-Check @('compose', '--profile', 'redis', 'up', '--detach', '--wait', '--wait-timeout', '60', 'redis')
+            Invoke-Check @('compose', 'stop', '--timeout', '10', 'worker')
+            $workerExit = docker inspect -f '{{.State.Status}}:{{.State.ExitCode}}:{{.State.OOMKilled}}' $workerId
+            if ($LASTEXITCODE -ne 0 -or $workerExit -ne 'exited:0:false') { throw 'Worker não encerrou normalmente.' }
+            Write-Host 'Ambiente, proxy e encerramento do Worker aprovados.'
+          } finally {
+            Invoke-Check @('compose', '--profile', 'redis', 'down', '--remove-orphans', '--volumes')
+          }
