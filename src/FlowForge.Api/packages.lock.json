@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0": {
+      "Microsoft.AspNetCore.OpenApi": {
+        "type": "Direct",
+        "requested": "[10.0.12, )",
+        "resolved": "10.0.12",
+        "contentHash": "7RnQ/UKn+kK3JDLmTpW+vVqNErWthGPAVAy1aIiBzv4ucQ6g9NFvOJUuT0PHcpvcJxGVxctMxj6t+NESWMrgHQ==",
+        "dependencies": {
+          "Microsoft.OpenApi": "[2.12.0, 3.0.0)"
+        }
+      },
+      "Microsoft.OpenApi": {
+        "type": "Transitive",
+        "resolved": "2.12.0",
+        "contentHash": "0xB/be+f6qYOhvQPUrVsLrau+fkowYv6gt9RIkajMhwT7sZnqtcA797yW3bS5kgSje+AQW4xZgyLnW641YFioQ=="
+      },
+      "flowforge.application": {
+        "type": "Project",
+        "dependencies": {
+          "FlowForge.Domain": "[1.0.0, )"
+        }
+      },
+      "flowforge.domain": {
+        "type": "Project"
+      },
+      "flowforge.infrastructure": {
+        "type": "Project",
+        "dependencies": {
+          "FlowForge.Application": "[1.0.0, )",
+          "FlowForge.Domain": "[1.0.0, )"
+        }
+      }
+    }
+  }
+}
