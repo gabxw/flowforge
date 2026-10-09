@@ -25,6 +25,17 @@ public sealed class WorkflowVersion
     public IReadOnlyList<WorkflowNode> Nodes { get; private set; }
     public IReadOnlyList<WorkflowConnection> Connections { get; private set; }
 
+    internal static WorkflowVersion Restore(Guid id, Guid workflowId, Guid ownerUserId,
+        int versionNumber, DateTimeOffset createdAt, DateTimeOffset? publishedAt,
+        WorkflowVersionStatus status, int revision, IReadOnlyList<WorkflowNode> nodes,
+        IReadOnlyList<WorkflowConnection> connections) =>
+        new(id, workflowId, ownerUserId, versionNumber, createdAt, nodes, connections)
+        {
+            Status = status,
+            PublishedAt = publishedAt,
+            Revision = revision
+        };
+
     internal void ReplaceGraph(IReadOnlyList<WorkflowNode> nodes, IReadOnlyList<WorkflowConnection> connections,
         int revision)
     {
