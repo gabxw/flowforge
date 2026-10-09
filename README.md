@@ -6,13 +6,13 @@ O problema central é aceitar eventos rapidamente e processar etapas externas de
 
 ## Estado atual
 
-**Fases 1 e 2 concluídas; Fase 3 aprovada no CI, aguardando integração à main.**
+**Fases 1, 2 e 3 concluídas e integradas à main.**
 
 Disponível: solução .NET, API com liveness e OpenAPI, host Worker, shell React, Dockerfiles, Compose, testes de inicialização e CI. A Fase 2 acrescenta definições tipadas, validação de DAG, ciclo de rascunho/publicação/arquivamento e políticas iniciais de transição no Domain. A Fase 3 adiciona persistência EF Core/PostgreSQL, migrations e testes com Testcontainers. API/Worker ainda não usam esses adaptadores. CRUD HTTP, consumers, engine, autenticação e editor pertencem às próximas fases.
 
-A [execução do CI da Fase 2](https://github.com/gabxw/flowforge/actions/runs/37960021364), no commit [544fb9b](https://github.com/gabxw/flowforge/commit/544fb9b8048db9b137bbf034566c369d5697dcf5), aprovou os três jobs: backend, frontend e containers. Restore travado/build da solução completa e 685 testes xUnit passaram; npm ci, lint/build do frontend e auditoria npm passaram; imagens, Compose, proxy HTTP, recriação da API, profile Redis e encerramento do Worker foram verificados.
+A persistência foi integrada pelo [PR #1](https://github.com/gabxw/flowforge/pull/1), no commit [a91327f](https://github.com/gabxw/flowforge/commit/a91327fa4c8b1cc601bfc19a6946d697b064c8eb). A [validação da main](https://github.com/gabxw/flowforge/actions/runs/37973035349) aprovou backend, frontend e containers: restore travado com auditoria online, build Release, verificação das migrations e **781 testes xUnit sem falhas ou testes ignorados** (726 Domain + 3 API + 52 Integration, incluindo 27 com PostgreSQL real). Lint/build/auditoria do frontend e smoke do Compose também passaram.
 
-Os lockfiles NuGet e npm são versionados e verificados contra os manifests. A verificação local do backend também passou, incluindo a main após integração, com build Release sem avisos/erros e 685 testes (682 Domain + 3 API). As revisões da [Fase 1](docs/phase-1-review.md) e da [Fase 2](docs/phase-2-review.md) registram evidências, decisões e riscos. A [revisão da Fase 3](docs/phase-3-review.md) registra os [781 testes aprovados no CI](https://github.com/gabxw/flowforge/actions/runs/37970990301), incluindo PostgreSQL real, migrations e os três jobs do ambiente.
+Os lockfiles NuGet e npm são versionados. Localmente, build Release sem avisos/erros e 754 testes sem banco foram aprovados; a sessão não teve acesso ao Docker local, e os testes com PostgreSQL foram confirmados no CI. As revisões das [Fases 1](docs/phase-1-review.md), [2](docs/phase-2-review.md) e [3](docs/phase-3-review.md) preservam resultados, decisões e limites.
 
 ## Arquitetura
 
