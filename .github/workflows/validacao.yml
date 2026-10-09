@@ -10,6 +10,7 @@ on:
       - scripts/**
       - "*.slnx"
       - global.json
+      - .config/dotnet-tools.json
       - Directory.Build.props
       - NuGet.Config
       - compose.yaml
@@ -23,6 +24,7 @@ on:
       - scripts/**
       - "*.slnx"
       - global.json
+      - .config/dotnet-tools.json
       - Directory.Build.props
       - NuGet.Config
       - compose.yaml
@@ -50,6 +52,14 @@ jobs:
         run: dotnet restore FlowForge.slnx --locked-mode
       - name: Compilar solução
         run: dotnet build FlowForge.slnx -c Release --no-restore
+      - name: Validar migrations
+        env:
+          FLOWFORGE_POSTGRES_CONNECTION_STRING: Host=127.0.0.1;Database=flowforge_design
+        run: |
+          dotnet tool restore
+          dotnet ef migrations has-pending-model-changes --project src/FlowForge.Infrastructure --startup-project src/FlowForge.Infrastructure --configuration Release --no-build
+          mkdir -p TestResults
+          dotnet ef migrations script --idempotent --project src/FlowForge.Infrastructure --startup-project src/FlowForge.Infrastructure --configuration Release --no-build --output TestResults/migrations.sql
       - name: Executar testes
         run: dotnet test FlowForge.slnx -c Release --no-build --logger trx --results-directory TestResults
       - name: Guardar lockfiles e resultados
@@ -61,6 +71,7 @@ jobs:
             src/**/packages.lock.json
             tests/**/packages.lock.json
             TestResults/*.trx
+            TestResults/migrations.sql
           retention-days: 7
 
   frontend:

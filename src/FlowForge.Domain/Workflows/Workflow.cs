@@ -1,6 +1,6 @@
 namespace FlowForge.Domain.Workflows;
 
-public sealed class Workflow
+public sealed partial class Workflow
 {
     private readonly List<WorkflowVersion> versions = [];
 

@@ -1,8 +1,16 @@
 # Modelo inicial de dados
 
-Status: modelo de persistência conceitual. A Fase 2 implementa as definições de Workflow, WorkflowVersion, WorkflowNode e WorkflowConnection em memória; DbContext, SQL, migrations, tabelas e acesso ao PostgreSQL permanecem para a Fase 3. As demais entidades entram nas fases indicadas. Campos redundantes para FKs e índices abaixo ainda serão traduzidos em mapeamentos/migrations revisados.
+Status: a Fase 3 implementa users (Id/CreatedAt), workflows, workflow_versions, workflow_nodes e workflow_connections. A validação real do incremento é registrada em [phase-3-review.md](phase-3-review.md). As demais entidades permanecem conceituais e entram nas fases indicadas.
 
 PostgreSQL é a fonte de verdade. UUID identifica os recursos; datas são instantes UTC, armazenados como timestamptz. Estados têm valores explícitos e transições validadas, sem depender da ordem numérica de enums. Configurações variáveis usam JSONB; identidade, ownership, relações e campos consultáveis usam colunas.
+
+## Schema implementado na Fase 3
+
+As cinco tabelas usam UUIDs definidos pelo domínio, timestamptz, nomes snake_case e NO ACTION nas FKs. Nodes têm PK composta (workflow_version_id, node_id); ambos os endpoints da conexão referenciam nodes da mesma versão. FKs compostas também mantêm versão/raiz/proprietário coerentes. O ponteiro opcional de publicação referencia uma versão do mesmo workflow/proprietário.
+
+Há UNIQUE de número de versão, índice parcial de um draft (status=1) por workflow, unicidade de porta de saída e ordinais para preservar a ordem das coleções. A listagem usa (owner_user_id, updated_at DESC, id DESC). Revisões são inteiros não negativos; checks cobrem status/datas, configurações schemaVersion=1, IDs não vazios e posições finitas.
+
+O codec é responsável pela forma completa da configuração; o domínio valida o DAG ao publicar/restaurar publicações. CredentialId é apenas uma referência, sem FK até existir o armazenamento seguro de credenciais. Consulte [ADR 0003](decisions/0003-postgresql-persistence.md) e [operação](persistence.md).
 
 ## Relações
 
