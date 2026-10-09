@@ -6,13 +6,13 @@ O problema central é aceitar eventos rapidamente e processar etapas externas de
 
 ## Estado atual
 
-**Fase 1: scaffold implementado; validação completa pendente.**
+**Fase 1: validações aprovadas no CI; reprodução com lockfiles ainda pendente.**
 
-Disponível: solução .NET, API com liveness e OpenAPI, host Worker, shell React, Dockerfiles, Compose e testes de inicialização escritos. API/Worker ainda não acessam PostgreSQL ou RabbitMQ. Não há entidades, migrations, CRUD, consumers, engine, autenticação ou editor.
+Disponível: solução .NET, API com liveness e OpenAPI, host Worker, shell React, Dockerfiles, Compose, testes de inicialização e CI inicial. API/Worker ainda não acessam PostgreSQL ou RabbitMQ. Não há entidades, migrations, CRUD, consumers, engine, autenticação ou editor.
 
-Verificado nesta sessão: build Release de API/Domain/Application/Infrastructure sem avisos; smoke HTTP de liveness e exposição de OpenAPI por ambiente; configuração do Compose válida.
+A [execução do CI](https://github.com/gabxw/flowforge/actions/runs/37936347802), no commit [31dc1b4](https://github.com/gabxw/flowforge/commit/31dc1b492ea82d523ad9ded38efbe2e0886f49a5), aprovou os três jobs: backend, frontend e containers. Restore/build da solução completa e 3 testes xUnit passaram; lint/build do frontend e npm audit com 0 vulnerabilidades passaram; imagens, Compose, proxy HTTP, recriação da API, profile Redis e encerramento do Worker foram verificados.
 
-Pendente: restaurar/compilar o Worker, executar xUnit, instalar/compilar/lintar o frontend e subir os containers. A sessão possui rede local restrita para npm/NuGet e acesso negado ao daemon Docker. Não são verificações aprovadas. Evidências e critérios de saída estão em [revisão da Fase 1](docs/phase-1-review.md).
+Pendente para encerrar a Fase 1: recuperar, revisar e versionar os lockfiles gerados como artefatos do CI e confirmar a reprodução com esses arquivos. As validações já aprovadas não substituem esse critério. Evidências e próximos passos estão na [revisão da Fase 1](docs/phase-1-review.md).
 
 ## Arquitetura
 
@@ -45,6 +45,7 @@ tests/
 frontend/                   # React/TypeScript/Vite/Tailwind
 docs/                       # Arquitetura, modelo, ADR e roadmap
 scripts/                    # Verificações e smoke do Compose
+.github/workflows/          # Validação inicial da Fase 1
 compose.yaml
 ```
 
@@ -65,9 +66,9 @@ Domain não referencia outros projetos. Application referencia Domain; Infrastru
 | React Flow | Editor visual na Fase 12 |
 | JWT / refresh tokens / RBAC | Fase 13 |
 | OpenTelemetry | Instrumentação consolidada na Fase 14 |
-| GitHub Actions | Pipeline consolidado na Fase 15 |
+| GitHub Actions | Validação inicial na Fase 1; ampliação e consolidação na Fase 15 |
 
-.NET 10 tem suporte LTS até novembro de 2028. global.json aceita SDKs estáveis da linha 10.0 a partir de 10.0.100, com rollForward latestFeature. Pacotes diretos têm versões explícitas; a reprodução completa dependerá também dos lockfiles e da revisão de imagens. [Política oficial do .NET](https://dotnet.microsoft.com/en-us/platform/support/policy)
+.NET 10 tem suporte LTS até novembro de 2028. global.json aceita SDKs estáveis da linha 10.0 a partir de 10.0.100, com rollForward latestFeature. Pacotes diretos têm versões explícitas; a reprodução com dependências travadas ainda depende da recuperação e do versionamento dos lockfiles. [Política oficial do .NET](https://dotnet.microsoft.com/en-us/platform/support/policy)
 
 ## Executar com Docker
 
@@ -101,7 +102,7 @@ Quando os serviços estiverem ativos:
 .\scripts\smoke-compose.ps1
 ```
 
-O smoke verifica HTTP direto e pelo proxy do frontend. Nenhum script remove volumes ou dados.
+O smoke verifica HTTP direto e pelo proxy do frontend. Os scripts locais preservam os volumes Docker. No CI, a limpeza com `docker compose down --volumes` ocorre somente no runner descartável.
 
 ## Executar e verificar sem Docker
 
@@ -126,7 +127,7 @@ npm run dev
 
 O proxy Vite encaminha /api para http://localhost:5080. Em Docker, Nginx encaminha para api:8080. Assim, o scaffold não precisa de CORS irrestrito.
 
-`npm install` é necessário no primeiro restore, pois a sessão restrita ainda não gerou package-lock.json. Após gerar e versionar esse arquivo, use `npm ci`. Lockfiles de Worker/testes NuGet também serão produzidos no primeiro restore bem-sucedido; não foram inventados. As versões e dependências transitivas do frontend continuam pendentes de instalação e validação.
+`npm install` permanece necessário enquanto package-lock.json não estiver recuperado e versionado. O CI gerou esse arquivo e os lockfiles NuGet restantes como artefatos; a recuperação, revisão e inclusão no repositório estão pendentes. Depois disso, use `npm ci` no frontend e valide o restore NuGet em modo travado. A instalação, o lint/build e a auditoria npm já passaram no CI.
 
 Para executar a sequência de restore, build, testes, lint e validação do Compose: `.\scripts\verify.ps1`. O script interrompe ao primeiro erro e não declara sucesso parcial como fase concluída.
 
@@ -164,5 +165,7 @@ Alternativas, trade-offs e formas de explicar essas escolhas em entrevista estã
 - [Roadmap técnico das 16 fases](docs/roadmap.md)
 - [Decisões e alternativas](docs/decisions/0001-architecture-and-scope.md)
 - [Revisão e validações da Fase 1](docs/phase-1-review.md)
+
+Novos commits usam mensagens curtas e descritivas em português, sem qualquer prefixo; o histórico existente é preservado. A preferência pela conta gabxw e as demais regras do projeto estão em [AGENTS.md](AGENTS.md).
 
 Screenshots reais serão adicionados depois que o fluxo funcional estiver disponível. O material atual não apresenta funcionalidades futuras como concluídas.
