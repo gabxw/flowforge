@@ -6,13 +6,13 @@ O problema central é aceitar eventos rapidamente e processar etapas externas de
 
 ## Estado atual
 
-**Fase 1: validações aprovadas no CI; reprodução com lockfiles ainda pendente.**
+**Fase 1 concluída: estrutura, ambiente Docker e reprodução com dependências travadas aprovados.**
 
 Disponível: solução .NET, API com liveness e OpenAPI, host Worker, shell React, Dockerfiles, Compose, testes de inicialização e CI inicial. API/Worker ainda não acessam PostgreSQL ou RabbitMQ. Não há entidades, migrations, CRUD, consumers, engine, autenticação ou editor.
 
-A [execução do CI](https://github.com/gabxw/flowforge/actions/runs/37936347802), no commit [31dc1b4](https://github.com/gabxw/flowforge/commit/31dc1b492ea82d523ad9ded38efbe2e0886f49a5), aprovou os três jobs: backend, frontend e containers. Restore/build da solução completa e 3 testes xUnit passaram; lint/build do frontend e npm audit com 0 vulnerabilidades passaram; imagens, Compose, proxy HTTP, recriação da API, profile Redis e encerramento do Worker foram verificados.
+A [execução do CI](https://github.com/gabxw/flowforge/actions/runs/37939333118), no commit [fe18380](https://github.com/gabxw/flowforge/commit/fe1838036dd707014b5333b55b02bd0d7194a410), aprovou os três jobs: backend, frontend e containers. Restore travado/build da solução completa e 3 testes xUnit passaram; npm ci, lint/build do frontend e auditoria npm passaram; imagens, Compose, proxy HTTP, recriação da API, profile Redis e encerramento do Worker foram verificados. A reprodução local também passou, com 0 vulnerabilidades na auditoria npm.
 
-Pendente para encerrar a Fase 1: recuperar, revisar e versionar os lockfiles gerados como artefatos do CI e confirmar a reprodução com esses arquivos. As validações já aprovadas não substituem esse critério. Evidências e próximos passos estão na [revisão da Fase 1](docs/phase-1-review.md).
+Os seis lockfiles NuGet e o lockfile npm estão versionados e foram verificados contra os manifests. O Git local está sincronizado com o histórico remoto. Evidências e riscos de manutenção estão na [revisão da Fase 1](docs/phase-1-review.md). A Fase 2 ainda não foi iniciada e depende de solicitação explícita.
 
 ## Arquitetura
 
@@ -68,7 +68,7 @@ Domain não referencia outros projetos. Application referencia Domain; Infrastru
 | OpenTelemetry | Instrumentação consolidada na Fase 14 |
 | GitHub Actions | Validação inicial na Fase 1; ampliação e consolidação na Fase 15 |
 
-.NET 10 tem suporte LTS até novembro de 2028. global.json aceita SDKs estáveis da linha 10.0 a partir de 10.0.100, com rollForward latestFeature. Pacotes diretos têm versões explícitas; a reprodução com dependências travadas ainda depende da recuperação e do versionamento dos lockfiles. [Política oficial do .NET](https://dotnet.microsoft.com/en-us/platform/support/policy)
+.NET 10 tem suporte LTS até novembro de 2028. global.json aceita SDKs estáveis da linha 10.0 a partir de 10.0.100, com rollForward latestFeature. Pacotes diretos têm versões explícitas; os lockfiles NuGet e npm fixam também as dependências transitivas. SDKs e imagens Docker continuam usando as linhas de atualização declaradas, sem congelar seus digests. [Política oficial do .NET](https://dotnet.microsoft.com/en-us/platform/support/policy)
 
 ## Executar com Docker
 
@@ -88,9 +88,9 @@ A variável fornece um Docker Compose secret, montado como arquivo no container.
 
 | Endereço | Finalidade |
 | --- | --- |
-| http://localhost:5173 | Shell frontend e consulta de liveness via proxy |
-| http://localhost:5080/health/live | API liveness |
-| http://localhost:5080/openapi/v1.json | OpenAPI em Development |
+| http://127.0.0.1:5173 | Shell frontend e consulta de liveness via proxy |
+| http://127.0.0.1:5080/health/live | API liveness |
+| http://127.0.0.1:5080/openapi/v1.json | OpenAPI em Development |
 
 O frontend repete a checagem de inicialização durante uma janela limitada. Liveness confirma que a API responde; não afirma prontidão de banco/fila.
 
@@ -109,7 +109,7 @@ O smoke verifica HTTP direto e pelo proxy do frontend. Os scripts locais preserv
 Pré-requisitos: SDK .NET 10 e Node.js 22.12 ou posterior na linha 22. A Fase 1 inicia os hosts sem banco/fila. Nas fases seguintes, testes de integração exigirão Docker.
 
 ```powershell
-dotnet restore FlowForge.slnx
+dotnet restore FlowForge.slnx --locked-mode
 dotnet build FlowForge.slnx -c Release --no-restore
 dotnet test FlowForge.slnx -c Release --no-build
 dotnet run --project src/FlowForge.Api
@@ -119,7 +119,7 @@ Em outro terminal: `dotnet run --project src/FlowForge.Worker`. Para o frontend:
 
 ```powershell
 cd frontend
-npm install
+npm ci
 npm run lint
 npm run build
 npm run dev
@@ -127,7 +127,7 @@ npm run dev
 
 O proxy Vite encaminha /api para http://localhost:5080. Em Docker, Nginx encaminha para api:8080. Assim, o scaffold não precisa de CORS irrestrito.
 
-`npm install` permanece necessário enquanto package-lock.json não estiver recuperado e versionado. O CI gerou esse arquivo e os lockfiles NuGet restantes como artefatos; a recuperação, revisão e inclusão no repositório estão pendentes. Depois disso, use `npm ci` no frontend e valide o restore NuGet em modo travado. A instalação, o lint/build e a auditoria npm já passaram no CI.
+Use `npm ci` no frontend e `dotnet restore --locked-mode` no backend. Os scripts, o CI e os Dockerfiles usam esses comandos para validar os manifests contra os lockfiles. Ao alterar dependências deliberadamente, regenere os locks com `npm install` ou `dotnet restore --force-evaluate`, revise o diff e versione os arquivos juntos.
 
 Para executar a sequência de restore, build, testes, lint e validação do Compose: `.\scripts\verify.ps1`. O script interrompe ao primeiro erro e não declara sucesso parcial como fase concluída.
 

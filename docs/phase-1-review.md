@@ -1,6 +1,6 @@
 # Revisão técnica da Fase 1
 
-Data: 2026-10-09. Estado: validações aprovadas no CI; encerramento pendente pela recuperação, revisão e inclusão dos lockfiles e pela reprodução com esses arquivos. Nenhuma fase posterior foi implementada.
+Data: 2026-10-09. Estado: Fase 1 concluída, com reprodução por lockfiles aprovada localmente e no CI. Nenhuma fase posterior foi implementada.
 
 ## Escopo entregue
 
@@ -16,27 +16,31 @@ Data: 2026-10-09. Estado: validações aprovadas no CI; encerramento pendente pe
 
 ## Resultado das verificações
 
-A [execução 37936347802](https://github.com/gabxw/flowforge/actions/runs/37936347802), no commit [31dc1b4](https://github.com/gabxw/flowforge/commit/31dc1b492ea82d523ad9ded38efbe2e0886f49a5), terminou com os três jobs aprovados.
+A [execução 37937063895](https://github.com/gabxw/flowforge/actions/runs/37937063895) aprovou o scaffold e gerou os lockfiles recuperados nesta retomada. O commit [fe18380](https://github.com/gabxw/flowforge/commit/fe1838036dd707014b5333b55b02bd0d7194a410) inclui os locks restantes e exige restauração travada nos scripts, CI e Dockerfiles. A [execução de fechamento 37939333118](https://github.com/gabxw/flowforge/actions/runs/37939333118) terminou com os três jobs aprovados nesse commit.
+
+A verificação local usou SDK .NET 10.0.401, Node 22.19.0, npm 10.9.3 e Docker 29.7.2. `scripts/verify.ps1` e `npm audit --audit-level=high` terminaram com código 0. O script de containers do CI também passou localmente em um projeto Compose descartável e isolado.
 
 | Verificação | Resultado confirmado |
 | --- | --- |
-| Restore/build backend | Solução completa aprovada, incluindo API, Worker e bibliotecas |
+| Restore/build backend | Restore com --locked-mode e build da solução completa aprovados, sem avisos ou erros |
 | Testes xUnit | 3 aprovados, 0 falhas, 0 ignorados |
-| Frontend | Instalação, lint, TypeScript e build aprovados |
-| Auditoria npm | 0 vulnerabilidades após atualização de typescript-eslint para 8.71.1 |
+| Frontend | npm ci, lint, TypeScript e build aprovados |
+| Auditoria npm | 0 vulnerabilidades na verificação local de fechamento |
 | Imagens | Build dos containers e nginx -t aprovados |
 | Compose e HTTP | Inicialização, smoke direto e pelo proxy e recriação da API aprovados |
-| Redis opcional | Profile validado no CI |
+| Redis opcional | Profile validado no CI anterior e na reprodução local |
 | Worker | Inicialização e parada verificadas; encerramento com exit code 0 |
-| Lockfiles | Gerados como artefatos do CI; recuperação, revisão, versionamento e reprodução ainda pendentes |
+| Lockfiles | Seis locks NuGet e um npm presentes; reprodução aprovada sem alterações nos arquivos |
 | Git remoto | Projeto publicado em main de gabxw/flowforge; validação do CI ligada ao commit acima |
-| Git local | main sem commits; .git permanece somente leitura nesta sessão |
+| Git local | main reconciliada com origin/main após comparação e backup dos arquivos locais |
 
 O smoke HTTP local anterior verificou /health/live em Development e Production, OpenAPI disponível em Development e indisponível em Production. Essa verificação era distinta da suíte xUnit; agora os três testes também foram executados no CI.
 
-Os bloqueios locais de rede e Docker não impedem os resultados confirmados no runner. A restrição de escrita no Git local é uma limitação da sessão, não uma falha do projeto ou do CI.
+Os bloqueios de rede, Docker e escrita no Git da sessão anterior não se repetiram na retomada. Os artefatos foram baixados diretamente com `gh run download`, sem publicar seu conteúdo em resumos do CI.
 
-A primeira auditoria npm identificou nove vulnerabilidades altas pela dependência transitiva braces, trazida por typescript-eslint 8.44.1. A atualização para 8.71.1 foi verificada na execução acima, cuja auditoria reportou zero vulnerabilidades. Esse resultado descreve a auditoria npm daquela execução; não é uma garantia geral de ausência de vulnerabilidades.
+A atualização anterior de typescript-eslint para 8.71.1 removeu a cadeia transitiva vulnerável. A auditoria de fechamento continuou reportando zero vulnerabilidades; esse resultado descreve os pacotes e a base de alertas consultada naquele momento.
+
+Risco residual de manutenção: npm emite aviso de fim de suporte do ESLint 9.36.0. O lint continua passando, mas uma atualização da ferramenta deve ser planejada e verificada em incremento próprio. Os lockfiles não congelam SDKs nem digests de imagens Docker.
 
 ## Revisão de decisões
 
@@ -44,9 +48,13 @@ Separação de responsabilidades: referências correspondem ao desenho. Nenhuma 
 
 Inicialização: API não verifica banco/fila que ainda não utiliza. O Worker permanece como host vazio até a Fase 5. A checagem frontend usa timeout por request, janela limitada e ignora resultados após desmontagem. A recriação da API também foi exercitada pelo job de containers.
 
-Reprodução: os lockfiles necessários foram gerados no CI e publicados como artefatos, mas ainda precisam ser recuperados, revisados e versionados. Até esse passo e a validação do restore com dependências travadas, o critério de saída da Fase 1 continua pendente.
+Reprodução: foram adicionados somente os locks ausentes de frontend, Worker e testes. Os quatro locks NuGet existentes coincidem com os artefatos. As dependências diretas correspondem aos manifests, os downloads npm usam exclusivamente HTTPS em registry.npmjs.org e não foram encontrados feeds privados, caminhos locais ou credenciais. A cópia do lock em bin ficou fora do Git. Todos os sete locks permaneceram byte a byte iguais após a reprodução local.
 
-Volumes: os scripts locais de verificação e smoke preservam os volumes Docker. A limpeza com docker compose down --volumes no CI está limitada ao ambiente descartável do runner.
+Proxy: a checagem local após recriar a API expirou usando localhost, enquanto 127.0.0.1 retornou 200 Healthy. O loop de verificação passou a usar o endereço IPv4 explícito, coerente com as portas do Compose e com o smoke existente. A execução completa passou após esse ajuste, sem alterar a configuração do proxy Nginx.
+
+Revisão técnica independente: sem findings críticos, importantes ou menores nas alterações de dependências e verificação. Não foram adicionadas entidades, integrações ou comportamentos de fases posteriores.
+
+Volumes: os scripts locais de verificação e smoke preservam os volumes Docker. A limpeza com docker compose down --volumes no CI está limitada ao runner descartável. Na reprodução local desse job, um nome de projeto Compose exclusivo isolou os volumes temporários, que foram removidos ao final; volumes de desenvolvimento não foram reutilizados.
 
 Segurança: nenhum segredo real foi versionado. O Compose é exclusivamente local. O usuário PostgreSQL de bootstrap tem permissões administrativas na imagem oficial; a Fase 3 deverá separar o papel de migrations do papel da aplicação. RabbitMQ precisará de usuário próprio/restrito na Fase 5; a configuração inicial não é apresentada como ambiente de produção.
 
@@ -54,12 +62,7 @@ Documentação: proteção do contexto e keyring entram com checkpoints na Fase 
 
 ## Próximo passo
 
-1. Recuperar os lockfiles dos artefatos da execução aprovada.
-2. Revisar e versionar os arquivos de dependências travadas.
-3. Confirmar a reprodução com npm ci e restore NuGet em modo travado.
-4. Atualizar esta revisão com o resultado e, somente então, encerrar a Fase 1 antes de iniciar a Fase 2.
-
-A recuperação dos artefatos permanece pendente nesta sessão. Nenhuma etapa ainda pendente é apresentada como aprovada.
+A Fase 1 está encerrada. A Fase 2, domínio de workflows e validação do grafo, permanece aguardando solicitação explícita.
 
 ## Publicação no GitHub
 
@@ -67,6 +70,6 @@ A publicação inicial em [gabxw/flowforge](https://github.com/gabxw/flowforge),
 
 O [histórico de commits](https://github.com/gabxw/flowforge/commits/main/) preserva os incrementos reais já publicados. Novos commits usam mensagens curtas e descritivas em português, sem qualquer prefixo, conforme [AGENTS.md](../AGENTS.md). As mensagens anteriores não serão reescritas.
 
-O Git local continua em main sem commits. A reconciliação com o remoto deve preservar e comparar os arquivos existentes; não executar pull ou reset indiscriminadamente sobre os arquivos não rastreados. Essa limitação operacional não invalida os resultados do CI.
+O Git local foi reconciliado com o histórico remoto depois da comparação dos 48 arquivos publicados e de um backup em .local. Nenhum arquivo de trabalho foi substituído nessa operação. Novos commits usam a identidade gabxw e seu endereço noreply associado ao ID público da conta; a API do GitHub confirmou author.login e committer.login como gabxw no commit fe18380. A configuração global de Git não foi alterada.
 
 O arquivo Novo(a) Documento de Texto.txt preexistente não foi lido, modificado ou publicado. .local, .serena, .git, bin/obj e dependências geradas ficaram fora da seleção inicial. Nenhum segredo real foi incluído.
