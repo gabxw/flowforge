@@ -14,17 +14,13 @@ function Invoke-Check {
 
 Push-Location $taskRoot
 try {
-    Invoke-Check 'dotnet' @('restore', 'FlowForge.slnx')
+    Invoke-Check 'dotnet' @('restore', 'FlowForge.slnx', '--locked-mode')
     Invoke-Check 'dotnet' @('build', 'FlowForge.slnx', '-c', 'Release', '--no-restore')
     Invoke-Check 'dotnet' @('test', 'FlowForge.slnx', '-c', 'Release', '--no-build')
 
     Push-Location (Join-Path $taskRoot 'frontend')
     try {
-        if (Test-Path -LiteralPath 'package-lock.json') {
-            Invoke-Check 'npm.cmd' @('ci')
-        } else {
-            Invoke-Check 'npm.cmd' @('install')
-        }
+        Invoke-Check 'npm.cmd' @('ci')
         Invoke-Check 'npm.cmd' @('run', 'lint')
         Invoke-Check 'npm.cmd' @('run', 'build')
     } finally {
