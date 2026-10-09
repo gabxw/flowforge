@@ -29,7 +29,9 @@
 
 ## Git e segurança
 
-- Fazer commits pequenos e semânticos por fase, após build, testes e revisão.
+- Fazer commits pequenos e claros por fase, após build, testes e revisão.
+- Escrever mensagens de commit em português do Brasil, descrevendo diretamente a alteração, sem prefixos como docs:, feat:, fix:, test: ou chore:.
+- Aplicar esse formato aos próximos commits; preservar as mensagens do histórico existente.
 - Usar a identidade GitHub gabxw, conforme preferência expressa do usuário.
 - Verificar a identidade de autor e seu vínculo com a conta; usar e-mail noreply verificado quando disponível.
 - Não inventar nome completo, e-mail privado ou associação ao GitHub; não alterar configuração global de Git.
