@@ -1,6 +1,6 @@
 # Roadmap técnico
 
-O trabalho é incremental. Cada fase entrega um comportamento executável, documentação atualizada e revisão técnica antes da próxima. As Fases 1 e 2 estão concluídas. As Fases 3 a 16 permanecem planejadas.
+O trabalho é incremental. Cada fase entrega um comportamento executável, documentação atualizada e revisão técnica antes da próxima. As Fases 1 e 2 estão concluídas. A Fase 3 está implementada e aguarda a validação completa registrada em [phase-3-review.md](phase-3-review.md). As Fases 4 a 16 permanecem planejadas.
 
 Não se avança só porque uma pasta ou endpoint existe. O critério de saída inclui build, testes pertinentes e verificação do comportamento anunciado. Uma verificação impedida pelo ambiente permanece pendente e deve ser informada; ela não equivale a um resultado aprovado.
 
@@ -53,6 +53,8 @@ Revisão: regras não dependem de EF, ASP.NET ou broker; não há abstração ge
 Commit sugerido: Implementar domínio de workflows e validação do grafo.
 
 ## Fase 3 — Persistência PostgreSQL
+
+Status: implementada; CI/PostgreSQL e integração à main pendentes. Decisão em [ADR 0003](decisions/0003-postgresql-persistence.md), operação em [persistence.md](persistence.md) e revisão em [phase-3-review.md](phase-3-review.md).
 
 Entregas: EF Core/Npgsql, DbContext, mappings e migrations somente para o domínio já definido. Registro User técnico mínimo para ownership/FKs, sem senha/login; FKs de nodes/conexões conscientes da versão e concorrência do rascunho.
 

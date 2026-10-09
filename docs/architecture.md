@@ -1,6 +1,6 @@
 # Arquitetura e escopo do FlowForge
 
-Status: direção técnica adotada. Fases 1 e 2 concluídas, incluindo domínio de definição, publicação e políticas iniciais de estado. Banco, mensageria, executores, autenticação e operação continuam planejados para as fases indicadas.
+Status: Fases 1 e 2 concluídas. A Fase 3 implementa adaptadores de persistência PostgreSQL e migrations, com validação registrada em [phase-3-review.md](phase-3-review.md). Composição HTTP, mensageria, executores e autenticação continuam nas fases indicadas.
 
 ## Problema e requisitos
 
@@ -207,3 +207,7 @@ As decisões e alternativas estão registradas em [ADR 0001](decisions/0001-arch
 Os maiores riscos são tratar cada node como um microsserviço, criar um framework extensível antes de seis tipos concretos funcionarem, introduzir Redis para duplicar locks já necessários no PostgreSQL e construir um editor sofisticado antes do contrato do grafo estar estável. Outra armadilha é acrescentar CQRS/event sourcing ou um motor de expressão livre sem problema que justifique sua complexidade.
 
 A arquitetura deve crescer a partir de medições e requisitos: primeiro execução sequencial correta, depois novos gatilhos e conectores, e somente então paralelismo ou distribuição adicional.
+
+## Persistência implementada na Fase 3
+
+Portas de armazenamento em Application, registros EF internos em Infrastructure e reidratação validada em Domain mantêm as regras independentes do banco. A gravação compara a revisão esperada e preserva o histórico sob uma transação; a leitura detalhada usa Repeatable Read. API/Worker ainda não compõem esses adaptadores. Alternativas, custos e roteiro para entrevista: [ADR 0003](decisions/0003-postgresql-persistence.md).
