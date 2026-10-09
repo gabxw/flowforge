@@ -6,13 +6,13 @@ O problema central é aceitar eventos rapidamente e processar etapas externas de
 
 ## Estado atual
 
-**Fase 1 concluída; Fase 2 implementada e verificada localmente, aguardando o CI.**
+**Fase 2 concluída: domínio de workflows, validação de DAG e publicação imutável.**
 
 Disponível: solução .NET, API com liveness e OpenAPI, host Worker, shell React, Dockerfiles, Compose, testes de inicialização e CI. A Fase 2 acrescenta definições tipadas, validação de DAG, ciclo de rascunho/publicação/arquivamento e políticas iniciais de transição no Domain. API/Worker ainda não acessam PostgreSQL ou RabbitMQ. Persistência, CRUD HTTP, consumers, engine, autenticação e editor pertencem às próximas fases.
 
-A [execução do CI](https://github.com/gabxw/flowforge/actions/runs/37939333118), no commit [fe18380](https://github.com/gabxw/flowforge/commit/fe1838036dd707014b5333b55b02bd0d7194a410), aprovou os três jobs: backend, frontend e containers. Restore travado/build da solução completa e 3 testes xUnit passaram; npm ci, lint/build do frontend e auditoria npm passaram; imagens, Compose, proxy HTTP, recriação da API, profile Redis e encerramento do Worker foram verificados. A reprodução local também passou, com 0 vulnerabilidades na auditoria npm.
+A [execução do CI da Fase 2](https://github.com/gabxw/flowforge/actions/runs/37960021364), no commit [544fb9b](https://github.com/gabxw/flowforge/commit/544fb9b8048db9b137bbf034566c369d5697dcf5), aprovou os três jobs: backend, frontend e containers. Restore travado/build da solução completa e 685 testes xUnit passaram; npm ci, lint/build do frontend e auditoria npm passaram; imagens, Compose, proxy HTTP, recriação da API, profile Redis e encerramento do Worker foram verificados.
 
-Os lockfiles NuGet e npm são versionados e verificados contra os manifests. As evidências da base reproduzível estão na [revisão da Fase 1](docs/phase-1-review.md). A solução integrada da Fase 2 passou em restore travado, build Release sem avisos/erros e 685 testes (682 Domain + 3 API), com revisões independentes aprovadas. O fechamento depende do CI; detalhes na [revisão da Fase 2](docs/phase-2-review.md).
+Os lockfiles NuGet e npm são versionados e verificados contra os manifests. A verificação local do backend também passou, incluindo a main após integração, com build Release sem avisos/erros e 685 testes (682 Domain + 3 API). As revisões da [Fase 1](docs/phase-1-review.md) e da [Fase 2](docs/phase-2-review.md) registram evidências, decisões e riscos. A Fase 3 não foi iniciada.
 
 ## Arquitetura
 

@@ -1,6 +1,6 @@
 # Revisão da Fase 2 — Domínio de workflows
 
-Status: implementada e verificada localmente; CI pendente. Data: 2026-10-09. A Fase 3 não foi iniciada.
+Status: concluída, revisada e publicada. Data: 2026-10-09. A Fase 3 não foi iniciada.
 
 ## Escopo
 
@@ -14,7 +14,7 @@ O [contrato detalhado](superpowers/specs/2026-10-09-phase-2-domain-design.md), o
 - Transições: RED com 488 falhas e 12 aprovações; GREEN com 500 testes Domain aprovados. Matriz independente verifica 100 pares Workflow e 144 pares Node em ambos os métodos, além dos valores numéricos dos enums. Revisão independente de aderência e qualidade aprovada.
 - Grafo e ciclo de vida: RED com 72 falhas por funcionalidade ausente; GREEN com 36 casos de grafo e 36 de agregado. Cobrem limites, duplicações, ciclos, alcance, escopo, proprietário, convergência, publicação inválida sem efeitos, clonagem, UTC, revisões e arquivamento.
 
-Verificação da solução integrada, repetida pelo agente principal após os três incrementos:
+Verificação da solução integrada, repetida pelo agente principal após os três incrementos e novamente na main depois da integração por fast-forward:
 
 | Comando | Resultado |
 | --- | --- |
@@ -28,7 +28,17 @@ Domain continua sem PackageReference, FrameworkReference ou referência a outros
 
 Configurações, grafo/agregado e transições aprovados em três revisões independentes de aderência e qualidade. A revisão final do conjunto também aprovou a integração sem findings críticos, importantes ou menores. Verificação de UTF-8 em 73 arquivos e de 37 links locais aprovada; diff sem erros de whitespace.
 
-O CI da Fase 2 ainda não foi executado; sua aprovação continua sendo critério de fechamento. O frontend e os containers não foram revalidados localmente nesta fase e serão verificados pelo CI completo.
+O [CI da Fase 2](https://github.com/gabxw/flowforge/actions/runs/37960021364) passou no commit [544fb9b](https://github.com/gabxw/flowforge/commit/544fb9b8048db9b137bbf034566c369d5697dcf5), publicado na main:
+
+| Job | Resultado |
+| --- | --- |
+| Build e testes do backend | Restore travado, build e 682 Domain + 3 API aprovados no Linux |
+| Lint e build do frontend | npm ci, lint, build e auditoria aprovados |
+| Ambiente Docker e encerramento do Worker | Imagens, Compose, Nginx, smoke HTTP/proxy, recriação da API, profile Redis e encerramento normal do Worker aprovados |
+
+Os dois arquivos TRX baixados do artefato `validacao-backend` confirmam 682 e três aprovações, sem falhas ou testes não executados. O frontend e os containers foram verificados remotamente nesta fase; a verificação local adicional concentrou-se no backend.
+
+Todos os cinco commits de implementação/documentação publicados até 544fb9b têm autor e committer vinculados a gabxw. Este fechamento acrescenta somente documentação de resultados; preserva o código testado pelo CI, o histórico e os arquivos locais preexistentes.
 
 ## Limites e riscos
 

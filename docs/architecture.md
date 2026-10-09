@@ -1,6 +1,6 @@
 # Arquitetura e escopo do FlowForge
 
-Status: direção técnica adotada. Fase 1 concluída; domínio de definição, publicação e políticas iniciais de estado implementados na Fase 2, com fechamento pendente do CI. Banco, mensageria, executores, autenticação e operação continuam planejados para as fases indicadas.
+Status: direção técnica adotada. Fases 1 e 2 concluídas, incluindo domínio de definição, publicação e políticas iniciais de estado. Banco, mensageria, executores, autenticação e operação continuam planejados para as fases indicadas.
 
 ## Problema e requisitos
 

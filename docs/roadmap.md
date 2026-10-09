@@ -1,6 +1,6 @@
 # Roadmap técnico
 
-O trabalho é incremental. Cada fase entrega um comportamento executável, documentação atualizada e revisão técnica antes da próxima. A Fase 1 está concluída e a Fase 2 aguarda o CI após implementação e revisão local. As Fases 3 a 16 permanecem planejadas.
+O trabalho é incremental. Cada fase entrega um comportamento executável, documentação atualizada e revisão técnica antes da próxima. As Fases 1 e 2 estão concluídas. As Fases 3 a 16 permanecem planejadas.
 
 Não se avança só porque uma pasta ou endpoint existe. O critério de saída inclui build, testes pertinentes e verificação do comportamento anunciado. Uma verificação impedida pelo ambiente permanece pendente e deve ser informada; ela não equivale a um resultado aprovado.
 
@@ -42,7 +42,7 @@ Commit sugerido: Preparar solução e ambiente de desenvolvimento.
 
 ## Fase 2 — Domínio de workflows
 
-Status: implementada e revisada localmente; CI pendente. Contrato na [spec da Fase 2](superpowers/specs/2026-10-09-phase-2-domain-design.md) e evidências na [revisão da Fase 2](phase-2-review.md).
+Status: concluída. Contrato na [spec da Fase 2](superpowers/specs/2026-10-09-phase-2-domain-design.md) e evidências na [revisão da Fase 2](phase-2-review.md).
 
 Entregas: entidades e valores mínimos de definição; tipo do node; portas; validação de DAG; publicação imutável; estados e transições iniciais. Especificar o contrato de Condition e Transform sem executar código livre.
 

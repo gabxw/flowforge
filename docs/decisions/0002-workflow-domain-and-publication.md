@@ -1,6 +1,6 @@
 # ADR 0002 — Definição de workflows e publicação imutável
 
-Status: adotada e implementada na Fase 2; validação remota pendente. Data: 2026-10-09.
+Status: adotada e implementada na Fase 2. Data: 2026-10-09.
 
 ## Problema
 
@@ -43,4 +43,4 @@ Estados operacionais recebem enums e políticas puras de transição, sem entida
 
 ## Evidências
 
-Testes de definição, limites, configurações, DAGs aceitos/rejeitados, publicação atômica em memória, cópias defensivas, versões e matriz de transições passaram na solução integrada: 682 testes Domain e três testes API, com build Release sem avisos/erros. Revisões independentes aprovadas; CI ainda pendente. Resultados e limites estão na [revisão da Fase 2](../phase-2-review.md).
+Testes de definição, limites, configurações, DAGs aceitos/rejeitados, publicação atômica em memória, cópias defensivas, versões e matriz de transições passaram na solução integrada: 682 testes Domain e três testes API, com build Release sem avisos/erros. Revisões independentes e os três jobs do CI aprovados. Resultados e limites estão na [revisão da Fase 2](../phase-2-review.md).
