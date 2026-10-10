@@ -6,11 +6,11 @@ O problema central é aceitar eventos rapidamente e processar etapas externas de
 
 ## Estado atual
 
-**Fases 1, 2 e 3 concluídas. Fase 4 implementada, em validação final.**
+**Fases 1 a 4 concluídas.**
 
 Disponível: API privada para criar/listar/editar/publicar/arquivar workflows, domínio tipado com validação de DAG, persistência EF Core/PostgreSQL, migrations explícitas, Problem Details e OpenAPI. Há testes HTTP com banco real, controle de revisão e isolamento por proprietário técnico do servidor. Worker e frontend continuam como hosts iniciais; consumers, engine, autenticação e editor pertencem às próximas fases.
 
-A base da Fase 3 foi integrada pelo [PR #1](https://github.com/gabxw/flowforge/pull/1), com [CI aprovado](https://github.com/gabxw/flowforge/actions/runs/37973035349). A Fase 4 passou localmente em **849 testes xUnit** (726 Domain + 71 API + 52 Integration), incluindo PostgreSQL real, sem falhas ou ignorados. O roteiro e as evidências atuais estão na [revisão da Fase 4](docs/phase-4-review.md).
+A Fase 4 está integrada à main, com [CI aprovado](https://github.com/gabxw/flowforge/actions/runs/37991399269/attempts/2). Passaram **849 testes xUnit** (726 Domain + 71 API + 52 Integration), incluindo PostgreSQL real, sem falhas ou ignorados. Frontend, migrations e roteiro Docker direto/pelo proxy também foram aprovados. As evidências, decisões e duas pendências menores estão na [revisão da Fase 4](docs/phase-4-review.md).
 
 Os lockfiles NuGet e npm são versionados. As revisões das [Fases 1](docs/phase-1-review.md), [2](docs/phase-2-review.md) e [3](docs/phase-3-review.md) preservam o histórico; a [operação da API](docs/api.md) descreve o contrato e o exemplo executável atual.
 
