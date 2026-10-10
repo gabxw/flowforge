@@ -13,7 +13,7 @@ function Invoke-Api([string] $Method, [string] $Path, [object] $Body, [int] $Exp
         $parameters.Body = [Text.Encoding]::UTF8.GetBytes(($Body | ConvertTo-Json -Depth 20 -Compress))
     }
     $response = Invoke-WebRequest @parameters
-    if ($response.StatusCode -ne $Expected) { throw "HTTP $Method $Path: $($response.StatusCode); esperado $Expected." }
+    if ($response.StatusCode -ne $Expected) { throw "HTTP $Method $($Path): $($response.StatusCode); esperado $Expected." }
     $json = if ($response.Content -is [byte[]]) { [Text.Encoding]::UTF8.GetString($response.Content) } else { $response.Content }
     return $json | ConvertFrom-Json -Depth 20
 }

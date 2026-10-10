@@ -40,7 +40,7 @@ Exchange flowforge.executions (direct, durável), routing key execution.requeste
 
 O consumer valida versão, tamanho, formato e associação da mensagem à outbox. Campos desconhecidos e duplicados são rejeitados. O corpo, propriedades arbitrárias e texto de exceções não entram nos logs estruturados.
 
-Prefetch 1 limita entregas por consumer. Aguardamos claims ativos e falhas transitórias sem ack, evitando requeue em loop. Reiniciar o consumer devolve unacked à fila; uma lease pendente pode exigir até 30 s para expirar. Invalid messages são descartadas sem requeue nesta fase; DLQ/redrive entram na Fase 10.
+Prefetch 1 limita entregas por consumer. Aguardamos claims ativos e falhas transitórias sem ack, evitando requeue em loop. Reiniciar o consumer devolve unacked à fila; uma lease pendente pode exigir até 30 s para expirar. Mensagens inválidas são descartadas sem requeue nesta fase; DLQ/redrive entram na Fase 10.
 
 ## Executar
 
