@@ -3,7 +3,7 @@
 
 Data: 10/10/2026.
 
-Status: implementação, build, testes e Docker aprovados localmente. Publicação e CI remoto pendentes; a fase ainda não está encerrada.
+Status: concluída, revisada, publicada pelo [PR #6](https://github.com/gabxw/flowforge/pull/6) e integrada à main com CI completo aprovado.
 
 ## Entrega
 
@@ -19,7 +19,7 @@ Status: implementação, build, testes e Docker aprovados localmente. Publicaç�
 
 ## Verificação executada
 
-Restore em locked mode e build Release da solução aprovados, com zero warnings/erros. Suíte completa local: 1.186 testes aprovados, nenhum ignorado. Após a revisão de precisão temporal, um teste adicional foi compilado/executado e passou: total atual de **1.187 casos** (777 Domain + 90 Application + 113 API + 207 Integration). O CI remoto executará a suíte final inteira.
+Restore em locked mode e build Release da solução aprovados, com zero warnings/erros. Suíte completa local: 1.186 testes aprovados, nenhum ignorado. Após a revisão de precisão temporal, um teste adicional foi compilado/executado e passou: total atual de **1.187 casos** (777 Domain + 90 Application + 113 API + 207 Integration). O [CI do PR](https://github.com/gabxw/flowforge/actions/runs/38082619640) e o [CI da main](https://github.com/gabxw/flowforge/actions/runs/38082995151) executaram a suíte final inteira: **1.187 aprovados**, sem falhas ou testes ignorados.
 
 Unitários verificam Pointer vazio/escapes/arrays/nomes exatos, ausência/null, tipos, comparação decimal, duplicatas e limites de Transform. Testes de domínio verificam suspensão, restauração, prazo mínimo e limpeza da espera ao terminar/cancelar/falhar.
 
@@ -63,4 +63,11 @@ API permanece privada com dono técnico, sem JWT/RBAC. Keyring Production, egres
 
 ## Publicação
 
-Pendente: commits em português/autoria gabxw, PR, CI do PR, integração à main e CI da main. Esses itens serão registrados com hashes/links reais após aprovação. A Fase 10 não foi iniciada.
+O [PR #6](https://github.com/gabxw/flowforge/pull/6) foi integrado por fast-forward em 10/10/2026. A autoria dos três commits foi reconhecida como gabxw, com e-mail noreply verificado e mensagens em português sem prefixos.
+
+- ccf9e4f: executores, suspensão, sequência, schema/migration e composição dos hosts.
+- 4c52b3b: testes, smoke e CI com fila liberada/broker parado durante Delay.
+- d2334e7: contrato, ADR e revisão/documentação.
+- [CI do PR aprovado](https://github.com/gabxw/flowforge/actions/runs/38082619640) e [CI completo da main aprovado](https://github.com/gabxw/flowforge/actions/runs/38082995151): backend, frontend e Docker, três jobs em cada execução.
+
+Revisão de código validada: d2334e7debdc59b32f9029be87488002f53b163c. O registro posterior da conclusão altera somente documentação/instruções, preservando os binários aprovados. Nenhum critério de saída da Fase 9 ficou pendente; os riscos operacionais acima permanecem explícitos. A Fase 10 não foi iniciada.

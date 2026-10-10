@@ -1,6 +1,6 @@
 # Roadmap técnico
 
-O trabalho é incremental. Cada fase entrega um comportamento executável, documentação atualizada e revisão técnica antes da próxima. As Fases 1 a 8 estão concluídas. A Fase 9 está em validação, com contrato em [declarative-nodes-and-delay.md](declarative-nodes-and-delay.md) e revisão em [phase-9-review.md](phase-9-review.md). As Fases 10 a 16 permanecem planejadas.
+O trabalho é incremental. Cada fase entrega um comportamento executável, documentação atualizada e revisão técnica antes da próxima. As Fases 1 a 9 estão concluídas, com evidências atuais em [phase-9-review.md](phase-9-review.md). As Fases 10 a 16 permanecem planejadas.
 
 Não se avança só porque uma pasta ou endpoint existe. O critério de saída inclui build, testes pertinentes e verificação do comportamento anunciado. Uma verificação impedida pelo ambiente permanece pendente e deve ser informada; ela não equivale a um resultado aprovado.
 
@@ -124,7 +124,9 @@ Revisão: validar hostname sem controlar a conexão é insuficiente. Timeout nã
 
 Commit sugerido: Executar requisições HTTP com destinos e credenciais protegidos.
 
-## Fase 9 — Condition, Transform e Delay
+## Fase 9 — Condition, Transform e Delay (concluída em 10/10/2026)
+
+Status: integrada à main pelo [PR #6](https://github.com/gabxw/flowforge/pull/6), com 1.187 testes, Docker local e [CI completo da main](https://github.com/gabxw/flowforge/actions/runs/38082995151) aprovados. Contrato em [declarative-nodes-and-delay.md](declarative-nodes-and-delay.md), decisão em [ADR 0009](decisions/0009-declarative-nodes-and-durable-delay.md) e evidências em [phase-9-review.md](phase-9-review.md).
 
 Entregas: operadores declarativos de Condition com portas true/false; transformação JSON limitada; Delay com ResumeAt durável, suspensão, scheduler e continuação por outbox. Delay entra aqui para consolidar todos os seis tipos iniciais antes do MVP.
 
