@@ -1,6 +1,6 @@
 # Arquitetura e escopo do FlowForge
 
-Status: Fases 1 a 4 concluídas. A Fase 5 implementa despacho com outbox transacional, RabbitMQ e consumer recuperável; validações em [phase-5-review.md](phase-5-review.md). Engine, webhook e autenticação continuam nas fases indicadas.
+Status: Fases 1 a 5 concluídas; Fase 6 implementa engine sequencial, Trigger/Log, checkpoints protegidos, histórico e cancelamento, em validação final. Evidências em [phase-6-review.md](phase-6-review.md). Webhook, outros executores e autenticação seguem nas fases indicadas.
 
 ## Problema e requisitos
 
@@ -50,7 +50,7 @@ flowchart LR
     H --> L2[Log: resultado da chamada]
 ```
 
-A futura engine executará um caminho sequencial. Nodes fora do caminho escolhido receberão Skipped ao encerrar a execução; um node de convergência ainda alcançável pelo ramo escolhido não poderá ser descartado prematuramente. Cada node receberá o output do predecessor escolhido. Condition avaliará um predicado e repassará o input; Transform produzirá um novo JSON. A Fase 2 define e valida o contrato dessas configurações.
+A engine da Fase 6 executa um caminho sequencial com Trigger/Log; a seleção Condition entra na Fase 9. Nodes fora do caminho escolhido receberão Skipped ao encerrar a execução; um node de convergência ainda alcançável pelo ramo escolhido não poderá ser descartado prematuramente. Cada node receberá o output do predecessor escolhido. Condition avaliará um predicado e repassará o input; Transform produzirá um novo JSON. A Fase 2 define e valida o contrato dessas configurações.
 
 ## Arquitetura proposta
 
@@ -120,7 +120,7 @@ RabbitMQ terá fila durável, mensagens persistentes, publisher confirms e ackno
 
 MessageId é único na inbox. Receber uma mensagem não significa concluir seu trabalho: uma entrada Received não pode impedir retomada após queda. O processamento só é marcado como concluído quando houver checkpoint durável de término ou suspensão.
 
-Uma execução é reclamada por atualização atômica no PostgreSQL. Apenas um Worker possui uma lease válida, identificada por proprietário, vencimento e um fencing token crescente. Persistência de checkpoints exige o token vigente. Um processo que perdeu a lease não pode sobrescrever resultados de quem recuperou a execução.
+Uma execução é reclamada por atualização atômica no PostgreSQL. Apenas um Worker possui uma lease válida, identificada por proprietário, vencimento e um token de dono e uma geração crescente (ClaimAttempts na inbox). Persistência de checkpoints exige o token vigente. Um processo que perdeu a lease não pode sobrescrever resultados de quem recuperou a execução.
 
 A lease vence para permitir recuperação; deve ser renovada enquanto o Worker trabalha. Não mantemos uma transação ou um lock de linha aberto durante uma chamada HTTP. Um serviço de recuperação busca execuções vencidas e retomadas vencidas; o caminho de recuperação é testado, e não depende somente de um novo webhook.
 
@@ -144,7 +144,7 @@ A DLQ trata mensagens inválidas, contratos não suportados e falhas de entrega/
 
 ### Cancelamento
 
-Na futura execução, CancelRequestedAt registrará o pedido. O Worker observará o pedido entre nodes e durante operações canceláveis. Nodes ainda não iniciados ficarão Skipped; o node interrompido receberá Cancelled. A Fase 2 adota Cancelled no enum e na política de transição para não representar cancelamento como falha ou sucesso, sem implementar o processamento do pedido.
+Na Fase 6, CancelRequestedAt registra o pedido. O Worker observa o pedido entre nodes e durante operações canceláveis, por heartbeat. Nodes ainda não iniciados ficarão Skipped; o node interrompido receberá Cancelled. A Fase 2 adotou Cancelled no enum; a Fase 6 implementa o pedido cooperativo. Shutdown/perda de lease mantêm a execução retomável.
 
 WorkflowExecutionStatus contém Pending, Running, Succeeded, Failed e Cancelled. NodeExecutionStatus inclui Cancelled como decisão da Fase 2, junto de Pending, Running, Succeeded, Failed, Retrying e Skipped. As políticas puras de transição não criam entidades de execução, persistência ou processamento. Uma execução futura poderá estar Running enquanto espera um Delay; ResumeAt expressará a suspensão sem introduzir um estado novo no MVP.
 

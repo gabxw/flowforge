@@ -1,6 +1,6 @@
 # Modelo inicial de dados
 
-Status: cinco tabelas de definição implementadas na Fase 3. A Fase 5 acrescenta workflow_executions, outbox_messages e inbox_messages; estado e revisão em [phase-5-review.md](phase-5-review.md). As demais entidades continuam conceituais.
+Status: cinco tabelas de definição implementadas na Fase 3. A Fase 5 acrescenta workflow_executions, outbox_messages e inbox_messages; estado e revisão em [phase-5-review.md](phase-5-review.md). A Fase 6 acrescenta node_executions, execution_logs e checkpoint/contexto/cancelamento; são dez tabelas de aplicação. Extensões seguintes continuam conceituais.
 
 PostgreSQL é a fonte de verdade. UUID identifica os recursos; datas são instantes UTC, armazenados como timestamptz. Estados têm valores explícitos e transições validadas, sem depender da ordem numérica de enums. Configurações variáveis usam JSONB; identidade, ownership, relações e campos consultáveis usam colunas.
 
@@ -16,9 +16,19 @@ O codec é responsável pela forma completa da configuração; o domínio valida
 
 Execuções fixam versão/workflow/proprietário com FK composta. Outbox tem uma mensagem v1 por execução; inbox associa MessageId/ExecutionId à outbox e impede dois recebimentos independentes do mesmo trabalho. Claims usam token e expiração, e índices parciais atendem ao polling de mensagens ainda não confirmadas.
 
-Checks aceitam somente Pending, Running e Failed/engineUnavailable neste incremento. A Fase 6 ampliará estados/resultados na migration da engine. CorrelationId e horários são persistidos; payload, NodeExecution e ExecutionLog continuam nas fases seguintes. Nenhum secret é armazenado nessas três tabelas.
+Os checks originais aceitavam Pending, Running e Failed/engineUnavailable. A migration da Fase 6 amplia estados/resultados, preservando os históricos antigos. CorrelationId e horários continuam persistidos; o contexto cifrado agora reside em workflow_executions. Nenhum material de Credential é resolvido nesta fase.
 
 Consulte [ADR 0005](decisions/0005-durable-execution-dispatch.md) e [operação do despacho](execution-dispatch.md).
+
+## Schema acrescentado na Fase 6
+
+workflow_executions ganha cancel_requested_at, next_node_id, checkpoint_revision e execution_context_protected (bytea). Próximo node referencia o par versão/node da própria execução. node_executions tem FK execução/versão, FK versão/node e unicidade execução/node; guarda estados/datas, AttemptCount e summaries JSONB de tipo/tamanho. execution_logs referencia NodeExecution/ExecutionId, contém event_code, message_byte_length e message_protected; um evento lógico por node Log impede duplicação por replay.
+
+O contexto admite 64 KiB de JSON operacional e até 128 KiB de envelope cifrado. Snapshot não preserva conteúdo nem serve como input de retomada. Logs/inputs/outputs HTTP expõem metadados, nunca ciphertext ou conteúdo. A chave fica em keyring persistente separado do banco; a mensagem Log usa purpose diferente. Não há tabela de tentativas ou scheduler ainda.
+
+ClaimToken identifica o dono; ClaimAttempts é a geração crescente da inbox. Checkpoints validam ambos e a lease, além da revisão. A transação terminal inclui execução, nodes pendentes como Skipped, evento Log quando aplicável e inbox concluída. Consultas de histórico têm teto natural de 50 nodes/50 eventos nesta versão.
+
+[ADR 0006](decisions/0006-sequential-engine-and-checkpoints.md) e [operação da engine](execution-engine.md) detalham captura, keyring, recuperação e cancelamento.
 
 ## Relações
 
@@ -137,7 +147,7 @@ Configuration armazena somente parâmetros permitidos pelo schema do node, inclu
 
 TriggerInput, Input e Output preservam snapshots sanitizados e limitados. A captura de um resultado truncado inclui um indicador de truncamento e o tamanho original; ele não pode ser reaproveitado silenciosamente como input real de outro node. O contexto de execução e os snapshots de auditoria são conceitos diferentes: a engine trabalha com conteúdo permitido dentro do limite operacional, e a visualização recebe sua representação sanitizada.
 
-Conteúdo necessário para retomada deve estar durável antes de confirmar a mensagem. ExecutionContextProtected contém o contexto operacional serializado, limitado e criptografado, em bytea, separado dos snapshots JSONB. O contexto cifra e retém payload privado: inclui o input inicial e o resultado corrente necessários ao próximo node, mas nunca material de credenciais resolvidas ou headers secretos. Limites de tamanho, política de captura e prazos de retenção são propostas do MVP a validar, ainda sem implementação. CheckpointRevision e fencing protegem sua atualização. A engine não pode depender exclusivamente de objetos em memória nem usar um snapshot truncado para continuar depois de uma queda. O keyring persistente precisa existir antes dessa persistência, com purpose distinto do utilizado para Credential.
+Conteúdo necessário para retomada deve estar durável antes de confirmar a mensagem. ExecutionContextProtected contém o contexto operacional serializado, limitado e criptografado, em bytea, separado dos snapshots JSONB. O contexto cifra e retém payload privado: na Fase 6 conserva o input corrente necessário ao próximo node (inicialmente {}), sem material de credenciais resolvidas ou headers secretos. Preservação independente do payload inicial de webhook será definida na Fase 7. A Fase 6 implementa limite de 64 KiB e captura apenas de metadados; retenção e limpeza ainda são propostas do MVP, sem implementação. CheckpointRevision e fencing protegem sua atualização. A engine não pode depender exclusivamente de objetos em memória nem usar um snapshot truncado para continuar depois de uma queda. O keyring persistente precisa existir antes dessa persistência, com purpose distinto do utilizado para Credential.
 
 Direção inicial de retenção, ainda configurável e pendente de implementação:
 

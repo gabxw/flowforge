@@ -1,6 +1,6 @@
-# Operação do despacho — Fase 5
+# Operação do despacho — Fases 5 e 6
 
-Esta fase entrega API → PostgreSQL/outbox → RabbitMQ → Worker → resultado durável. A engine ainda não existe: o resultado final esperado é failed com errorCode engineUnavailable, sem executar nodes.
+Esta fase entrega API → PostgreSQL/outbox → RabbitMQ → Worker → resultado durável. A Fase 6 executa Trigger/Log com checkpoints e histórico protegido. A falha engineUnavailable é resultado histórico da Fase 5; execuções já concluídas são preservadas. Consulte [operação da engine](execution-engine.md).
 
 ## Contrato HTTP privado
 
@@ -21,9 +21,9 @@ Cada POST cria uma execução nova. CorrelationId e IDs são gerados no servidor
 | outbox_messages | Intenção persistida, versão v1, disponibilidade, confirmação e claim temporário |
 | inbox_messages | Recebimento, claim recuperável e conclusão atômica com o resultado |
 
-Pending é criado na transação da outbox. O claim muda para Running, preservando started_at em recuperações. A conclusão da Fase 5 muda para Failed e marca a inbox concluída na mesma transação. Tokens antigos não podem concluir após expiração/reaquisição.
+Pending é criado na transação da outbox. O claim muda para Running, preservando started_at em recuperações, exceto quando o cancelamento foi pedido antes de iniciar. A engine grava checkpoints e marca a inbox concluída na mesma transação do resultado terminal. Tokens/gerações antigos não podem gravar após expiração/reaquisição.
 
-O PostgreSQL controla relógio e leases. API e Worker usam factories de DbContext e transações curtas. Redis permanece opcional e sem integração. Não há NodeExecution ou entrada de log de negócio nesta entrega.
+O PostgreSQL controla relógio e leases. API e Worker usam factories de DbContext e transações curtas. Redis permanece opcional e sem integração. A Fase 6 acrescenta node_executions e execution_logs, com conteúdo operacional protegido.
 
 ## RabbitMQ
 
@@ -55,9 +55,9 @@ docker compose up --build --detach --wait
 .\scripts\smoke-executions.ps1 -BaseUri http://127.0.0.1:5173
 ~~~
 
-O smoke cria/publica um workflow mínimo, solicita despacho, consulta até obter a falha esperada e arquiva o exemplo. Não remove histórico ou volumes. Migrations continuam explícitas; após banco vazio, o Worker aguarda as tabelas enquanto a API responde 503 nas operações persistidas.
+O smoke cria/publica um workflow mínimo, solicita execução Trigger → Log, consulta até Succeeded e verifica histórico e arquiva o exemplo. Não remove histórico ou volumes. Migrations continuam explícitas; após banco vazio, o Worker aguarda as tabelas enquanto a API responde 503 nas operações persistidas.
 
-No host, API precisa da configuração PostgreSQL/proprietário. Worker precisa da configuração PostgreSQL e FlowForge__RabbitMq__Host, FlowForge__RabbitMq__Username e FlowForge__RabbitMq__PasswordFile. O password file é caminho fornecido pelo operador, nunca pelo usuário de um workflow. Port opcional do broker: 5672. Segredos não ficam em appsettings.
+No host, API precisa da configuração PostgreSQL/proprietário. Worker precisa da configuração PostgreSQL e FlowForge__RabbitMq__Host, FlowForge__RabbitMq__Username e FlowForge__RabbitMq__PasswordFile. O password file é caminho fornecido pelo operador, nunca pelo usuário de um workflow. Port opcional do broker: 5672. Segredos não ficam em appsettings. A Fase 6 exige também keyring persistente em Development, conforme [execution-engine.md](execution-engine.md).
 
 ## Recuperação e diagnóstico
 

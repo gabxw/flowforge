@@ -6,11 +6,11 @@ O problema central é aceitar eventos rapidamente e processar etapas externas de
 
 ## Estado atual
 
-**Fases 1 a 5 concluídas.**
+**Fases 1 a 5 concluídas; Fase 6 em validação final.**
 
-Disponível: API privada para criar/listar/editar/publicar/arquivar workflows, domínio tipado com validação de DAG, persistência EF Core/PostgreSQL, migrations explícitas, Problem Details e OpenAPI. Há testes HTTP com banco real, controle de revisão e isolamento por proprietário técnico do servidor. A Fase 5 acrescenta solicitações de execução, outbox transacional, RabbitMQ e Worker com inbox recuperável. O frontend continua como shell; engine, autenticação e editor pertencem às próximas fases.
+Disponível: API privada para criar/listar/editar/publicar/arquivar workflows, domínio tipado com validação de DAG, persistência EF Core/PostgreSQL, migrations explícitas, Problem Details e OpenAPI. Há testes HTTP com banco real, controle de revisão e isolamento por proprietário técnico do servidor. A Fase 5 acrescenta solicitações de execução, outbox transacional, RabbitMQ e Worker com inbox recuperável. A Fase 6 acrescenta engine sequencial, executores Trigger/Log, checkpoints protegidos, histórico e cancelamento cooperativo. O frontend continua como shell; autenticação/editor e demais executores seguem no roadmap.
 
-A Fase 5 está integrada à main pelo [PR #2](https://github.com/gabxw/flowforge/pull/2), com [CI completo aprovado](https://github.com/gabxw/flowforge/actions/runs/38056044404). Passaram **879 testes xUnit** (729 Domain + 76 API + 74 Integration), incluindo duplicação e recuperação com PostgreSQL/RabbitMQ reais. A [revisão da Fase 5](docs/phase-5-review.md) registra as verificações e a ressalva do cache de frontend usado no smoke Windows. O resultado atual do Worker é uma falha explícita engineUnavailable; nenhum node é executado.
+A Fase 6 está em revisão e validação para publicação. A engine executa Trigger → Log, registra NodeExecution e retoma pelo contexto protegido, sem repetir nodes já concluídos. Tipos sem executor retornam unsupportedNode. A [revisão da Fase 6](docs/phase-6-review.md) registra os critérios e a evidência disponível; o [PR #2](https://github.com/gabxw/flowforge/pull/2) preserva a entrega anterior.
 
 Os lockfiles NuGet e npm são versionados. As revisões das [Fases 1](docs/phase-1-review.md), [2](docs/phase-2-review.md) e [3](docs/phase-3-review.md) preservam o histórico; a [operação da API](docs/api.md) descreve o contrato e o exemplo executável atual.
 
@@ -30,7 +30,7 @@ flowchart LR
     Worker --> HTTP[Destinos HTTP autorizados]
 ```
 
-O diagrama representa o sistema planejado a partir da Fase 5. A API persiste definições e aceita solicitações manuais de execução; outbox, mensageria e consumer estão implementados. Webhook e executores HTTP pertencem às próximas fases.
+O diagrama representa o sistema planejado, com engine sequencial implementada na Fase 6. A API persiste definições e aceita solicitações manuais de execução; outbox, mensageria e consumer estão implementados. Webhook e executores HTTP pertencem às próximas fases.
 
 ```text
 FlowForge.slnx
@@ -42,6 +42,7 @@ src/
   FlowForge.Worker/          # Host de processamento assíncrono
 tests/
   FlowForge.Domain.Tests/    # Definições, DAG, publicação e transições
+  FlowForge.Application.Tests/ # Orquestração e contrato dos executores
   FlowForge.Api.Tests/       # Contrato HTTP, casos de uso e PostgreSQL real
   FlowForge.IntegrationTests/ # Codec, schema, stores e PostgreSQL real
 frontend/                   # React/TypeScript/Vite/Tailwind
@@ -63,6 +64,7 @@ Domain não referencia outros projetos ou pacotes externos. Application referenc
 | RabbitMQ | Infraestrutura preparada; publicação/consumo na Fase 5 |
 | Redis | Profile opcional; integração depende de necessidade demonstrada |
 | xUnit | Testes de host e regras de domínio das Fases 1 e 2 |
+| Data Protection | Contexto/checkpoints e mensagens Log protegidos, keyring persistente na Fase 6 |
 | Testcontainers | Primeiros testes de adaptadores com serviços reais |
 | OpenAPI | Documento nativo em Development na Fase 1; interface Swagger avaliada junto da API funcional |
 | React Flow | Editor visual na Fase 12 |
@@ -101,7 +103,7 @@ As variáveis fornecem Compose secrets: PostgreSQL em API/Worker/banco e RabbitM
 
 O frontend repete a checagem de inicialização durante uma janela limitada. Liveness confirma que a API responde; não afirma prontidão de banco/fila.
 
-Para incluir o Redis opcional: `docker compose --profile redis up`. Os hosts ainda não o utilizam. Para reconstruir imagens após mudanças: `docker compose up --build`. `docker compose down` encerra os containers e preserva os volumes.
+Para incluir o Redis opcional: `docker compose --profile redis up`. Os hosts ainda não o utilizam. Para reconstruir imagens após mudanças: `docker compose up --build`. `docker compose down` encerra os containers e preserva os volumes. O volume execution_keyring deve ser preservado junto do banco; perdê-lo impede descriptografar contextos antigos.
 
 Quando os serviços estiverem ativos:
 
@@ -111,11 +113,11 @@ Quando os serviços estiverem ativos:
 .\scripts\smoke-executions.ps1
 ```
 
-O primeiro smoke verifica host/proxy. O segundo percorre criação, edição, erros, publicação dos seis tipos, nova versão e arquivamento com PostgreSQL; deixa um exemplo arquivado, sem executar nodes. O terceiro smoke verifica despacho assíncrono e o resultado engineUnavailable esperado na Fase 5. Os scripts locais preservam volumes. No CI, down --volumes ocorre somente no runner descartável.
+O primeiro smoke verifica host/proxy. O segundo percorre criação, edição, erros, publicação dos seis tipos, nova versão e arquivamento com PostgreSQL; deixa um exemplo arquivado, sem executar nodes. O terceiro smoke verifica execução Trigger → Log, histórico protegido e preservação de resultado terminal. Os scripts locais preservam volumes. No CI, down --volumes ocorre somente no runner descartável.
 
 ## Executar hosts no computador e verificar
 
-Pré-requisitos: SDK .NET 10 e Node.js 22.12 ou posterior na linha 22. A liveness da API independe de banco/fila. O Worker agora exige configuração PostgreSQL/RabbitMQ; detalhes em [operação do despacho](docs/execution-dispatch.md). A suíte completa exige Docker para PostgreSQL e RabbitMQ descartáveis; veja [como operar migrations e testes](docs/persistence.md).
+Pré-requisitos: SDK .NET 10 e Node.js 22.12 ou posterior na linha 22. A liveness da API independe de banco/fila. O Worker exige configuração PostgreSQL/RabbitMQ e keyring persistente em Development; detalhes em [operação da engine](docs/execution-engine.md). A suíte completa exige Docker para PostgreSQL e RabbitMQ descartáveis; veja [como operar migrations e testes](docs/persistence.md).
 
 ```powershell
 dotnet restore FlowForge.slnx --locked-mode
@@ -124,7 +126,7 @@ dotnet test FlowForge.slnx -c Release --no-build
 dotnet run --project src/FlowForge.Api
 ```
 
-Em outro terminal: `dotnet run --project src/FlowForge.Worker`. Para o frontend:
+Configure o Worker conforme [docs/execution-engine.md](docs/execution-engine.md) e execute-o em outro terminal. Para o frontend:
 
 ```powershell
 cd frontend
@@ -142,7 +144,7 @@ Para executar a sequência de restore, build, testes, lint e validação do Comp
 
 ## Exemplo e MVP
 
-Definição de exemplo (execução prevista para as fases da engine):
+Já executável: **Trigger → Log**, com entrada manual {} e consulta de nodes/logs. Exemplo do MVP completo, ainda dependente dos próximos executores:
 
 ```text
 Webhook → Condition (total > 100)
@@ -163,7 +165,9 @@ A versão de portfólio termina na Fase 16, com interface/editor, autenticação
 - Lease e estado ficam no PostgreSQL inicialmente; Redis exige um problema adicional concreto.
 - Webhook secret vai em header, com hash persistido; URL não transporta segredo.
 - HTTP Node começa com allowlist e proteção contra SSRF na resolução/conexão, além de timeout e limite de corpo.
-- Credenciais e contexto operacional terão proteção de chave fora do banco, separada dos snapshots sanitizados.
+- Contexto operacional e mensagens Log usam Data Protection com keyring fora do banco; histórico expõe metadados. Credenciais entram na Fase 8.
+- Checkpoint + conclusão da inbox são atômicos; lease renovável e token/geração impedem gravação por Worker antigo.
+- O perfil privado Development mantém keyring em volume protegido por permissões; Production exige wrapping das chaves e é recusado pelo runtime atual.
 
 Alternativas, trade-offs e formas de explicar essas escolhas em entrevista estão no [ADR 0001](docs/decisions/0001-architecture-and-scope.md) e na [ADR 0002, sobre domínio e publicação](docs/decisions/0002-workflow-domain-and-publication.md).
 
@@ -172,7 +176,7 @@ No domínio, um rascunho pode ficar incompleto enquanto é editado. Publicar exi
 ## Documentação e roadmap
 
 - [Arquitetura, requisitos e limites do MVP](docs/architecture.md)
-- [Modelo inicial do banco](docs/data-model.md) — cinco tabelas implementadas e demais entidades planejadas
+- [Modelo inicial do banco](docs/data-model.md) — dez tabelas implementadas e extensões planejadas
 - [Roadmap técnico das 16 fases](docs/roadmap.md)
 - [Decisões e alternativas](docs/decisions/0001-architecture-and-scope.md)
 - [Revisão e validações da Fase 1](docs/phase-1-review.md)
@@ -186,6 +190,9 @@ No domínio, um rascunho pode ficar incompleto enquanto é editado. Publicar exi
 - [Despacho assíncrono e operação](docs/execution-dispatch.md)
 - [Decisão sobre outbox/inbox](docs/decisions/0005-durable-execution-dispatch.md)
 - [Revisão e validações da Fase 5](docs/phase-5-review.md)
+- [Engine, checkpoints, histórico e cancelamento](docs/execution-engine.md)
+- [Decisão da engine e captura protegida](docs/decisions/0006-sequential-engine-and-checkpoints.md)
+- [Revisão e validações da Fase 6](docs/phase-6-review.md)
 
 Novos commits usam mensagens curtas e descritivas em português, sem qualquer prefixo; o histórico existente é preservado. A preferência pela conta gabxw e as demais regras do projeto estão em [AGENTS.md](AGENTS.md).
 

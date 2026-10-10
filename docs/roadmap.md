@@ -1,6 +1,6 @@
 # Roadmap técnico
 
-O trabalho é incremental. Cada fase entrega um comportamento executável, documentação atualizada e revisão técnica antes da próxima. As Fases 1 a 5 estão concluídas, com as evidências atuais em [phase-5-review.md](phase-5-review.md). As Fases 6 a 16 permanecem planejadas.
+O trabalho é incremental. Cada fase entrega um comportamento executável, documentação atualizada e revisão técnica antes da próxima. As Fases 1 a 5 estão concluídas, com as evidências atuais em [phase-5-review.md](phase-5-review.md). A Fase 6 está em validação final, com evidências em [phase-6-review.md](phase-6-review.md); as Fases 7 a 16 permanecem planejadas.
 
 Não se avança só porque uma pasta ou endpoint existe. O critério de saída inclui build, testes pertinentes e verificação do comportamento anunciado. Uma verificação impedida pelo ambiente permanece pendente e deve ser informada; ela não equivale a um resultado aprovado.
 
@@ -88,7 +88,7 @@ Revisão: a falha entre commit e publish não perde execução; a falha entre co
 
 Commit sugerido: Despachar execuções com outbox transacional.
 
-## Fase 6 — Execution Engine
+## Fase 6 — Execution Engine (em validação final)
 
 Entregas: carregar versão fixada, percorrer caminho sequencial, gravar estados e checkpoints com contexto operacional limitado/protegido e keyring persistente, contrato dos executores e primeiro executor Log. Execução não implementada retorna erro claro, sem sucesso simulado. Cancelamento cooperativo básico usando NodeExecutionStatus.Cancelled, adotado no domínio na Fase 2.
 
