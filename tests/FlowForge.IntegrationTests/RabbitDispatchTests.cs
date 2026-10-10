@@ -19,19 +19,19 @@ public sealed class RabbitDispatchTests(DispatchFixture fixture)
 {
     private async Task<ExecutionRequest> NewRequestAsync()
     {
-        var (_, request, _) = await new DispatchStoreTests(fixture).RequestAsync();
+        var (_, request, _) = await EngineFixtures.RequestAsync(fixture);
         return request;
     }
 
     private static ExecutionRequestedMessage Message(ExecutionRequest r) => DispatchStoreTests.Message(r);
-    private ExecutionMessageHandler Handler() => new(new PostgresExecutionInboxStore(fixture.Factory));
+    private ExecutionMessageHandler Handler() => fixture.Handler();
     private RabbitExecutionConsumer Consumer(IExecutionMessageHandler handler, CaptureLogger logger) =>
         new(fixture.RabbitOptions, handler, logger);
     private OutboxDispatcher Dispatcher(RabbitExecutionPublisher publisher) =>
         new(new PostgresExecutionOutboxStore(fixture.Factory), publisher);
 
     [Fact]
-    public async Task Confirmed_publication_is_consumed_committed_and_acked_without_executing_nodes()
+    public async Task Confirmed_publication_executes_nodes_commits_history_and_acks()
     {
         await fixture.ResetAsync();
         var request = await NewRequestAsync();
@@ -43,8 +43,12 @@ public sealed class RabbitDispatchTests(DispatchFixture fixture)
         try { await UntilAsync(() => Task.FromResult(logger.Completed >= 1)); }
         finally { await StopAsync(stop, task); }
         var result = (await new PostgresExecutionStore(fixture.Factory).GetAsync(request.ExecutionId, request.OwnerUserId))!;
-        Assert.Equal(WorkflowExecutionStatus.Failed, result.Status);
-        Assert.Equal(ExecutionFailureCode.EngineUnavailable, result.ErrorCode);
+        Assert.Equal(WorkflowExecutionStatus.Succeeded, result.Status);
+        Assert.Null(result.ErrorCode);
+        var history = (await new PostgresExecutionStore(fixture.Factory).HistoryAsync(request.ExecutionId, request.OwnerUserId))!;
+        Assert.Equal(2, history.Nodes.Count);
+        Assert.All(history.Nodes, n => { Assert.Equal(NodeExecutionStatus.Succeeded, n.Status); Assert.Equal(1, n.AttemptCount); });
+        Assert.Single(history.Logs);
         Assert.True(result.FinishedAt >= result.StartedAt);
         await using var db = await fixture.Factory.CreateDbContextAsync();
         Assert.NotNull((await db.InboxMessages.SingleAsync()).CompletedAt);
@@ -96,6 +100,8 @@ public sealed class RabbitDispatchTests(DispatchFixture fixture)
         await using var db = await fixture.Factory.CreateDbContextAsync();
         Assert.Equal(1, (await db.InboxMessages.SingleAsync()).ClaimAttempts);
         Assert.Equal(1, await db.WorkflowExecutions.CountAsync());
+        Assert.Equal(2, await db.NodeExecutions.CountAsync());
+        Assert.Equal(1, await db.ExecutionLogs.CountAsync());
         Assert.Equal(0U, await ReadyCountAsync());
     }
 
@@ -126,8 +132,8 @@ public sealed class RabbitDispatchTests(DispatchFixture fixture)
         var task = Consumer(Handler(), logger).RunSessionAsync(stop.Token);
         try { await UntilAsync(() => Task.FromResult(logger.Completed >= 1)); }
         finally { await StopAsync(stop, task); }
-        Assert.Equal(ExecutionFailureCode.EngineUnavailable,
-            (await new PostgresExecutionStore(fixture.Factory).GetAsync(request.ExecutionId, request.OwnerUserId))!.ErrorCode);
+        Assert.Equal(WorkflowExecutionStatus.Succeeded,
+            (await new PostgresExecutionStore(fixture.Factory).GetAsync(request.ExecutionId, request.OwnerUserId))!.Status);
     }
 
     [Fact]
@@ -294,7 +300,7 @@ public sealed class RabbitDispatchTests(DispatchFixture fixture)
             finally { await StopAsync(stop, task); }
         }
         var first = await new PostgresExecutionStore(fixture.Factory).GetAsync(request.ExecutionId, request.OwnerUserId);
-        Assert.Equal(WorkflowExecutionStatus.Failed, first!.Status);
+        Assert.Equal(WorkflowExecutionStatus.Succeeded, first!.Status);
         await UntilAsync(async () => await ReadyCountAsync() == 1);
         var logger = new CaptureLogger();
         using var replayStop = new CancellationTokenSource();

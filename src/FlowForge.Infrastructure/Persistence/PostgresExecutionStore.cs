@@ -49,4 +49,31 @@ public sealed class PostgresExecutionStore(IDbContextFactory<FlowForgeDbContext>
         var row = await db.WorkflowExecutions.AsNoTracking().SingleOrDefaultAsync(e => e.Id == executionId && e.OwnerUserId == owner, ct);
         return row is null ? null : ExecutionPersistence.Snapshot(row);
     }
+    public async Task<WorkflowExecutionSnapshot?> RequestCancellationAsync(Guid executionId, Guid owner, CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var rows = await db.WorkflowExecutions.FromSqlInterpolated($"""
+            SELECT * FROM workflow_executions WHERE id = {executionId} AND owner_user_id = {owner} FOR UPDATE
+            """).ToArrayAsync(ct);
+        var row = rows.SingleOrDefault();
+        if (row is null) return null;
+        var execution = WorkflowExecution.Restore(ExecutionPersistence.Snapshot(row));
+        var now = await ExecutionPersistence.NowAsync(db, ct);
+        execution.RequestCancellation(now < row.CreatedAt ? row.CreatedAt : now);
+        row.CancelRequestedAt = execution.Snapshot.CancelRequestedAt;
+        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+        return execution.Snapshot;
+    }
+
+    public async Task<ExecutionHistory?> HistoryAsync(Guid executionId, Guid owner, CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.RepeatableRead, ct);
+        if (!await db.WorkflowExecutions.AnyAsync(e => e.Id == executionId && e.OwnerUserId == owner, ct)) return null;
+        var nodes = await db.NodeExecutions.AsNoTracking().Where(n => n.ExecutionId == executionId).OrderBy(n => n.Ordinal).ToArrayAsync(ct);
+        var logs = await db.ExecutionLogs.AsNoTracking().Where(l => l.ExecutionId == executionId).OrderBy(l => l.CreatedAt).ThenBy(l => l.Id).ToArrayAsync(ct);
+        await tx.CommitAsync(ct);
+        return new(nodes.Select(NodeExecutionPersistence.Snapshot).ToArray(), logs.Select(NodeExecutionPersistence.Log).ToArray());
+    }
 }

@@ -18,6 +18,8 @@ public interface IExecutionStore
 {
     Task<WorkflowExecutionSnapshot> RequestAsync(ExecutionRequest request, CancellationToken ct = default);
     Task<WorkflowExecutionSnapshot?> GetAsync(Guid executionId, Guid owner, CancellationToken ct = default);
+    Task<WorkflowExecutionSnapshot?> RequestCancellationAsync(Guid executionId, Guid owner, CancellationToken ct = default);
+    Task<ExecutionHistory?> HistoryAsync(Guid executionId, Guid owner, CancellationToken ct = default);
 }
 
 public sealed record OutboxClaim(ExecutionRequestedMessage Message, Guid Token);
@@ -29,11 +31,10 @@ public interface IExecutionOutboxStore
 }
 
 public enum InboxClaimStatus { Acquired, Busy, Completed, Invalid }
-public sealed record InboxClaim(InboxClaimStatus Status, Guid ExecutionId, Guid MessageId, Guid? Token);
+public sealed record InboxClaim(InboxClaimStatus Status, Guid ExecutionId, Guid MessageId, Guid? Token, int Generation = 0);
 public interface IExecutionInboxStore
 {
     Task<InboxClaim> TryClaimAsync(ExecutionRequestedMessage message, TimeSpan lease, CancellationToken ct = default);
-    Task<bool> CompleteEngineUnavailableAsync(InboxClaim claim, CancellationToken ct = default);
 }
 
 public interface IExecutionPublisher

@@ -13,6 +13,8 @@ public sealed class FlowForgeDbContext(DbContextOptions<FlowForgeDbContext> opti
     internal DbSet<WorkflowExecutionRecord> WorkflowExecutions => Set<WorkflowExecutionRecord>();
     internal DbSet<OutboxMessageRecord> OutboxMessages => Set<OutboxMessageRecord>();
     internal DbSet<InboxMessageRecord> InboxMessages => Set<InboxMessageRecord>();
+    internal DbSet<NodeExecutionRecord> NodeExecutions => Set<NodeExecutionRecord>();
+    internal DbSet<ExecutionLogRecord> ExecutionLogs => Set<ExecutionLogRecord>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("public");

@@ -10,7 +10,7 @@ public sealed class PostgresExecutionInboxStore(IDbContextFactory<FlowForgeDbCon
     public async Task<InboxClaim> TryClaimAsync(ExecutionRequestedMessage message, TimeSpan lease, CancellationToken ct = default)
     {
         ExecutionPersistence.ValidateLease(lease);
-        InboxClaim Result(InboxClaimStatus status, Guid? token = null) => new(status, message.ExecutionId, message.MessageId, token);
+        InboxClaim Result(InboxClaimStatus status, Guid? token = null, int generation = 0) => new(status, message.ExecutionId, message.MessageId, token, generation);
         if (!message.IsValid()) return Result(InboxClaimStatus.Invalid);
         await using var db = await factory.CreateDbContextAsync(ct);
         await using var tx = await db.Database.BeginTransactionAsync(ct);
@@ -35,34 +35,13 @@ public sealed class PostgresExecutionInboxStore(IDbContextFactory<FlowForgeDbCon
         }
         inbox.ClaimToken = token; inbox.ClaimUntil = now + lease; inbox.ClaimAttempts++;
         var execution = WorkflowExecution.Restore(ExecutionPersistence.Snapshot(row));
-        if (row.Status == WorkflowExecutionStatus.Pending)
+        if (row.Status == WorkflowExecutionStatus.Pending && row.CancelRequestedAt is null)
         {
             execution.Start(now); row.Status = execution.Snapshot.Status; row.StartedAt = execution.Snapshot.StartedAt;
         }
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
-        return Result(InboxClaimStatus.Acquired, token);
+        return Result(InboxClaimStatus.Acquired, token, inbox.ClaimAttempts);
     }
 
-    public async Task<bool> CompleteEngineUnavailableAsync(InboxClaim claim, CancellationToken ct = default)
-    {
-        if (claim.Status != InboxClaimStatus.Acquired || claim.Token is null) return false;
-        await using var db = await factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-        var rows = await db.WorkflowExecutions.FromSqlInterpolated($"""
-            SELECT * FROM workflow_executions WHERE id = {claim.ExecutionId} FOR UPDATE
-            """).ToArrayAsync(ct);
-        var row = rows.SingleOrDefault();
-        var inbox = await db.InboxMessages.SingleOrDefaultAsync(i => i.MessageId == claim.MessageId && i.ExecutionId == claim.ExecutionId, ct);
-        var now = await ExecutionPersistence.NowAsync(db, ct);
-        if (row is null || inbox is null || inbox.CompletedAt is not null || inbox.ClaimToken != claim.Token || inbox.ClaimUntil <= now)
-            return false;
-        var execution = WorkflowExecution.Restore(ExecutionPersistence.Snapshot(row));
-        execution.Fail(ExecutionFailureCode.EngineUnavailable, now < row.StartedAt ? row.StartedAt.Value : now);
-        row.Status = execution.Snapshot.Status; row.FinishedAt = execution.Snapshot.FinishedAt; row.ErrorCode = execution.Snapshot.ErrorCode;
-        inbox.CompletedAt = row.FinishedAt; inbox.ClaimToken = null; inbox.ClaimUntil = null;
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
-        return true;
-    }
 }

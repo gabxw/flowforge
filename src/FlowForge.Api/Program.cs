@@ -40,8 +40,8 @@ app.MapHealthChecks("/api/health/live");
 app.MapGet("/", () => Results.Ok(new
 {
     service = "FlowForge.Api",
-    phase = 5,
-    status = "private-execution-dispatch"
+    phase = 6,
+    status = "private-sequential-engine"
 })).WithName("ServiceInfo");
 
 if (app.Environment.IsDevelopment())

@@ -11,9 +11,17 @@ internal sealed class WorkflowExecutionConfiguration : IEntityTypeConfiguration<
         builder.ToTable("workflow_executions", t =>
         {
             t.HasCheckConstraint("ck_execution_id", "id <> '00000000-0000-0000-0000-000000000000'::uuid AND correlation_id <> '00000000-0000-0000-0000-000000000000'::uuid");
-            t.HasCheckConstraint("ck_execution_state", "(status = 1 AND started_at IS NULL AND finished_at IS NULL AND error_code IS NULL) OR (status = 2 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NULL AND error_code IS NULL) OR (status = 4 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NOT NULL AND finished_at >= started_at AND error_code IS NOT NULL AND error_code = 1)");
+            t.HasCheckConstraint("ck_execution_state", "(status = 1 AND started_at IS NULL AND finished_at IS NULL AND error_code IS NULL) OR (status = 2 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NULL AND error_code IS NULL) OR (status = 4 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NOT NULL AND finished_at >= started_at AND error_code IS NOT NULL AND error_code BETWEEN 1 AND 7) OR (status = 3 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NOT NULL AND finished_at >= started_at AND error_code IS NULL) OR (status = 5 AND cancel_requested_at IS NOT NULL AND finished_at IS NOT NULL AND finished_at >= cancel_requested_at AND finished_at >= COALESCE(started_at, created_at) AND (started_at IS NULL OR started_at >= created_at) AND error_code IS NULL)");
         });
         builder.HasKey(e => e.Id);
+        builder.HasAlternateKey(e => new { e.Id, e.WorkflowVersionId });
+        builder.Property(e => e.CheckpointRevision).HasDefaultValue(0);
+        builder.ToTable("workflow_executions", t =>
+        {
+            t.HasCheckConstraint("ck_execution_checkpoint", "checkpoint_revision >= 0 AND (execution_context_protected IS NULL OR octet_length(execution_context_protected) BETWEEN 1 AND 131072) AND (cancel_requested_at IS NULL OR cancel_requested_at >= created_at) AND (status IN (1, 2) OR next_node_id IS NULL)");
+        });
+        builder.HasOne<WorkflowNodeRecord>().WithMany().HasForeignKey(e => new { e.WorkflowVersionId, e.NextNodeId })
+            .HasPrincipalKey(n => new { n.WorkflowVersionId, n.NodeId }).OnDelete(DeleteBehavior.NoAction);
         builder.HasOne<WorkflowVersionRecord>().WithMany()
             .HasForeignKey(e => new { e.WorkflowVersionId, e.WorkflowId, e.OwnerUserId })
             .HasPrincipalKey(v => new { v.Id, v.WorkflowId, v.OwnerUserId }).OnDelete(DeleteBehavior.NoAction);

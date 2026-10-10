@@ -3,6 +3,7 @@ using FlowForge.Infrastructure.Messaging;
 using FlowForge.Infrastructure.Persistence;
 using FlowForge.Infrastructure.Runtime;
 using FlowForge.Worker;
+using FlowForge.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -13,6 +14,12 @@ builder.Services.AddDbContextFactory<FlowForgeDbContext>((sp, options) =>
 builder.Services.AddSingleton(sp => RabbitRuntimeOptions.FromConfiguration(sp.GetRequiredService<IConfiguration>()));
 builder.Services.AddSingleton<IExecutionOutboxStore, PostgresExecutionOutboxStore>();
 builder.Services.AddSingleton<IExecutionInboxStore, PostgresExecutionInboxStore>();
+builder.Services.AddSingleton(sp => ExecutionProtectionRuntime.Create(sp.GetRequiredService<IConfiguration>(), builder.Environment.IsDevelopment()));
+builder.Services.AddSingleton<IExecutionEngineStore, PostgresExecutionEngineStore>();
+builder.Services.AddSingleton(EngineOptions.Default);
+builder.Services.AddSingleton<INodeExecutor, TriggerNodeExecutor>();
+builder.Services.AddSingleton<INodeExecutor, LogNodeExecutor>();
+builder.Services.AddSingleton<SequentialExecutionEngine>();
 builder.Services.AddSingleton<IExecutionMessageHandler, ExecutionMessageHandler>();
 builder.Services.AddSingleton<IExecutionPublisher, RabbitExecutionPublisher>();
 builder.Services.AddSingleton<OutboxDispatcher>();

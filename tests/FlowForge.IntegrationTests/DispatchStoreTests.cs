@@ -119,12 +119,12 @@ public sealed class DispatchStoreTests(DispatchFixture fixture)
             Assert.Null((await db.InboxMessages.SingleAsync()).CompletedAt);
             Assert.Equal(WorkflowExecutionStatus.Running, (await db.WorkflowExecutions.SingleAsync()).Status);
         }
-        Assert.True(await inbox.CompleteEngineUnavailableAsync(winner));
-        Assert.False(await inbox.CompleteEngineUnavailableAsync(winner));
+        Assert.True(await fixture.CompleteAsync(winner));
+        Assert.False(await fixture.CompleteAsync(winner));
         Assert.Equal(InboxClaimStatus.Completed, (await inbox.TryClaimAsync(message, Lease)).Status);
         await using var final = await fixture.Factory.CreateDbContextAsync();
         Assert.Equal(1, (await final.InboxMessages.SingleAsync()).ClaimAttempts);
-        Assert.Equal(ExecutionFailureCode.EngineUnavailable, (await final.WorkflowExecutions.SingleAsync()).ErrorCode);
+        Assert.Equal(ExecutionFailureCode.UnsupportedNode, (await final.WorkflowExecutions.SingleAsync()).ErrorCode);
     }
 
     [Fact]
@@ -137,11 +137,11 @@ public sealed class DispatchStoreTests(DispatchFixture fixture)
         var running = await new PostgresExecutionStore(fixture.Factory).GetAsync(request.ExecutionId, request.OwnerUserId);
         await using var db = await fixture.Factory.CreateDbContextAsync();
         await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE inbox_messages SET claim_until = clock_timestamp() - interval '1 second' WHERE message_id = {request.MessageId}");
-        Assert.False(await inbox.CompleteEngineUnavailableAsync(first));
+        Assert.False(await fixture.CompleteAsync(first));
         var second = await inbox.TryClaimAsync(Message(request), Lease);
         Assert.Equal(InboxClaimStatus.Acquired, second.Status); Assert.NotEqual(first.Token, second.Token);
-        Assert.False(await inbox.CompleteEngineUnavailableAsync(first));
-        Assert.True(await inbox.CompleteEngineUnavailableAsync(second));
+        Assert.False(await fixture.CompleteAsync(first));
+        Assert.True(await fixture.CompleteAsync(second));
         var failed = await new PostgresExecutionStore(fixture.Factory).GetAsync(request.ExecutionId, request.OwnerUserId);
         Assert.Equal(running!.StartedAt, failed!.StartedAt);
         Assert.Equal(2, (await db.InboxMessages.AsNoTracking().SingleAsync()).ClaimAttempts);
@@ -177,7 +177,7 @@ public sealed class DispatchStoreTests(DispatchFixture fixture)
             """);
         try
         {
-            await Assert.ThrowsAsync<Npgsql.PostgresException>(() => inbox.CompleteEngineUnavailableAsync(claim));
+            await Assert.ThrowsAsync<Npgsql.PostgresException>(() => fixture.CompleteAsync(claim));
             await using var db = await fixture.Factory.CreateDbContextAsync();
             Assert.Equal(WorkflowExecutionStatus.Running, (await db.WorkflowExecutions.SingleAsync()).Status);
             Assert.Null((await db.InboxMessages.SingleAsync()).CompletedAt);
@@ -186,7 +186,7 @@ public sealed class DispatchStoreTests(DispatchFixture fixture)
         {
             await setup.Database.ExecuteSqlRawAsync("DROP TRIGGER fail_dispatch_completion ON inbox_messages; DROP FUNCTION fail_dispatch_completion();");
         }
-        Assert.True(await inbox.CompleteEngineUnavailableAsync(claim));
+        Assert.True(await fixture.CompleteAsync(claim));
     }
 
     [Fact]

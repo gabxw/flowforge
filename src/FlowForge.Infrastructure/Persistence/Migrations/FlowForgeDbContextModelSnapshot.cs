@@ -23,6 +23,56 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("FlowForge.Infrastructure.Persistence.Records.ExecutionLogRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("EventCode")
+                        .HasColumnType("integer")
+                        .HasColumnName("event_code");
+
+                    b.Property<Guid>("ExecutionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("execution_id");
+
+                    b.Property<int>("MessageByteLength")
+                        .HasColumnType("integer")
+                        .HasColumnName("message_byte_length");
+
+                    b.Property<byte[]>("MessageProtected")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("message_protected");
+
+                    b.Property<Guid>("NodeExecutionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("node_execution_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_execution_logs");
+
+                    b.HasIndex("NodeExecutionId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_execution_logs_node_execution_id");
+
+                    b.HasIndex("NodeExecutionId", "ExecutionId")
+                        .HasDatabaseName("ix_execution_logs_node_execution_id_execution_id");
+
+                    b.HasIndex("ExecutionId", "CreatedAt", "Id")
+                        .HasDatabaseName("ix_execution_logs_execution_id_created_at_id");
+
+                    b.ToTable("execution_logs", "public", t =>
+                        {
+                            t.HasCheckConstraint("ck_execution_log_content", "event_code = 1 AND message_byte_length BETWEEN 1 AND 8000 AND octet_length(message_protected) BETWEEN 1 AND 16384");
+                        });
+                });
+
             modelBuilder.Entity("FlowForge.Infrastructure.Persistence.Records.InboxMessageRecord", b =>
                 {
                     b.Property<Guid>("MessageId")
@@ -66,6 +116,84 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
                     b.ToTable("inbox_messages", "public", t =>
                         {
                             t.HasCheckConstraint("ck_inbox_state", "claim_attempts > 0 AND ((completed_at IS NULL AND claim_token IS NOT NULL AND claim_until IS NOT NULL) OR (completed_at IS NOT NULL AND completed_at >= received_at AND claim_token IS NULL AND claim_until IS NULL))");
+                        });
+                });
+
+            modelBuilder.Entity("FlowForge.Infrastructure.Persistence.Records.NodeExecutionRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempt_count");
+
+                    b.Property<int?>("ErrorCode")
+                        .HasColumnType("integer")
+                        .HasColumnName("error_code");
+
+                    b.Property<Guid>("ExecutionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("execution_id");
+
+                    b.Property<DateTimeOffset?>("FinishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("finished_at");
+
+                    b.Property<string>("InputSummary")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("input_summary");
+
+                    b.Property<Guid>("NodeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("node_id");
+
+                    b.Property<int>("Ordinal")
+                        .HasColumnType("integer")
+                        .HasColumnName("ordinal");
+
+                    b.Property<string>("OutputSummary")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("output_summary");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("WorkflowVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workflow_version_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_node_executions");
+
+                    b.HasAlternateKey("Id", "ExecutionId")
+                        .HasName("ak_node_executions_id_execution_id");
+
+                    b.HasIndex("ExecutionId", "NodeId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_node_executions_execution_id_node_id");
+
+                    b.HasIndex("ExecutionId", "Ordinal")
+                        .IsUnique()
+                        .HasDatabaseName("ix_node_executions_execution_id_ordinal");
+
+                    b.HasIndex("ExecutionId", "WorkflowVersionId")
+                        .HasDatabaseName("ix_node_executions_execution_id_version_id");
+
+                    b.HasIndex("WorkflowVersionId", "NodeId")
+                        .HasDatabaseName("ix_node_executions_version_id_node_id");
+
+                    b.ToTable("node_executions", "public", t =>
+                        {
+                            t.HasCheckConstraint("ck_node_execution_id", "id <> '00000000-0000-0000-0000-000000000000'::uuid AND ordinal >= 0");
+
+                            t.HasCheckConstraint("ck_node_execution_state", "(status = 1 AND attempt_count = 0 AND started_at IS NULL AND finished_at IS NULL AND input_summary IS NULL AND output_summary IS NULL AND error_code IS NULL) OR (status = 2 AND attempt_count > 0 AND started_at IS NOT NULL AND finished_at IS NULL AND input_summary IS NOT NULL AND output_summary IS NULL AND error_code IS NULL) OR (status = 3 AND attempt_count > 0 AND started_at IS NOT NULL AND finished_at IS NOT NULL AND finished_at >= started_at AND input_summary IS NOT NULL AND output_summary IS NOT NULL AND error_code IS NULL) OR (status = 4 AND attempt_count > 0 AND started_at IS NOT NULL AND finished_at IS NOT NULL AND finished_at >= started_at AND input_summary IS NOT NULL AND output_summary IS NULL AND error_code IS NOT NULL AND error_code BETWEEN 1 AND 7) OR (status = 6 AND attempt_count = 0 AND started_at IS NULL AND finished_at IS NOT NULL AND input_summary IS NULL AND output_summary IS NULL AND error_code IS NULL) OR (status = 7 AND attempt_count > 0 AND started_at IS NOT NULL AND finished_at IS NOT NULL AND finished_at >= started_at AND input_summary IS NOT NULL AND output_summary IS NULL AND error_code IS NULL)");
                         });
                 });
 
@@ -209,6 +337,16 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<DateTimeOffset?>("CancelRequestedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancel_requested_at");
+
+                    b.Property<int>("CheckpointRevision")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("checkpoint_revision");
+
                     b.Property<Guid>("CorrelationId")
                         .HasColumnType("uuid")
                         .HasColumnName("correlation_id");
@@ -221,9 +359,17 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("error_code");
 
+                    b.Property<byte[]>("ExecutionContextProtected")
+                        .HasColumnType("bytea")
+                        .HasColumnName("execution_context_protected");
+
                     b.Property<DateTimeOffset?>("FinishedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("finished_at");
+
+                    b.Property<Guid?>("NextNodeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("next_node_id");
 
                     b.Property<Guid>("OwnerUserId")
                         .HasColumnType("uuid")
@@ -248,6 +394,12 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_workflow_executions");
 
+                    b.HasAlternateKey("Id", "WorkflowVersionId")
+                        .HasName("ak_workflow_executions_id_workflow_version_id");
+
+                    b.HasIndex("WorkflowVersionId", "NextNodeId")
+                        .HasDatabaseName("ix_workflow_executions_version_id_next_node_id");
+
                     b.HasIndex("OwnerUserId", "CreatedAt", "Id")
                         .HasDatabaseName("ix_workflow_executions_owner_user_id_created_at_id");
 
@@ -256,9 +408,11 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
 
                     b.ToTable("workflow_executions", "public", t =>
                         {
+                            t.HasCheckConstraint("ck_execution_checkpoint", "checkpoint_revision >= 0 AND (execution_context_protected IS NULL OR octet_length(execution_context_protected) BETWEEN 1 AND 131072) AND (cancel_requested_at IS NULL OR cancel_requested_at >= created_at) AND (status IN (1, 2) OR next_node_id IS NULL)");
+
                             t.HasCheckConstraint("ck_execution_id", "id <> '00000000-0000-0000-0000-000000000000'::uuid AND correlation_id <> '00000000-0000-0000-0000-000000000000'::uuid");
 
-                            t.HasCheckConstraint("ck_execution_state", "(status = 1 AND started_at IS NULL AND finished_at IS NULL AND error_code IS NULL) OR (status = 2 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NULL AND error_code IS NULL) OR (status = 4 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NOT NULL AND finished_at >= started_at AND error_code IS NOT NULL AND error_code = 1)");
+                            t.HasCheckConstraint("ck_execution_state", "(status = 1 AND started_at IS NULL AND finished_at IS NULL AND error_code IS NULL) OR (status = 2 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NULL AND error_code IS NULL) OR (status = 4 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NOT NULL AND finished_at >= started_at AND error_code IS NOT NULL AND error_code BETWEEN 1 AND 7) OR (status = 3 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NOT NULL AND finished_at >= started_at AND error_code IS NULL) OR (status = 5 AND cancel_requested_at IS NOT NULL AND finished_at IS NOT NULL AND finished_at >= cancel_requested_at AND finished_at >= COALESCE(started_at, created_at) AND (started_at IS NULL OR started_at >= created_at) AND error_code IS NULL)");
                         });
                 });
 
@@ -458,6 +612,17 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("FlowForge.Infrastructure.Persistence.Records.ExecutionLogRecord", b =>
+                {
+                    b.HasOne("FlowForge.Infrastructure.Persistence.Records.NodeExecutionRecord", null)
+                        .WithMany()
+                        .HasForeignKey("NodeExecutionId", "ExecutionId")
+                        .HasPrincipalKey("Id", "ExecutionId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("fk_execution_logs_node_execution_id_execution_id");
+                });
+
             modelBuilder.Entity("FlowForge.Infrastructure.Persistence.Records.InboxMessageRecord", b =>
                 {
                     b.HasOne("FlowForge.Infrastructure.Persistence.Records.OutboxMessageRecord", null)
@@ -467,6 +632,24 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired()
                         .HasConstraintName("fk_inbox_messages_message_id_execution_id");
+                });
+
+            modelBuilder.Entity("FlowForge.Infrastructure.Persistence.Records.NodeExecutionRecord", b =>
+                {
+                    b.HasOne("FlowForge.Infrastructure.Persistence.Records.WorkflowExecutionRecord", null)
+                        .WithMany()
+                        .HasForeignKey("ExecutionId", "WorkflowVersionId")
+                        .HasPrincipalKey("Id", "WorkflowVersionId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("fk_node_executions_execution_id_workflow_version_id");
+
+                    b.HasOne("FlowForge.Infrastructure.Persistence.Records.WorkflowNodeRecord", null)
+                        .WithMany()
+                        .HasForeignKey("WorkflowVersionId", "NodeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("fk_node_executions_workflow_version_id_node_id");
                 });
 
             modelBuilder.Entity("FlowForge.Infrastructure.Persistence.Records.OutboxMessageRecord", b =>
@@ -498,6 +681,12 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("FlowForge.Infrastructure.Persistence.Records.WorkflowExecutionRecord", b =>
                 {
+                    b.HasOne("FlowForge.Infrastructure.Persistence.Records.WorkflowNodeRecord", null)
+                        .WithMany()
+                        .HasForeignKey("WorkflowVersionId", "NextNodeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("fk_workflow_executions_workflow_version_id_next_node_id");
+
                     b.HasOne("FlowForge.Infrastructure.Persistence.Records.WorkflowVersionRecord", null)
                         .WithMany()
                         .HasForeignKey("WorkflowVersionId", "WorkflowId", "OwnerUserId")

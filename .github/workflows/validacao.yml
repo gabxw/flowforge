@@ -140,6 +140,13 @@ jobs:
             ./scripts/smoke-workflows.ps1 -BaseUri 'http://127.0.0.1:5173'
             ./scripts/smoke-executions.ps1
             ./scripts/smoke-executions.ps1 -BaseUri 'http://127.0.0.1:5173'
+            # O volume de keyring deve sobreviver à recriação do Worker sem expor seu conteúdo.
+            $keyNames = docker compose exec -T worker sh -c 'ls /var/lib/flowforge/keys/key-*.xml'
+            if ($LASTEXITCODE -ne 0 -or -not $keyNames) { throw 'Keyring não foi persistido.' }
+            Invoke-Check @('compose', 'up', '--detach', '--force-recreate', '--no-deps', 'worker')
+            ./scripts/smoke-executions.ps1
+            $keyNamesAfter = docker compose exec -T worker sh -c 'ls /var/lib/flowforge/keys/key-*.xml'
+            if ($LASTEXITCODE -ne 0 -or ($keyNames -join ',') -ne ($keyNamesAfter -join ',')) { throw 'Keyring mudou ao recriar Worker.' }
             $workerId = docker compose ps -q worker
             if ($LASTEXITCODE -ne 0 -or -not $workerId) { throw 'Worker não foi criado.' }
             $workerRunning = docker inspect -f '{{.State.Running}}' $workerId

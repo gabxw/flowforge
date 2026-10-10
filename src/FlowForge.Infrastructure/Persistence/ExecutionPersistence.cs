@@ -17,5 +17,5 @@ internal static class ExecutionPersistence
 
     public static WorkflowExecutionSnapshot Snapshot(WorkflowExecutionRecord r) =>
         WorkflowExecution.Restore(new(r.Id, r.WorkflowId, r.WorkflowVersionId, r.OwnerUserId, r.CorrelationId,
-            r.Status, r.CreatedAt, r.StartedAt, r.FinishedAt, r.ErrorCode)).Snapshot;
+            r.Status, r.CreatedAt, r.StartedAt, r.FinishedAt, r.ErrorCode, r.CancelRequestedAt)).Snapshot;
 }

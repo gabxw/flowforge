@@ -16,23 +16,35 @@ public sealed class ExecutionService(IExecutionStore store)
         return await store.GetAsync(id, owner, ct) ?? throw new KeyNotFoundException("Execução não encontrada.");
     }
 
+    public async Task<WorkflowExecutionSnapshot> CancelAsync(Guid owner, Guid id, CancellationToken ct = default)
+    {
+        Validate(owner); Validate(id);
+        return await store.RequestCancellationAsync(id, owner, ct) ?? throw new KeyNotFoundException("Execução não encontrada.");
+    }
+
+    public async Task<ExecutionHistory> HistoryAsync(Guid owner, Guid id, CancellationToken ct = default)
+    {
+        Validate(owner); Validate(id);
+        return await store.HistoryAsync(id, owner, ct) ?? throw new KeyNotFoundException("Execução não encontrada.");
+    }
+
     private static void Validate(Guid id)
     {
         if (id == Guid.Empty) throw new ArgumentException("A identidade não pode ser vazia.");
     }
 }
 
-public sealed class ExecutionMessageHandler(IExecutionInboxStore inbox) : IExecutionMessageHandler
+public sealed class ExecutionMessageHandler(IExecutionInboxStore inbox, SequentialExecutionEngine engine) : IExecutionMessageHandler
 {
     public async Task<MessageDisposition> HandleAsync(ExecutionRequestedMessage message, CancellationToken ct = default)
     {
-        var claim = await inbox.TryClaimAsync(message, TimeSpan.FromSeconds(30), ct);
+        var claim = await inbox.TryClaimAsync(message, engine.Lease, ct);
         return claim.Status switch
         {
             InboxClaimStatus.Invalid => MessageDisposition.Invalid,
             InboxClaimStatus.Completed => MessageDisposition.Completed,
             InboxClaimStatus.Busy => MessageDisposition.Busy,
-            _ => await inbox.CompleteEngineUnavailableAsync(claim, ct) ? MessageDisposition.Completed : MessageDisposition.Busy
+            _ => await engine.RunAsync(claim, ct)
         };
     }
 }

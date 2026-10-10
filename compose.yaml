@@ -30,6 +30,7 @@ services:
       dockerfile: src/FlowForge.Worker/Dockerfile
     environment:
       DOTNET_ENVIRONMENT: Development
+      FlowForge__DataProtection__KeyRingPath: /var/lib/flowforge/keys
       FlowForge__Postgres__Host: postgres
       FlowForge__Postgres__Database: flowforge
       FlowForge__Postgres__Username: flowforge
@@ -45,6 +46,8 @@ services:
         condition: service_healthy
     init: true
     stop_grace_period: 30s
+    volumes:
+      - execution_keyring:/var/lib/flowforge/keys
 
   postgres:
     image: postgres:17-alpine
@@ -104,6 +107,7 @@ services:
 volumes:
   postgres_data:
   rabbitmq_data:
+  execution_keyring:
 
 secrets:
   postgres_password:
