@@ -100,9 +100,9 @@ Entrega e revisão: [phase-6-review.md](phase-6-review.md), [PR #3](https://gith
 
 Commit sugerido: Implementar execução sequencial de workflows.
 
-## Fase 7 — Webhook Trigger
+## Fase 7 — Webhook Trigger (concluída em 10/10/2026)
 
-Status: implementada e aprovada nos testes locais; Compose/publicação/CI em validação. Consulte [phase-7-review.md](phase-7-review.md).
+Status: concluída e publicada; 960 testes, Compose com broker parado/recriação e CI PR/main aprovados. Consulte [phase-7-review.md](phase-7-review.md).
 
 Entregas: POST /hooks/{endpointId}, segredo em header com hash no banco, validação de endpoint/versionamento, limite de payload, rate limit local e resposta 202 após transação. Reserva inicial de Idempotency-Key por proprietário/endpoint e comparação do conteúdo.
 

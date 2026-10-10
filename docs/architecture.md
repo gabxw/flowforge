@@ -1,6 +1,6 @@
 # Arquitetura e escopo do FlowForge
 
-Status: Fases 1 a 6 concluídas. A Fase 6 implementa engine sequencial, Trigger/Log, checkpoints protegidos, histórico e cancelamento. Evidências em [phase-6-review.md](phase-6-review.md). A Fase 7 implementa ingresso protegido e está em validação final; outros executores e autenticação seguem nas fases indicadas.
+Status: Fases 1 a 7 concluídas. Webhook recebe input protegido, reserva idempotência e responde após commit; engine sequencial executa Trigger/Log com checkpoints, histórico e cancelamento. Evidências em [phase-7-review.md](phase-7-review.md). Outros executores e autenticação seguem nas fases indicadas.
 
 ## Problema e requisitos
 

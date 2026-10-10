@@ -6,13 +6,11 @@ O problema central é aceitar eventos rapidamente e processar etapas externas de
 
 ## Estado atual
 
-**Fases 1 a 6 concluídas; Fase 7 em validação final.**
+**Fases 1 a 7 concluídas.**
 
 Disponível: API privada para criar/listar/editar/publicar/arquivar workflows, domínio tipado com validação de DAG, persistência EF Core/PostgreSQL, migrations explícitas, Problem Details e OpenAPI. Há testes HTTP com banco real, controle de revisão e isolamento por proprietário técnico do servidor. A Fase 5 acrescenta solicitações de execução, outbox transacional, RabbitMQ e Worker com inbox recuperável. A Fase 6 acrescenta engine sequencial, executores Trigger/Log, checkpoints protegidos, histórico e cancelamento cooperativo. A Fase 7 acrescenta webhook com secret em header/hash, input protegido, idempotência opcional, rate limit e administração do endpoint. O frontend continua como shell; autenticação/editor e demais executores seguem no roadmap.
 
-A Fase 6 está integrada à main pelo [PR #3](https://github.com/gabxw/flowforge/pull/3), com [CI completo aprovado](https://github.com/gabxw/flowforge/actions/runs/38059749130), incluindo build novo das imagens. Passaram **915 testes xUnit** (737 Domain + 8 Application + 80 API + 90 Integration). A engine executa Trigger → Log, registra NodeExecution e retoma pelo contexto protegido, sem repetir nodes já concluídos. Tipos sem executor retornam unsupportedNode. A [revisão da Fase 6](docs/phase-6-review.md) registra resultados, decisões e limites.
-
-A suíte atual passa **960 testes xUnit** (740 Domain + 26 Application + 96 API + 98 Integration). O [contrato de webhooks](docs/webhooks.md), a [ADR 0007](docs/decisions/0007-webhook-acceptance-and-idempotency.md) e a [revisão da Fase 7](docs/phase-7-review.md) registram o novo aceite, suas verificações e as pendências de publicação.
+A Fase 7 está integrada à main pelo [PR #4](https://github.com/gabxw/flowforge/pull/4), com [CI completo aprovado](https://github.com/gabxw/flowforge/actions/runs/38064004807), incluindo imagens novas e recuperação com broker parado. Passaram **960 testes xUnit** (740 Domain + 26 Application + 96 API + 98 Integration). O [contrato de webhooks](docs/webhooks.md), a [ADR 0007](docs/decisions/0007-webhook-acceptance-and-idempotency.md) e a [revisão da Fase 7](docs/phase-7-review.md) registram aceite, idempotência, proteção do input e limites atuais.
 
 Os lockfiles NuGet e npm são versionados. As revisões das [Fases 1](docs/phase-1-review.md), [2](docs/phase-2-review.md) e [3](docs/phase-3-review.md) preservam o histórico; a [operação da API](docs/api.md) descreve o contrato e o exemplo executável atual.
 

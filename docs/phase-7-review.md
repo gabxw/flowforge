@@ -1,6 +1,6 @@
 # Revisão técnica — Fase 7
 
-Estado: implementação, suíte local e Compose aprovados; publicação/CI pendentes. Não iniciar a Fase 8 antes de concluir os critérios desta revisão.
+Estado: **Fase 7 concluída em 10/10/2026, publicada e integrada à main.** Implementação, revisão técnica, suíte local, Compose e CI PR/main aprovados. A Fase 8 aguarda autorização de novo incremento.
 
 ## Incremento e decisão
 
@@ -21,7 +21,7 @@ A API responde depois de commit e não executa nodes ou espera o broker. Trigger
 | Versionamento/retenção | Nova publicação move apenas novos aceites; replay mantém versão/execução. Reserva expirada pode ser reutilizada, preservando históricos. |
 | Conteúdo protegido e retomável | Purpose original/checkpoint/ExecutionId distinto; original não é sobrescrito por output. Não inicializar contexto antes dos nodes. |
 | Limites e privacidade | 429/Retry-After sem bloquear liveness; logs e tags HTTP sem segredo/payload no teste. Histórico/GET endpoint contêm metadados. |
-| Broker parado, recriação dos hosts e proxy | Compose isolado aprovado: 202/Pending com RabbitMQ parado; execução original conclui após recriação API/Worker e retorno do broker. Rota direta e proxy aprovados. CI pendente. |
+| Broker parado, recriação dos hosts e proxy | Compose isolado aprovado: 202/Pending com RabbitMQ parado; execução original conclui após recriação API/Worker e retorno do broker. Rota direta e proxy aprovados localmente e nos dois CI. |
 
 ## Verificação executada
 
@@ -30,11 +30,14 @@ A API responde depois de commit e não executa nodes ou espera o broker. Trigger
 - Quarta migration incremental AceiteDeWebhooks; doze tabelas. EF has-pending-model-changes sem drift e script idempotente gerado. Migrations anteriores preservadas.
 - Sintaxe dos scripts PowerShell aprovada; git diff --check aprovado considerando CRLF.
 - Compose local isolado aprovado com build novo completo de API/Worker/frontend, migrations duas vezes, smokes de workflow/manual/webhook direto e por proxy, desativação/rotação/idempotência, keyring após recriação, broker parado e input original após recriação API/Worker. Worker encerrado exited:0:false; removidos somente containers/volumes do projeto descartável de validação. Docker Hub respondeu normalmente nesta verificação.
+- [CI do PR aprovado](https://github.com/gabxw/flowforge/actions/runs/38063636349) e [CI da main aprovado](https://github.com/gabxw/flowforge/actions/runs/38064004807): todos os três jobs, inclusive imagens novas, suíte completa e cenário de broker parado/recriação. Teste adicional confirmou que os coletores de logs/tags contêm dados e omitem segredo/body.
 - Revisão do próprio autor: contratos, ordem de locks workflow → endpoint, ownership/FKs, versionamento, expiração, propósito de cifragem e ausência de secrets em log/DTO de leitura. Não apresentada como revisão independente.
 
 ## Limites aceitos
 
 API administrativa ainda usa proprietário técnico e requer ambiente privado. Secret bearer exige TLS fora da demonstração local. Keyring de Development não possui wrapping; esse runtime é recusado em Production. Preservar keyring junto do banco. Retenção periódica de reservas/payload/histórico e quotas de backlog ainda não implementadas. Digest não oculta corpos previsíveis.
+
+Atualização exige migration e API/Worker da Fase 7 juntos; Worker antigo ignoraria o input webhook. No ambiente privado, pausar ambos durante a atualização. Down é destrutivo para inputs/endpoints/reservas e não é um rollback operacional.
 
 Um endpoint pode consumir o orçamento local dos demais; reinício/múltiplas réplicas alteram o orçamento. Locks serializam aceites no mesmo workflow; não há lock durante execução. PUT enabled aplica o último comando confirmado, sem CAS de endpoint. Header/query/body não são capturados por logging HTTP; instrumentação/exporters futuros precisam preservar essa política.
 
@@ -42,4 +45,6 @@ Limitação herdada: U+0000 em texto de definição de workflow pode causar 500 
 
 ## Publicação e memória
 
-Publicação GitHub/CI pendente. Commits serão em português, sem prefixos, autoria gabxw/noreply verificado; arquivos pessoais não rastreados preservados. Curadoria permanece pendente porque memory_project_summary/memory_propose_update não estão disponíveis e não há registro curado do projeto. Handoff mínimo local não equivale a atualização do vault.
+O [PR #4](https://github.com/gabxw/flowforge/pull/4) está MERGED por fast-forward, preservando os três commits: e556392 (contratos/domínio), 4e86822 (aceite/persistência/transporte/testes) e 45f9ede (documentação). Código e CI verificados em 45f9ede5498564e72156c12ae20188860ab4c5fb. O fechamento posterior muda somente README e documentos; não altera código, configuração, migrations ou testes.
+
+Commits em português, sem prefixos, autoria gabxw/noreply verificado no GitHub, sem configuração global. Arquivos pessoais não rastreados preservados e excluídos dos commits. Curadoria permanece pendente porque memory_project_summary/memory_propose_update não estão disponíveis e não há registro curado do projeto. Handoff mínimo local não equivale a atualização do vault.

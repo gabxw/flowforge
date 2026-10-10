@@ -50,6 +50,12 @@ Input original cifrado tem purpose diferente do checkpoint e fica separado dele.
 
 Rate limiting usa uma partição fixa por processo, sem Redis, com 60 requests por 60 s e sem espera por padrão. FlowForge__Webhooks__PermitLimit (1–10000) e FlowForge__Webhooks__WindowSeconds (1–3600) são opções do host. O orçamento inclui recusas e é compartilhado pelos endpoints; múltiplas réplicas têm orçamentos próprios. Não há confiança em X-Forwarded-For para contagem, nem criação de partições por IDs aleatórios. Isso não limita o backlog acumulado ao longo de vários minutos; quotas/retenção serão revistas com a confiabilidade e autenticação.
 
+## Atualização do ambiente
+
+Aplicar a quarta migration antes de aceitar webhooks. O Worker da Fase 6 não conhece o input original e trataria uma entrada nova como {}; por isso, não misturar API da Fase 7 com Worker antigo. Neste ambiente privado, interromper API/Worker, preservar banco/keyring, aplicar migration explícita e iniciar os dois hosts atualizados antes de liberar o ingresso. Não é uma estratégia de rolling upgrade sem indisponibilidade.
+
+Down remove input original/reservas/endpoints e pode perder a entrada de execuções ainda não inicializadas. Não utilizá-lo como rollback operacional; restaurar backup consistente ou corrigir adiante após interromper o ingresso. Logs operacionais não substituem o payload protegido. A compatibilidade com comandos manuais/históricos da Fase 6 é preservada no caminho de atualização.
+
 ## Demonstração e recuperação
 
 Depois de preparar os secrets de infraestrutura no processo, subir Compose e aplicar migrations conforme README:
