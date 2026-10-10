@@ -6,11 +6,11 @@ O problema central é aceitar eventos rapidamente e processar etapas externas de
 
 ## Estado atual
 
-**Fases 1 a 5 concluídas; Fase 6 em validação final.**
+**Fases 1 a 6 concluídas.**
 
 Disponível: API privada para criar/listar/editar/publicar/arquivar workflows, domínio tipado com validação de DAG, persistência EF Core/PostgreSQL, migrations explícitas, Problem Details e OpenAPI. Há testes HTTP com banco real, controle de revisão e isolamento por proprietário técnico do servidor. A Fase 5 acrescenta solicitações de execução, outbox transacional, RabbitMQ e Worker com inbox recuperável. A Fase 6 acrescenta engine sequencial, executores Trigger/Log, checkpoints protegidos, histórico e cancelamento cooperativo. O frontend continua como shell; autenticação/editor e demais executores seguem no roadmap.
 
-A Fase 6 está em revisão e validação para publicação. A engine executa Trigger → Log, registra NodeExecution e retoma pelo contexto protegido, sem repetir nodes já concluídos. Tipos sem executor retornam unsupportedNode. A [revisão da Fase 6](docs/phase-6-review.md) registra os critérios e a evidência disponível; o [PR #2](https://github.com/gabxw/flowforge/pull/2) preserva a entrega anterior.
+A Fase 6 está integrada à main pelo [PR #3](https://github.com/gabxw/flowforge/pull/3), com [CI completo aprovado](https://github.com/gabxw/flowforge/actions/runs/38059749130), incluindo build novo das imagens. Passaram **915 testes xUnit** (737 Domain + 8 Application + 80 API + 90 Integration). A engine executa Trigger → Log, registra NodeExecution e retoma pelo contexto protegido, sem repetir nodes já concluídos. Tipos sem executor retornam unsupportedNode. A [revisão da Fase 6](docs/phase-6-review.md) registra resultados, decisões e limites.
 
 Os lockfiles NuGet e npm são versionados. As revisões das [Fases 1](docs/phase-1-review.md), [2](docs/phase-2-review.md) e [3](docs/phase-3-review.md) preservam o histórico; a [operação da API](docs/api.md) descreve o contrato e o exemplo executável atual.
 

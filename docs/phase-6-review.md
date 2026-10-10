@@ -1,6 +1,16 @@
 # Revisão técnica — Fase 6
 
-Status: implementação e validação local aprovadas; publicação e CI final pendentes. Não iniciar Fase 7 neste incremento.
+Status: concluída em 10/10/2026, integrada à main e validada localmente e no CI. Não iniciar Fase 7 neste incremento.
+
+## Publicação
+
+Código/documentação validado em 4014160c1c2a9d9073b3786d6a2da308befd8fd7 (engine em c555796). [PR #3 integrado](https://github.com/gabxw/flowforge/pull/3), [CI do PR aprovado](https://github.com/gabxw/flowforge/actions/runs/38059437527) e [CI da main aprovado](https://github.com/gabxw/flowforge/actions/runs/38059749130). Integração por fast-forward preserva autoria gabxw com noreply verificado. A atualização final de conclusão altera somente documentação, sem mudança no código validado.
+
+Commits em português, sem prefixos: Modelar execução de nodes e travessia do grafo; Executar workflows com checkpoints protegidos e cancelamento; Documentar checkpoints, proteção de dados e operação da engine. Não houve reescrita do histórico anterior.
+
+As imagens validadas API/Worker também ficaram nas tags locais flowforge-api/flowforge-worker para agilizar docker compose up. Frontend sem alterações mantém o cache anterior validado. Recursos operacionais e os dois itens pessoais não rastreados foram preservados.
+
+A skill memory-curator foi consultada; as ferramentas MCP de snapshot/proposta estão indisponíveis. Handoff mínimo salvo em .local/phase-6-evidence/handoff.md para continuidade, sem promoção ao vault nem ID de proposta inventado. Atualização curada permanece pendente.
 
 ## Entrega
 
@@ -39,12 +49,12 @@ A migration 20261010135849_MotorSequencialEHistorico adiciona duas tabelas, prog
 | EF pending model changes | Nenhuma alteração pendente |
 | Parser de scripts PowerShell | Aprovado |
 | Compose Windows isolado | Aprovado, API/Worker reconstruídos e frontend sem alterações em cache |
-| Build completo das imagens no CI | Pendente |
-| GitHub Actions / integração na main | Pendentes |
+| Build completo das imagens no CI | Aprovado, API/Worker/frontend novos no runner |
+| GitHub Actions / integração na main | Aprovados nos três jobs; PR #3 integrado |
 
 Evidências locais em .local/phase-6-evidence, ignoradas no Git. O roteiro isolado aplicou migrations duas vezes, verificou liveness/CRUD, Trigger → Log direto e pelo proxy, recriação do Worker com mesmo keyring, recriação da API com recuperação do proxy, Redis opcional e encerramento normal do Worker. Apenas containers/volumes descartáveis do projeto flowforge-phase6-validation-20261010 foram removidos; remoção confirmada por labels.
 
-O frontend não sofreu alteração e usou a imagem em cache validada na Fase 5. Não conta como build novo do Dockerfile frontend no Windows: persiste a limitação local de download Docker Hub. Build novo de todas as imagens será verificado no CI. Nenhuma configuração de proxy/rede/Docker Desktop foi alterada nesta fase.
+O frontend não sofreu alteração e usou a imagem em cache validada na Fase 5. Não conta como build novo do Dockerfile frontend no Windows: persiste a limitação local de download Docker Hub. Build novo de todas as imagens foi aprovado no CI. Nenhuma configuração de proxy/rede/Docker Desktop foi alterada nesta fase.
 
 Falhas encontradas e corrigidas: expectativa antiga de duas migrations; teste de ConfigurationBuilder colocado inicialmente no projeto sem essa dependência (movido para API.Tests, que já a possui); injeção de expiração que alterava inbox sem lock da execução (corrigida para a ordem real). Testes afetados repetidos e suíte inteira aprovada. Não foram ignoradas nem suprimidas verificações.
 
