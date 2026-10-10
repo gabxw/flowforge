@@ -46,8 +46,8 @@ app.MapHealthChecks("/api/health/live");
 app.MapGet("/", () => Results.Ok(new
 {
     service = "FlowForge.Api",
-    phase = 7,
-    status = "private-webhook-engine"
+    phase = 8,
+    status = "private-http-engine"
 })).WithName("ServiceInfo");
 
 if (app.Environment.IsDevelopment())

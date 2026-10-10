@@ -1,3 +1,6 @@
+using FlowForge.Infrastructure.Http;
+using FlowForge.Application.Credentials;
+using Microsoft.AspNetCore.DataProtection;
 using FlowForge.Application.Executions;
 using FlowForge.Infrastructure.Messaging;
 using FlowForge.Infrastructure.Persistence;
@@ -14,11 +17,18 @@ builder.Services.AddDbContextFactory<FlowForgeDbContext>((sp, options) =>
 builder.Services.AddSingleton(sp => RabbitRuntimeOptions.FromConfiguration(sp.GetRequiredService<IConfiguration>()));
 builder.Services.AddSingleton<IExecutionOutboxStore, PostgresExecutionOutboxStore>();
 builder.Services.AddSingleton<IExecutionInboxStore, PostgresExecutionInboxStore>();
-builder.Services.AddSingleton(sp => ExecutionProtectionRuntime.Create(sp.GetRequiredService<IConfiguration>(), builder.Environment.IsDevelopment()));
+builder.Services.AddSingleton(sp => ExecutionProtectionRuntime.CreateProvider(sp.GetRequiredService<IConfiguration>(), builder.Environment.IsDevelopment()));
+builder.Services.AddSingleton(sp => new ExecutionContextProtection(sp.GetRequiredService<IDataProtectionProvider>()));
+builder.Services.AddSingleton(sp => new CredentialProtection(sp.GetRequiredService<IDataProtectionProvider>()));
+builder.Services.AddSingleton<ICredentialStore, PostgresCredentialStore>();
+builder.Services.AddSingleton(sp => HttpNodeOptions.FromConfiguration(sp.GetRequiredService<IConfiguration>()));
+builder.Services.AddSingleton<HttpDestinationPolicy>();
+builder.Services.AddSingleton<PinnedHttpTransport>();
 builder.Services.AddSingleton<IExecutionEngineStore, PostgresExecutionEngineStore>();
 builder.Services.AddSingleton(EngineOptions.Default);
 builder.Services.AddSingleton<INodeExecutor, TriggerNodeExecutor>();
 builder.Services.AddSingleton<INodeExecutor, LogNodeExecutor>();
+builder.Services.AddSingleton<INodeExecutor, HttpRequestNodeExecutor>();
 builder.Services.AddSingleton<SequentialExecutionEngine>();
 builder.Services.AddSingleton<IExecutionMessageHandler, ExecutionMessageHandler>();
 builder.Services.AddSingleton<IExecutionPublisher, RabbitExecutionPublisher>();
