@@ -1,6 +1,6 @@
 # Modelo inicial de dados
 
-Status: cinco tabelas de definição implementadas na Fase 3. A Fase 5 acrescenta workflow_executions, outbox_messages e inbox_messages; estado e revisão em [phase-5-review.md](phase-5-review.md). A Fase 6 acrescenta node_executions, execution_logs e checkpoint/contexto/cancelamento; são dez tabelas de aplicação. A Fase 7 acrescenta webhook_endpoints e webhook_idempotency, totalizando doze; demais extensões continuam conceituais.
+Status: cinco tabelas de definição implementadas na Fase 3. A Fase 5 acrescenta workflow_executions, outbox_messages e inbox_messages; estado e revisão em [phase-5-review.md](phase-5-review.md). A Fase 6 acrescenta node_executions, execution_logs e checkpoint/contexto/cancelamento; são dez tabelas de aplicação. A Fase 7 acrescenta webhook_endpoints e webhook_idempotency. A Fase 8 acrescenta credentials, FK por dono e revisão utilizada no node: treze tabelas e cinco migrations. Demais extensões continuam conceituais.
 
 PostgreSQL é a fonte de verdade. UUID identifica os recursos; datas são instantes UTC, armazenados como timestamptz. Estados têm valores explícitos e transições validadas, sem depender da ordem numérica de enums. Configurações variáveis usam JSONB; identidade, ownership, relações e campos consultáveis usam colunas.
 
@@ -10,7 +10,7 @@ As cinco tabelas usam UUIDs definidos pelo domínio, timestamptz, nomes snake_ca
 
 Há UNIQUE de número de versão, índice parcial de um draft (status=1) por workflow, unicidade de porta de saída e ordinais para preservar a ordem das coleções. A listagem usa (owner_user_id, updated_at DESC, id DESC). Revisões são inteiros não negativos; checks cobrem status/datas, configurações schemaVersion=1, IDs não vazios e posições finitas.
 
-O codec é responsável pela forma completa da configuração; o domínio valida o DAG ao publicar/restaurar publicações. CredentialId é apenas uma referência, sem FK até existir o armazenamento seguro de credenciais. Consulte [ADR 0003](decisions/0003-postgresql-persistence.md) e [operação](persistence.md).
+O codec é responsável pela forma completa da configuração; o domínio valida o DAG ao publicar/restaurar publicações. CredentialId era apenas uma referência na Fase 3; a Fase 8 acrescenta armazenamento seguro e FK composta CredentialId/OwnerUserId. Consulte [ADR 0003](decisions/0003-postgresql-persistence.md) e [operação](persistence.md).
 
 ## Schema acrescentado na Fase 5
 
@@ -39,6 +39,16 @@ workflow_executions ganha WebhookEndpointId nullable e TriggerInputProtected byt
 webhook_idempotency tem PK EndpointId/KeyDigest, WorkflowId/OwnerUserId, RequestDigest, ExecutionId, CreatedAt e ExpiresAt. Endpoint é globalmente único; as FKs compostas vinculam reserva, workflow e execução ao mesmo proprietário. Digests SHA-256 são hexadecimal de 64 caracteres, com checks de formato e prazo. O endpoint único do workflow e os locks impedem reservas concorrentes distintas para uma chave. Índice ExpiresAt prepara consulta futura de limpeza; nenhuma rotina de exclusão foi acrescentada.
 
 Aceite grava input original, execução, outbox e reserva na mesma transação, sob locks workflow → endpoint. Expiração pode reutilizar a reserva, preservando a execução antiga. [ADR 0007](decisions/0007-webhook-acceptance-and-idempotency.md) explica comparação por bytes, validade, versionamento e limites.
+
+## Schema acrescentado na Fase 8
+
+credentials contém Id/OwnerUserId, Name, Type, Origin, HeaderName, ProtectedValue bytea, Revision, CreatedAt, UpdatedAt e RevokedAt. Ciphertext autenticado tem purpose vinculado a dono/ID/revisão/tipo/origem/header; o valor secreto não existe no Domain nem nas respostas da API. API key usa somente X-Api-Key/X-Auth-Token; Bearer usa Authorization. Tipo/origem/header não mudam depois da criação.
+
+FK composta dos nodes exige credencial do mesmo dono; referências históricas são preservadas por revogação terminal, sem delete cascade. Rotação/revogação usam revisão esperada sob lock curto. Worker resolve uma revisão ativa para cada chamada, sem transação aberta durante HTTP. O keyring permanece fora do banco e compartilhado API/Worker.
+
+node_executions ganha credential_revision_used nullable/positiva. O resultado/checkpoint registra a revisão conhecida; se houver queda antes disso, ela pode ficar nula. A recuperação de HTTP interrompido não repete o efeito nem acrescenta tentativa. Checks de falha agora incluem códigos HTTP 8..14. Auditoria completa de tentativas entra na Fase 10.
+
+A nova FK recusa IDs fictícios legados: o upgrade requer revisão explícita e preservação de publicações, sem inventar credenciais automaticamente. Detalhes de migração, proteção e limites em [http-and-credentials.md](http-and-credentials.md) e [ADR 0008](decisions/0008-secure-http-and-credentials.md).
 
 ## Relações
 
@@ -70,7 +80,7 @@ O diagrama é conceitual: WorkflowConnection também referencia os dois Workflow
 | WorkflowConnection | Id, WorkflowVersionId, SourceNodeId, TargetNodeId, SourcePort | Ambos os nodes pertencem à versão. Porta true/false para Condition; next para outros tipos. |
 | WorkflowExecution | Id, WorkflowId, WorkflowVersionId, OwnerUserId, Status, TriggerInput, ExecutionContextProtected, CheckpointRevision, CreatedAt, StartedAt, FinishedAt, DeadlineAt, ResumeAt, CancelRequestedAt, LeaseOwner, LeaseExpiresAt, FencingToken, CorrelationId, TraceId, ErrorCode, ErrorSummary | Versão fixa. Datas e estados coerentes. Claims e checkpoints verificam token da lease. |
 | NodeExecution | Id, WorkflowExecutionId, WorkflowVersionId, NodeId, Status, StartedAt, FinishedAt, Input, Output, AttemptCount, CredentialRevisionUsed, ErrorCode, ErrorSummary | Um registro lógico por execução/node. A versão deve ser a da execução. Input/output sanitizados e limitados. |
-| Credential | Id, OwnerUserId, Name, Type, ProtectedValue, Revision, CreatedAt, UpdatedAt, RevokedAt | Valor protegido por criptografia autenticada. API retorna metadados, nunca ProtectedValue. |
+| Credential | Id, OwnerUserId, Name, Type, Origin, HeaderName, ProtectedValue, Revision, CreatedAt, UpdatedAt, RevokedAt | Valor protegido por criptografia autenticada. API retorna metadados, nunca ProtectedValue. |
 | WebhookEndpoint | Id, WorkflowId, OwnerUserId, SecretHash, Enabled, CreatedAt, RotatedAt | ID público na URL. Secret em header, hash no banco. Apenas aceita workflow com versão publicada. |
 | ExecutionLog | Id, WorkflowExecutionId, NodeExecutionId, Level, EventCode, Message, SanitizedProperties, CreatedAt | Log sem segredos. NodeExecutionId opcional, porém precisa pertencer à execução quando informado. |
 
@@ -157,7 +167,7 @@ Configuration armazena somente parâmetros permitidos pelo schema do node, inclu
 
 TriggerInput, Input e Output preservam snapshots sanitizados e limitados. A captura de um resultado truncado inclui um indicador de truncamento e o tamanho original; ele não pode ser reaproveitado silenciosamente como input real de outro node. O contexto de execução e os snapshots de auditoria são conceitos diferentes: a engine trabalha com conteúdo permitido dentro do limite operacional, e a visualização recebe sua representação sanitizada.
 
-Conteúdo necessário para retomada deve estar durável antes de confirmar a mensagem. ExecutionContextProtected contém o contexto operacional serializado, limitado e criptografado, em bytea, separado dos snapshots JSONB. O contexto cifra e retém payload privado: na Fase 6 conserva o input corrente necessário ao próximo node (inicialmente {}), sem material de credenciais resolvidas ou headers secretos. Preservação independente do payload inicial de webhook será definida na Fase 7. A Fase 6 implementa limite de 64 KiB e captura apenas de metadados; retenção e limpeza ainda são propostas do MVP, sem implementação. CheckpointRevision e fencing protegem sua atualização. A engine não pode depender exclusivamente de objetos em memória nem usar um snapshot truncado para continuar depois de uma queda. O keyring persistente precisa existir antes dessa persistência, com purpose distinto do utilizado para Credential.
+Conteúdo necessário para retomada deve estar durável antes de confirmar a mensagem. ExecutionContextProtected contém o contexto operacional serializado, limitado e criptografado, em bytea, separado dos snapshots JSONB. O contexto cifra e retém payload privado: na Fase 6 conserva o input corrente necessário ao próximo node (inicialmente {}), sem material de credenciais resolvidas ou headers secretos. A Fase 7 acrescenta TriggerInputProtected separado para preservar o original do webhook. A Fase 6 implementa limite de 64 KiB e captura apenas de metadados; retenção e limpeza ainda são propostas do MVP, sem implementação. CheckpointRevision e fencing protegem sua atualização. A engine não pode depender exclusivamente de objetos em memória nem usar um snapshot truncado para continuar depois de uma queda. O keyring persistente precisa existir antes dessa persistência, com purpose distinto do utilizado para Credential.
 
 Direção inicial de retenção, ainda configurável e pendente de implementação:
 

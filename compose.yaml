@@ -33,6 +33,8 @@ services:
       dockerfile: src/FlowForge.Worker/Dockerfile
     environment:
       DOTNET_ENVIRONMENT: Development
+      # Lista de origens HTTPS exatas separadas por vírgula; vazio bloqueia todo HTTP externo.
+      FlowForge__Http__AllowedOrigins: ${FLOWFORGE_HTTP_ALLOWED_ORIGINS:-}
       FlowForge__DataProtection__KeyRingPath: /var/lib/flowforge/keys
       FlowForge__Postgres__Host: postgres
       FlowForge__Postgres__Database: flowforge

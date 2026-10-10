@@ -6,11 +6,13 @@ O problema central é aceitar eventos rapidamente e processar etapas externas de
 
 ## Estado atual
 
-**Fases 1 a 7 concluídas.**
+**Fases 1 a 7 concluídas; Fase 8 em validação final e publicação.**
 
-Disponível: API privada para criar/listar/editar/publicar/arquivar workflows, domínio tipado com validação de DAG, persistência EF Core/PostgreSQL, migrations explícitas, Problem Details e OpenAPI. Há testes HTTP com banco real, controle de revisão e isolamento por proprietário técnico do servidor. A Fase 5 acrescenta solicitações de execução, outbox transacional, RabbitMQ e Worker com inbox recuperável. A Fase 6 acrescenta engine sequencial, executores Trigger/Log, checkpoints protegidos, histórico e cancelamento cooperativo. A Fase 7 acrescenta webhook com secret em header/hash, input protegido, idempotência opcional, rate limit e administração do endpoint. O frontend continua como shell; autenticação/editor e demais executores seguem no roadmap.
+Disponível: API privada para criar/listar/editar/publicar/arquivar workflows, domínio tipado com validação de DAG, persistência EF Core/PostgreSQL, migrations explícitas, Problem Details e OpenAPI. Há testes HTTP com banco real, controle de revisão e isolamento por proprietário técnico do servidor. A Fase 5 acrescenta solicitações de execução, outbox transacional, RabbitMQ e Worker com inbox recuperável. A Fase 6 acrescenta engine sequencial, executores Trigger/Log, checkpoints protegidos, histórico e cancelamento cooperativo. A Fase 7 acrescenta webhook com secret em header/hash, input protegido, idempotência opcional, rate limit e administração do endpoint. A Fase 8 acrescenta HTTP Request com conexão aprovada/TLS, limites e Credential com rotação/revogação e ciphertext autenticado. O frontend continua como shell; autenticação/editor e demais executores seguem no roadmap.
 
 A Fase 7 está integrada à main pelo [PR #4](https://github.com/gabxw/flowforge/pull/4), com [CI completo aprovado](https://github.com/gabxw/flowforge/actions/runs/38064004807), incluindo imagens novas e recuperação com broker parado. Passaram **960 testes xUnit** (740 Domain + 26 Application + 96 API + 98 Integration). O [contrato de webhooks](docs/webhooks.md), a [ADR 0007](docs/decisions/0007-webhook-acceptance-and-idempotency.md) e a [revisão da Fase 7](docs/phase-7-review.md) registram aceite, idempotência, proteção do input e limites atuais.
+
+A implementação da Fase 8 passou pelos testes locais e pelo Compose; publicação e CI ainda estão em andamento. O [contrato de HTTP/Credentials](docs/http-and-credentials.md), a [ADR 0008](docs/decisions/0008-secure-http-and-credentials.md) e a [revisão da Fase 8](docs/phase-8-review.md) explicam SSRF, rotação e efeitos remotos desconhecidos.
 
 Os lockfiles NuGet e npm são versionados. As revisões das [Fases 1](docs/phase-1-review.md), [2](docs/phase-2-review.md) e [3](docs/phase-3-review.md) preservam o histórico; a [operação da API](docs/api.md) descreve o contrato e o exemplo executável atual.
 
@@ -30,7 +32,7 @@ flowchart LR
     Worker --> HTTP[Destinos HTTP autorizados]
 ```
 
-O ingresso por webhook, API, outbox, RabbitMQ e Worker estão implementados. A engine executa Trigger/Log; o destino HTTP no diagrama pertence à Fase 8. A API aceita também solicitações manuais com input {}. O aceite do webhook persiste o payload protegido e responde antes do processamento.
+O ingresso por webhook, API, outbox, RabbitMQ e Worker estão implementados. A engine executa Trigger, HTTP Request e Log; destinos HTTP exigem autorização explícita do operador. A API aceita também solicitações manuais com input {}. O aceite do webhook persiste o payload protegido e responde antes do processamento.
 
 ```text
 FlowForge.slnx
@@ -64,7 +66,7 @@ Domain não referencia outros projetos ou pacotes externos. Application referenc
 | RabbitMQ | Infraestrutura preparada; publicação/consumo na Fase 5 |
 | Redis | Profile opcional; integração depende de necessidade demonstrada |
 | xUnit | Testes de host e regras de domínio das Fases 1 e 2 |
-| Data Protection | Contexto/Log na Fase 6 e input original na Fase 7; keyring persistente compartilhado API/Worker |
+| Data Protection | Contexto/Log na Fase 6, input original na Fase 7 e Credential na Fase 8; keyring persistente compartilhado API/Worker |
 | Testcontainers | Primeiros testes de adaptadores com serviços reais |
 | OpenAPI | Documento nativo em Development na Fase 1; interface Swagger avaliada junto da API funcional |
 | React Flow | Editor visual na Fase 12 |
@@ -104,7 +106,7 @@ As variáveis fornecem Compose secrets: PostgreSQL em API/Worker/banco e RabbitM
 
 O frontend repete a checagem de inicialização durante uma janela limitada. Liveness confirma que a API responde; não afirma prontidão de banco/fila.
 
-Para incluir o Redis opcional: `docker compose --profile redis up`. Os hosts ainda não o utilizam. Para reconstruir imagens após mudanças: `docker compose up --build`. `docker compose down` encerra os containers e preserva os volumes. O volume execution_keyring deve ser preservado junto do banco; perdê-lo impede descriptografar contextos antigos.
+Para incluir o Redis opcional: `docker compose --profile redis up`. Os hosts ainda não o utilizam. Para reconstruir imagens após mudanças: `docker compose up --build`. `docker compose down` encerra os containers e preserva os volumes. O volume execution_keyring deve ser preservado junto do banco; perdê-lo impede descriptografar contextos e credenciais. HTTP externo começa bloqueado: configure FLOWFORGE_HTTP_ALLOWED_ORIGINS com origens HTTPS exatas e recrie o Worker. [Contrato e limites](docs/http-and-credentials.md).
 
 Quando os serviços estiverem ativos:
 
@@ -113,13 +115,14 @@ Quando os serviços estiverem ativos:
 .\scripts\smoke-workflows.ps1
 .\scripts\smoke-executions.ps1
 .\scripts\smoke-webhooks.ps1
+.\scripts\smoke-http.ps1
 ```
 
-O primeiro smoke verifica host/proxy. O segundo percorre criação, edição, erros, publicação dos seis tipos, nova versão e arquivamento com PostgreSQL; deixa um exemplo arquivado, sem executar nodes. O terceiro smoke verifica execução Trigger → Log, histórico protegido e preservação de resultado terminal. O quarto percorre webhook Trigger → Log, idempotência, desativação e rotação com dados fictícios e sem imprimir secrets. Os scripts locais preservam volumes. No CI, down --volumes ocorre somente no runner descartável.
+O primeiro smoke verifica host/proxy. O segundo percorre criação, edição, erros, publicação dos seis tipos, nova versão e arquivamento com PostgreSQL; deixa um exemplo arquivado, sem executar nodes. O terceiro smoke verifica execução Trigger → Log, histórico protegido e preservação de resultado terminal. O quarto percorre webhook Trigger → Log, idempotência, desativação e rotação com dados fictícios e sem imprimir secrets. O quinto cria/rotaciona/revoga uma credencial fictícia, verifica conflito de revisão e confirma que Trigger → HTTP → Log recusa um destino fora da allowlist sem executar Log. Sucesso HTTP é exercitado com HTTPS real controlado nos testes. Os scripts locais preservam volumes. No CI, down --volumes ocorre somente no runner descartável.
 
 ## Executar hosts no computador e verificar
 
-Pré-requisitos: SDK .NET 10 e Node.js 22.12 ou posterior na linha 22. A liveness da API independe de banco/fila. O Worker exige configuração PostgreSQL/RabbitMQ e keyring persistente em Development; a API precisa do mesmo keyring para webhooks; detalhes em [operação da engine](docs/execution-engine.md). A suíte completa exige Docker para PostgreSQL e RabbitMQ descartáveis; veja [como operar migrations e testes](docs/persistence.md).
+Pré-requisitos: SDK .NET 10 e Node.js 22.12 ou posterior na linha 22. A liveness da API independe de banco/fila. O Worker exige configuração PostgreSQL/RabbitMQ e keyring persistente em Development; a API precisa do mesmo keyring para webhooks e credenciais; detalhes em [operação da engine](docs/execution-engine.md). A suíte completa exige Docker para PostgreSQL e RabbitMQ descartáveis; veja [como operar migrations e testes](docs/persistence.md).
 
 ```powershell
 dotnet restore FlowForge.slnx --locked-mode
@@ -146,7 +149,7 @@ Para executar a sequência de restore, build, testes, lint e validação do Comp
 
 ## Exemplo e MVP
 
-Já executável: **Trigger → Log**, com entrada manual {} e consulta de nodes/logs. Exemplo do MVP completo, ainda dependente dos próximos executores:
+Já executável: **Webhook → HTTP Request → Log**, com destino autorizado, credencial opcional e consulta de nodes/logs. Trigger → Log continua disponível, inclusive com entrada manual {}. Exemplo do MVP completo, ainda dependente dos próximos executores:
 
 ```text
 Webhook → Condition (total > 100)
@@ -166,8 +169,8 @@ A versão de portfólio termina na Fase 16, com interface/editor, autenticação
 - Delay é durável e libera o Worker; retries têm limite e só se aplicam a operações elegíveis.
 - Lease e estado ficam no PostgreSQL inicialmente; Redis exige um problema adicional concreto.
 - Webhook secret vai em header, com hash persistido; URL não transporta segredo.
-- HTTP Node começa com allowlist e proteção contra SSRF na resolução/conexão, além de timeout e limite de corpo.
-- Contexto operacional e mensagens Log usam Data Protection com keyring fora do banco; histórico expõe metadados. Credenciais entram na Fase 8.
+- HTTP usa allowlist de origens HTTPS, valida todos os IPs DNS e conecta somente a um IP aprovado, preservando TLS/Host/SNI. Redirects e reconexões HTTP automáticas ficam recusados; timeout não prova ausência de efeito remoto.
+- Contexto, mensagens Log e credenciais usam Data Protection com purposes distintos e keyring fora do banco; histórico expõe metadados. Credenciais pertencem a dono/origem e têm rotação por revisão esperada.
 - Checkpoint + conclusão da inbox são atômicos; lease renovável e token/geração impedem gravação por Worker antigo.
 - O perfil privado Development mantém keyring em volume protegido por permissões; Production exige wrapping das chaves e é recusado pelo runtime atual.
 
@@ -178,7 +181,7 @@ No domínio, um rascunho pode ficar incompleto enquanto é editado. Publicar exi
 ## Documentação e roadmap
 
 - [Arquitetura, requisitos e limites do MVP](docs/architecture.md)
-- [Modelo inicial do banco](docs/data-model.md) — dez tabelas implementadas e extensões planejadas
+- [Modelo inicial do banco](docs/data-model.md) — treze tabelas implementadas e extensões planejadas
 - [Roadmap técnico das 16 fases](docs/roadmap.md)
 - [Decisões e alternativas](docs/decisions/0001-architecture-and-scope.md)
 - [Revisão e validações da Fase 1](docs/phase-1-review.md)
@@ -195,6 +198,10 @@ No domínio, um rascunho pode ficar incompleto enquanto é editado. Publicar exi
 - [Engine, checkpoints, histórico e cancelamento](docs/execution-engine.md)
 - [Decisão da engine e captura protegida](docs/decisions/0006-sequential-engine-and-checkpoints.md)
 - [Revisão e validações da Fase 6](docs/phase-6-review.md)
+- [Contrato de webhooks](docs/webhooks.md) e [revisão da Fase 7](docs/phase-7-review.md)
+- [HTTP seguro e operação de credenciais](docs/http-and-credentials.md)
+- [Decisão de conexão aprovada e credenciais](docs/decisions/0008-secure-http-and-credentials.md)
+- [Revisão e validações da Fase 8](docs/phase-8-review.md)
 
 Novos commits usam mensagens curtas e descritivas em português, sem qualquer prefixo; o histórico existente é preservado. A preferência pela conta gabxw e as demais regras do projeto estão em [AGENTS.md](AGENTS.md).
 

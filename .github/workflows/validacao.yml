@@ -124,6 +124,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $env:FLOWFORGE_POSTGRES_PASSWORD = [Guid]::NewGuid().ToString('N')
           $env:FLOWFORGE_RABBITMQ_PASSWORD = [Guid]::NewGuid().ToString('N')
+          $env:FLOWFORGE_HTTP_ALLOWED_ORIGINS = ''
           function Invoke-Check([string[]] $Arguments) {
             & docker @Arguments
             if ($LASTEXITCODE -ne 0) { throw "Falha no comando Docker (código $LASTEXITCODE)." }
@@ -142,6 +143,8 @@ jobs:
             ./scripts/smoke-executions.ps1 -BaseUri 'http://127.0.0.1:5173'
             ./scripts/smoke-webhooks.ps1
             ./scripts/smoke-webhooks.ps1 -BaseUri 'http://127.0.0.1:5173'
+            ./scripts/smoke-http.ps1
+            ./scripts/smoke-http.ps1 -BaseUri 'http://127.0.0.1:5173'
             # O volume de keyring deve sobreviver à recriação do Worker sem expor seu conteúdo.
             $keyNames = docker compose exec -T worker sh -c 'ls /var/lib/flowforge/keys/key-*.xml'
             if ($LASTEXITCODE -ne 0 -or -not $keyNames) { throw 'Keyring não foi persistido.' }
@@ -166,10 +169,12 @@ jobs:
             # A API aceita sem broker; input inicial precisa sobreviver à recriação de ambos os processos.
             Invoke-Check @('compose', 'exec', '-T', 'rabbitmq', 'rabbitmqctl', 'stop_app')
             $pendingWebhook = ./scripts/smoke-webhooks.ps1 -PendingOnly
+            $pendingHttp = ./scripts/smoke-http.ps1 -PendingOnly
             Invoke-Check @('compose', 'up', '--detach', '--force-recreate', '--no-deps', 'api', 'worker')
             Invoke-Check @('compose', 'exec', '-T', 'rabbitmq', 'rabbitmqctl', 'start_app')
             Invoke-Check @('compose', 'up', '--detach', '--wait', '--wait-timeout', '180')
             ./scripts/smoke-webhooks.ps1 -ExecutionId $pendingWebhook.ExecutionId -ExpectedInputBytes $pendingWebhook.ExpectedInputBytes
+            ./scripts/smoke-http.ps1 -ExecutionId $pendingHttp.ExecutionId -CredentialId $pendingHttp.CredentialId
             $workerId = docker compose ps -q worker
             if ($LASTEXITCODE -ne 0 -or -not $workerId) { throw 'Worker recriado ausente.' }
             Invoke-Check @('compose', '--profile', 'redis', 'up', '--detach', '--wait', '--wait-timeout', '60', 'redis')

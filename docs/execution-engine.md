@@ -1,6 +1,6 @@
-# Operação da engine — Fase 6
+# Operação da engine — Fases 6 a 8
 
-A API privada aceita um comando sem corpo e fixa a versão publicada. O Worker executa Trigger → Log (ou uma sequência de Logs) e registra progresso durável. O input manual é {}. A Fase 7 acrescenta input original protegido aceito por [webhook](webhooks.md); o Worker inicializa o contexto/nodes a partir dele. Demais executores continuam nas fases seguintes.
+A API privada aceita um comando sem corpo e fixa a versão publicada. O Worker executa Trigger → Log (ou uma sequência de Logs) e registra progresso durável. O input manual é {}. A Fase 7 acrescenta input original protegido aceito por [webhook](webhooks.md); o Worker inicializa o contexto/nodes a partir dele. A Fase 8 acrescenta HTTP Request com [destinos e credenciais protegidos](http-and-credentials.md). Demais executores continuam nas fases seguintes.
 
 ## Contrato HTTP
 
@@ -16,7 +16,7 @@ Proprietário é fornecido pelo servidor. Recurso de outro dono ou ausente retor
 
 Nodes podem retornar Pending antes de iniciar, Running durante processamento, Succeeded, Failed, Skipped ou Cancelled. Antes de o Worker inicializar, /nodes pode retornar []. Retrying está reservado à Fase 10. NodeExecution expõe attemptCount, input/output como {byteLength, kind}, horários e código estável; não expõe JSON operacional.
 
-Um workflow com tipo sem executor termina Failed/unsupportedNode; os nodes restantes ficam Skipped. Erros de executores são nodeFailed, timeout nodeTimeout, output acima do limite contextLimitExceeded e contrato incompatível invalidExecutorResult. Texto/objetos de exceções não são copiados ao histórico.
+Um workflow com tipo sem executor termina Failed/unsupportedNode; os nodes restantes ficam Skipped. Erros de executores são nodeFailed, timeout nodeTimeout, output acima do limite contextLimitExceeded e contrato incompatível invalidExecutorResult. HTTP acrescenta códigos sanitizados de destino/credencial/transport/response; CredentialRevisionUsed registra somente a revisão conhecida com o resultado, podendo ficar nula se o checkpoint se perder. Texto/objetos de exceções não são copiados ao histórico.
 
 ## Checkpoint e recuperação
 
@@ -26,13 +26,13 @@ Um workflow com tipo sem executor termina Failed/unsupportedNode; os nodes resta
 4. Resultado, próximo node e contexto protegido são gravados na mesma transação; Log também grava seu evento protegido.
 5. No último node, o resultado terminal e a conclusão da inbox são atômicos. Só depois o consumer confirma a mensagem.
 
-A engine renova a lease de 30 s a cada 5 s. Cada checkpoint valida autoridade e revisão. Redelivery de inbox concluída não repete nodes, logs ou horários. Queda após checkpoint retoma no próximo node. Queda com node Running permite replay apenas quando o executor declara segurança para isso; Trigger/Log são locais e seguros. Replay não é retry automático de falhas terminais.
+A engine renova a lease de 30 s a cada 5 s. Cada checkpoint valida autoridade e revisão. Redelivery de inbox concluída não repete nodes, logs ou horários. Queda após checkpoint retoma no próximo node. Queda com node Running permite replay apenas quando o executor declara segurança para isso; Trigger/Log são locais e seguros. HTTP não permite replay depois de Running: termina interruptedNode e não incrementa AttemptCount sem nova chamada. Replay não é retry automático de falhas terminais.
 
-Shutdown não persiste CancelRequestedAt. O delivery sem ack volta ao broker, a lease expira e outro Worker retoma. Pedido do usuário é observado entre nodes e no heartbeat; node interrompido fica Cancelled, anteriores são preservados e restantes Skipped. Uma chamada externa pode já ter produzido efeito quando o cancelamento é observado; essa política será detalhada com HTTP.
+Shutdown não persiste CancelRequestedAt. O delivery sem ack volta ao broker, a lease expira e outro Worker retoma. Pedido do usuário é observado entre nodes e no heartbeat; node interrompido fica Cancelled, anteriores são preservados e restantes Skipped. Uma chamada externa pode já ter produzido efeito quando o cancelamento é observado; HTTP mantém essa condição explícita e não repete a chamada automaticamente.
 
 ## Keyring e limites
 
-O volume execution_keyring compartilhado por API/Worker deve acompanhar o banco em backup/restauração e sobreviver à recriação do Worker. Contextos de até 64 KiB e mensagens Log são cifrados com purposes/identidades diferentes; snapshots HTTP mostram metadados. Não registrar bodies ou secrets na mensagem de Log/configuração do workflow.
+O volume execution_keyring compartilhado por API/Worker deve acompanhar o banco em backup/restauração e sobreviver à recriação do Worker. Contextos de até 64 KiB, mensagens Log e credenciais são cifrados com purposes/identidades diferentes; snapshots HTTP mostram metadados. Não registrar bodies ou secrets na mensagem de Log/configuração do workflow.
 
 No Compose, a configuração e o diretório com permissões 0700 estão preparados. O perfil Development usa chaves XML sem wrapping, em volume separado; o runtime rejeita essa configuração em Production. Wrapping e operação de chaves em produção precisam ser implementados antes de abrir o serviço ao público. Não existe keyring efêmero no runtime.
 

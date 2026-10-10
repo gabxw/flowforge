@@ -1,6 +1,6 @@
 # Arquitetura e escopo do FlowForge
 
-Status: Fases 1 a 7 concluídas. Webhook recebe input protegido, reserva idempotência e responde após commit; engine sequencial executa Trigger/Log com checkpoints, histórico e cancelamento. Evidências em [phase-7-review.md](phase-7-review.md). Outros executores e autenticação seguem nas fases indicadas.
+Status: Fases 1 a 7 concluídas; Fase 8 em validação final/publicação. Webhook recebe input protegido, reserva idempotência e responde após commit; engine sequencial executa Trigger, HTTP Request e Log com checkpoints, histórico e cancelamento. HTTP/Credentials e suas evidências estão em [phase-8-review.md](phase-8-review.md). Outros executores e autenticação seguem nas fases indicadas.
 
 ## Problema e requisitos
 
@@ -50,7 +50,7 @@ flowchart LR
     H --> L2[Log: resultado da chamada]
 ```
 
-A engine da Fase 6 executa um caminho sequencial com Trigger/Log; a seleção Condition entra na Fase 9. Nodes fora do caminho escolhido receberão Skipped ao encerrar a execução; um node de convergência ainda alcançável pelo ramo escolhido não poderá ser descartado prematuramente. Cada node receberá o output do predecessor escolhido. Condition avaliará um predicado e repassará o input; Transform produzirá um novo JSON. A Fase 2 define e valida o contrato dessas configurações.
+A engine executa um caminho sequencial com Trigger/HTTP/Log desde a Fase 8; a seleção Condition entra na Fase 9. Nodes fora do caminho escolhido receberão Skipped ao encerrar a execução; um node de convergência ainda alcançável pelo ramo escolhido não poderá ser descartado prematuramente. Cada node receberá o output do predecessor escolhido. Condition avaliará um predicado e repassará o input; Transform produzirá um novo JSON. A Fase 2 define e valida o contrato dessas configurações.
 
 ## Arquitetura proposta
 
@@ -68,7 +68,7 @@ flowchart LR
     W --> E[Destinos HTTP autorizados]
 ```
 
-API, PostgreSQL, outbox, RabbitMQ e Worker integram o processamento. O webhook da Fase 7 aceita o input protegido; HTTP externo entra na Fase 8.
+API, PostgreSQL, outbox, RabbitMQ e Worker integram o processamento. O webhook da Fase 7 aceita o input protegido; a Fase 8 conecta HTTP externo autorizado e resolve credenciais por dono/origem.
 
 ### Projetos .NET e dependências
 
@@ -82,7 +82,7 @@ API, PostgreSQL, outbox, RabbitMQ e Worker integram o processamento. O webhook d
 | FlowForge.Domain.Tests | Testes de definições, DAG, publicação e transições | Domain |
 | FlowForge.Application.Tests | Testes de casos de uso e engine quando existirem | Application, Domain |
 | FlowForge.Api.Tests | Smoke de inicialização e integração HTTP | Api |
-| FlowForge.IntegrationTests | Adaptadores, schema e PostgreSQL real; Worker em fase futura | Hosts e adaptadores sob teste |
+| FlowForge.IntegrationTests | Adaptadores, PostgreSQL/RabbitMQ reais, Worker e servidor HTTPS controlado | Hosts e adaptadores sob teste |
 
 Api e Worker são composition roots: podem conhecer implementações para registrar dependências, mas regras de negócio ficam fora deles. Domain não referencia ASP.NET Core, EF Core ou RabbitMQ. Application não acessa diretamente HttpContext, DbContext ou canais AMQP.
 
@@ -114,7 +114,7 @@ A transação de criação grava WorkflowExecution e OutboxMessage juntas. Um di
 
 Isso evita o intervalo em que uma execução existe no banco mas a publicação foi perdida. Ainda pode ocorrer publicação duplicada se o broker confirmou e o processo caiu antes de atualizar a outbox.
 
-RabbitMQ terá fila durável, mensagens persistentes, publisher confirms e acknowledgements manuais. Confirmação de publicação e confirmação de consumo resolvem partes diferentes do fluxo. Redelivery faz parte do contrato; o consumidor precisa suportar duplicações. [Guia de confiabilidade RabbitMQ](https://www.rabbitmq.com/docs/reliability)
+RabbitMQ usa fila durável, mensagens persistentes, publisher confirms e acknowledgements manuais. Confirmação de publicação e confirmação de consumo resolvem partes diferentes do fluxo. Redelivery faz parte do contrato; o consumidor precisa suportar duplicações. [Guia de confiabilidade RabbitMQ](https://www.rabbitmq.com/docs/reliability)
 
 ### Consumo, concorrência e recuperação: base na Fase 5; completo na Fase 10
 
@@ -134,7 +134,7 @@ O contrato é at-least-once. Não prometemos exactly-once para HTTP: um destino 
 
 Para destinos compatíveis, o mesmo identificador estável de efeito acompanha todas as tentativas do node como chave de idempotência. POST/PATCH com efeito não recebem retry automático sem contrato de idempotência do destino ou autorização explícita na configuração. Um timeout pode representar resultado desconhecido, e será mostrado como tal nos detalhes da tentativa.
 
-### Delay e retry
+### Delay e retry — fases futuras
 
 Delay grava ResumeAt no banco e suspende a execução. Libera o consumer e a lease depois do checkpoint; um scheduler publica a continuação por outbox quando o horário vencer. Não usamos Task.Delay de longa duração nem seguramos uma mensagem no broker durante horas.
 
@@ -156,7 +156,7 @@ Uma Idempotency-Key opcional é escopada pelo proprietário e endpoint. Sua rese
 
 O hash inclui o corpo recebido e os campos estáveis do contrato, sem credenciais. Não deduplicamos webhooks somente por hash de payload: eventos legítimos podem ter corpos iguais. A janela de validade é 24 h por padrão, configurável de 1 a 168 h. Na Fase 7, a comparação usa bytes exatos e a reserva expirada é reciclada sob lock; limpeza periódica entra na consolidação de confiabilidade. [ADR 0007](decisions/0007-webhook-acceptance-and-idempotency.md) e [operação](webhooks.md) detalham o contrato.
 
-## Segurança planejada
+## Segurança implementada e próximos incrementos
 
 ### Webhooks
 
@@ -168,17 +168,17 @@ A aceitação exige endpoint ativo, versão publicada, limite de corpo e rate li
 
 ### HTTP Request e SSRF
 
-O MVP usa allowlist de destinos administrada pelo operador, com HTTPS e portas autorizadas. Validação de string não basta: todas as respostas DNS A/AAAA devem ser avaliadas contra redes privadas, loopback, link-local, multicast, endereços reservados e metadados de nuvem.
+A Fase 8 implementa allowlist de origens exatas administrada pelo operador, com HTTPS e portas autorizadas; vazio bloqueia todas. Validação de string não basta: todas as respostas DNS A/AAAA devem ser avaliadas contra redes privadas, loopback, link-local, multicast, endereços reservados e metadados de nuvem.
 
-A conexão deve usar um endereço aprovado na resolução validada, mantendo hostname original para TLS e SNI. Não pode ocorrer uma segunda resolução irrestrita entre validação e conexão. Redirecionamentos automáticos ficam desabilitados; suporte futuro exige repetir a validação por salto. Credenciais não podem atravessar mudança de origem.
+A conexão usa um endereço aprovado na resolução validada, mantendo hostname original para TLS e SNI. ConnectCallback conecta ao IP, sem segunda resolução. Redirecionamentos, proxy e cookies ficam desabilitados; suporte futuro a redirects exige repetir a validação por salto. Credenciais são vinculadas à origem. Uma única sessão HTTP é permitida por tentativa, bloqueando reconexão automática do handler após EOF; fallback de conexão TCP entre IPs aprovados continua permitido antes do envio. [ADR 0008](decisions/0008-secure-http-and-credentials.md).
 
-Essa é uma decisão de projeto baseada nas ameaças de redirects e DNS pinning descritas pela OWASP. A implementação será exercitada com testes IPv4/IPv6, DNS rebinding e redirects, além de restrição de egress no ambiente quando disponível. [OWASP SSRF Prevention](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html)
+Essa é uma decisão de projeto baseada nas ameaças de redirects e DNS pinning descritas pela OWASP. A implementação tem testes IPv4/IPv6, DNS rebinding e redirects. Restrição adicional de egress no ambiente continua pendente. [OWASP SSRF Prevention](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html)
 
 Não há scripts livres, shell, acesso ao filesystem ou URLs de protocolos arbitrários. Transform usa um conjunto limitado de operações JSON; Condition usa operadores declarativos e paths validados.
 
 ### Credenciais e dados de execução
 
-Credential armazena ciphertext autenticado; a chave não reside no mesmo banco. A direção inicial é ASP.NET Core Data Protection com purpose específico e keyring persistente, compartilhado entre API e Worker. O keyring precisa de proteção separada; em produção, o material que o protege vem de mecanismo de secrets, certificado ou proteção de plataforma. Perder o keyring impede descriptografar credenciais.
+Credential armazena ciphertext autenticado; a chave não reside no mesmo banco. A Fase 8 usa ASP.NET Core Data Protection com purpose vinculado ao dono/ID/revisão/tipo/origem/header e keyring persistente, compartilhado entre API e Worker. O keyring precisa de proteção separada; em produção, o material que o protege vem de mecanismo de secrets, certificado ou proteção de plataforma. Perder o keyring impede descriptografar credenciais.
 
 Desenvolvimento usa material local fora do Git e volumes persistentes. Segredos de serviços não são gravados no Compose, README, exemplos ou mensagens de log. A configuração apenas referencia nomes de variáveis e arquivos externos.
 
@@ -190,7 +190,7 @@ A Fase 13 implementa access token JWT de curta duração e refresh tokens opacos
 
 A interface usa refresh token em cookie HttpOnly/Secure com SameSite definido para o modo de implantação; access token em memória. A escolha de cookie exige tratar CSRF conforme o contrato da aplicação.
 
-Limites de definição adotados na Fase 2: 50 nodes/100 conexões por versão, 50 campos de Transform, JSON Pointer de até 1.024 unidades UTF-16/32 segmentos e Delay configurado de até 24 horas. O domínio valida a configuração; não executa esperas ou transformações. Permanecem propostas futuras: webhook e resposta HTTP até 1 MiB, snapshot por input/output até 32 KiB, HTTP timeout de 10 segundos e prazo total de execução de 48 horas. Rate limits por endpoint/proprietário entram junto dos fluxos correspondentes.
+Limites de definição adotados na Fase 2: 50 nodes/100 conexões por versão, 50 campos de Transform, JSON Pointer de até 1.024 unidades UTF-16/32 segmentos e Delay configurado de até 24 horas. O domínio valida a configuração; não executa esperas ou transformações. Limites implementados: webhook e contexto até 64 KiB; snapshots contêm somente tipo/tamanho. HTTP aceita resposta até 32 KiB e headers até 8 KiB, prazo padrão de 8 segundos sob teto de node de 10 segundos. Credential requests têm 32 KiB e 10 segundos; rate limiting local de webhook está ativo. Prazo global, quotas e retenção continuam propostas para os próximos incrementos.
 
 ## Observabilidade e testes
 
@@ -210,4 +210,4 @@ A arquitetura deve crescer a partir de medições e requisitos: primeiro execuç
 
 ## Persistência implementada na Fase 3
 
-Portas de armazenamento em Application, registros EF internos em Infrastructure e reidratação validada em Domain mantêm as regras independentes do banco. A gravação compara a revisão esperada e preserva o histórico sob uma transação; a leitura detalhada usa Repeatable Read. A API compõe esses adaptadores desde a Fase 4; o Worker permanece sem persistência. Alternativas e custos: [ADR 0003](decisions/0003-postgresql-persistence.md) e [ADR 0004](decisions/0004-private-workflow-api.md).
+Portas de armazenamento em Application, registros EF internos em Infrastructure e reidratação validada em Domain mantêm as regras independentes do banco. A gravação compara a revisão esperada e preserva o histórico sob uma transação; a leitura detalhada usa Repeatable Read. A API compõe esses adaptadores desde a Fase 4; o Worker usa persistência para inbox/outbox desde a Fase 5 e checkpoints desde a Fase 6. Alternativas e custos: [ADR 0003](decisions/0003-postgresql-persistence.md) e [ADR 0004](decisions/0004-private-workflow-api.md).

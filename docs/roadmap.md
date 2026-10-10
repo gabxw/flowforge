@@ -114,6 +114,8 @@ Commit sugerido: Receber execuções por webhook autenticado.
 
 ## Fase 8 — HTTP Request Node e Credentials
 
+Status: implementação, testes locais e Docker aprovados; publicação e CI em andamento. Contrato em [http-and-credentials.md](http-and-credentials.md), decisão em [ADR 0008](decisions/0008-secure-http-and-credentials.md) e evidências em [phase-8-review.md](phase-8-review.md).
+
 Entregas: executor HTTP, configuração validada, referências a Credential, criptografia com keyring compartilhado/persistente fora do banco, timeout, limites e política de destinos. Allowlist, resolução/conexão aprovadas, tratamento IPv4/IPv6, redirects desativados e credenciais restritas à origem.
 
 Critério de saída: servidor externo controlado para sucesso, falha, timeout, body excedido e headers protegidos. Testes de SSRF cobrem rede privada/loopback/link-local, DNS rebinding, redirecionamento, metadados e IPv6. Credenciais de outro dono são recusadas e não aparecem em snapshots/logs.
