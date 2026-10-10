@@ -1,10 +1,14 @@
 namespace FlowForge.Domain.Executions;
 
-public enum ExecutionFailureCode { EngineUnavailable = 1 }
+public enum ExecutionFailureCode
+{
+    EngineUnavailable = 1, UnsupportedNode = 2, NodeFailed = 3, NodeTimeout = 4,
+    InterruptedNode = 5, InvalidExecutorResult = 6, ContextLimitExceeded = 7
+}
 
 public sealed record WorkflowExecutionSnapshot(Guid Id, Guid WorkflowId, Guid WorkflowVersionId,
     Guid OwnerUserId, Guid CorrelationId, WorkflowExecutionStatus Status, DateTimeOffset CreatedAt,
-    DateTimeOffset? StartedAt, DateTimeOffset? FinishedAt, ExecutionFailureCode? ErrorCode);
+    DateTimeOffset? StartedAt, DateTimeOffset? FinishedAt, ExecutionFailureCode? ErrorCode, DateTimeOffset? CancelRequestedAt = null);
 
 public sealed class WorkflowExecution
 {
@@ -30,11 +34,41 @@ public sealed class WorkflowExecution
             WorkflowExecutionStatus.Running => snapshot.StartedAt >= snapshot.CreatedAt && snapshot.FinishedAt is null && snapshot.ErrorCode is null,
             WorkflowExecutionStatus.Failed => snapshot.StartedAt >= snapshot.CreatedAt && snapshot.FinishedAt >= snapshot.StartedAt &&
                 snapshot.ErrorCode.HasValue && Enum.IsDefined(snapshot.ErrorCode.Value),
-            _ => false // Os demais resultados serão implementados com a engine.
+            WorkflowExecutionStatus.Succeeded => snapshot.StartedAt >= snapshot.CreatedAt && snapshot.FinishedAt >= snapshot.StartedAt && snapshot.ErrorCode is null,
+            WorkflowExecutionStatus.Cancelled => snapshot.FinishedAt >= (snapshot.StartedAt ?? snapshot.CreatedAt) &&
+                (snapshot.StartedAt is null || snapshot.StartedAt >= snapshot.CreatedAt) && snapshot.CancelRequestedAt.HasValue &&
+                snapshot.FinishedAt >= snapshot.CancelRequestedAt && snapshot.ErrorCode is null,
+            _ => false
         };
-        if (!valid) throw new ArgumentException("Estado persistido da execução inconsistente.");
+        if (!valid || (snapshot.CancelRequestedAt.HasValue && snapshot.CancelRequestedAt < snapshot.CreatedAt)) throw new ArgumentException("Estado persistido da execução inconsistente.");
         execution.Snapshot = snapshot;
         return execution;
+    }
+
+    public void RequestCancellation(DateTimeOffset now)
+    {
+        if (now < Snapshot.CreatedAt) throw new ArgumentOutOfRangeException(nameof(now));
+        if (Snapshot.Status is WorkflowExecutionStatus.Pending or WorkflowExecutionStatus.Running && Snapshot.CancelRequestedAt is null)
+            Snapshot = Snapshot with { CancelRequestedAt = now.ToUniversalTime() };
+    }
+
+    public void Succeed(DateTimeOffset now)
+    {
+        Finish(WorkflowExecutionStatus.Succeeded, now);
+    }
+
+    public void Cancel(DateTimeOffset now)
+    {
+        if (Snapshot.CancelRequestedAt is null) throw new InvalidOperationException("Cancelamento exige um pedido persistido.");
+        if (now < Snapshot.CancelRequestedAt) throw new ArgumentOutOfRangeException(nameof(now));
+        Finish(WorkflowExecutionStatus.Cancelled, now);
+    }
+
+    private void Finish(WorkflowExecutionStatus status, DateTimeOffset now)
+    {
+        ExecutionTransitions.EnsureTransition(Snapshot.Status, status);
+        if (now < (Snapshot.StartedAt ?? Snapshot.CreatedAt)) throw new ArgumentOutOfRangeException(nameof(now));
+        Snapshot = Snapshot with { Status = status, FinishedAt = now.ToUniversalTime() };
     }
 
     public void Start(DateTimeOffset now)
