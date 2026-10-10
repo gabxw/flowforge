@@ -9,7 +9,7 @@ namespace FlowForge.IntegrationTests;
 public sealed class PersistenceSchemaTests(PostgreSqlFixture fixture)
 {
     [Fact]
-    public async Task Migration_creates_only_the_five_application_tables()
+    public async Task Migration_creates_the_current_application_tables()
     {
         await using var connection = new NpgsqlConnection(fixture.ConnectionString);
         await connection.OpenAsync();
@@ -21,7 +21,7 @@ public sealed class PersistenceSchemaTests(PostgreSqlFixture fixture)
         await using var reader = await command.ExecuteReaderAsync();
         var tables = new List<string>();
         while (await reader.ReadAsync()) tables.Add(reader.GetString(0));
-        Assert.Equal(["users", "workflow_connections", "workflow_nodes", "workflow_versions", "workflows"], tables);
+        Assert.Equal(["inbox_messages", "outbox_messages", "users", "workflow_connections", "workflow_executions", "workflow_nodes", "workflow_versions", "workflows"], tables);
     }
 
     [Fact]
@@ -29,7 +29,7 @@ public sealed class PersistenceSchemaTests(PostgreSqlFixture fixture)
     {
         await using var context = await fixture.Factory.CreateDbContextAsync();
         var applied = (await context.Database.GetAppliedMigrationsAsync()).ToArray();
-        Assert.Single(applied);
+        Assert.Equal(2, applied.Length);
         await context.Database.MigrateAsync();
         Assert.Equal(applied, await context.Database.GetAppliedMigrationsAsync());
         Assert.Empty(await context.Database.GetPendingMigrationsAsync());

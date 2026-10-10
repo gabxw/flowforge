@@ -22,6 +22,6 @@ public sealed class PersistenceDesignTests
         using var context = new FlowForgeDbContext(new DbContextOptionsBuilder<FlowForgeDbContext>()
             .UseNpgsql("Host=127.0.0.1;Database=flowforge_design").Options);
         Assert.False(context.Database.HasPendingModelChanges());
-        Assert.Single(context.Database.GetMigrations());
+        Assert.Equal(2, context.Database.GetMigrations().Count());
     }
 }

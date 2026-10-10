@@ -38,6 +38,7 @@ public sealed class RuntimeContractTests
 
     [Theory]
     [InlineData(null, null)]
+    [InlineData("4190b033-4b2b-49be-9517-4eb8847d1023", "Database=unused;Password=secret-sentinel")]
     [InlineData("invalid-owner", "Host=127.0.0.1;Database=unused")]
     [InlineData("4190b033-4b2b-49be-9517-4eb8847d1023", "invalid-key=secret-sentinel")]
     [InlineData("4190b033-4b2b-49be-9517-4eb8847d1023", "Host=127.0.0.1;Port=1;Database=unused;Username=unused;Password=secret-sentinel;Timeout=1")]

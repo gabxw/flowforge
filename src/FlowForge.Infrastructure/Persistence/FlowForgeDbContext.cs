@@ -10,6 +10,9 @@ public sealed class FlowForgeDbContext(DbContextOptions<FlowForgeDbContext> opti
     internal DbSet<WorkflowVersionRecord> WorkflowVersions => Set<WorkflowVersionRecord>();
     internal DbSet<WorkflowNodeRecord> WorkflowNodes => Set<WorkflowNodeRecord>();
     internal DbSet<WorkflowConnectionRecord> WorkflowConnections => Set<WorkflowConnectionRecord>();
+    internal DbSet<WorkflowExecutionRecord> WorkflowExecutions => Set<WorkflowExecutionRecord>();
+    internal DbSet<OutboxMessageRecord> OutboxMessages => Set<OutboxMessageRecord>();
+    internal DbSet<InboxMessageRecord> InboxMessages => Set<InboxMessageRecord>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("public");
@@ -25,8 +28,12 @@ public sealed class FlowForgeDbContext(DbContextOptions<FlowForgeDbContext> opti
                 (key.IsPrimaryKey() ? "" : "_" + string.Join("_", key.Properties.Select(p => Snake(p.Name)))));
             foreach (var index in entity.GetIndexes()) index.SetDatabaseName("ix_" + entity.GetTableName() + "_" +
                 string.Join("_", index.Properties.Select(p => Snake(p.Name).Replace("workflow_version_id", "version_id"))));
-            foreach (var foreignKey in entity.GetForeignKeys()) foreignKey.SetConstraintName("fk_" + entity.GetTableName() + "_" +
-                string.Join("_", foreignKey.Properties.Select(p => Snake(p.Name))));
+            foreach (var foreignKey in entity.GetForeignKeys())
+            {
+                var name = "fk_" + entity.GetTableName() + "_" + string.Join("_", foreignKey.Properties.Select(p => Snake(p.Name)));
+                // Identificadores PostgreSQL têm limite de 63 bytes.
+                foreignKey.SetConstraintName(name.Length > 63 ? name.Replace("workflow_version_id", "version_id") : name);
+            }
         }
     }
     private static string Snake(string name) => Regex.Replace(name, "([a-z0-9])([A-Z])", "$1_$2").ToLowerInvariant();

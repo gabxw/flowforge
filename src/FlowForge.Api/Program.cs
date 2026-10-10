@@ -1,3 +1,4 @@
+using FlowForge.Api.Executions;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using FlowForge.Api;
@@ -39,8 +40,8 @@ app.MapHealthChecks("/api/health/live");
 app.MapGet("/", () => Results.Ok(new
 {
     service = "FlowForge.Api",
-    phase = 4,
-    status = "private-workflow-api"
+    phase = 5,
+    status = "private-execution-dispatch"
 })).WithName("ServiceInfo");
 
 if (app.Environment.IsDevelopment())
@@ -50,6 +51,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapWorkflows();
+app.MapExecutions();
 
 app.Run();
 
