@@ -145,10 +145,20 @@ jobs:
             ./scripts/smoke-webhooks.ps1 -BaseUri 'http://127.0.0.1:5173'
             ./scripts/smoke-http.ps1
             ./scripts/smoke-http.ps1 -BaseUri 'http://127.0.0.1:5173'
+            ./scripts/smoke-declarative.ps1
+            ./scripts/smoke-declarative.ps1 -BaseUri 'http://127.0.0.1:5173'
             # O volume de keyring deve sobreviver à recriação do Worker sem expor seu conteúdo.
+            $pausedDelay = ./scripts/smoke-declarative.ps1 -PausedOnly -DelaySeconds 45
+            ./scripts/smoke-executions.ps1 # Consumer permanece disponível durante o Delay.
+            Start-Sleep -Milliseconds 500
+            $waitingQueue = docker compose exec -T rabbitmq rabbitmqctl list_queues --quiet name messages_unacknowledged
+            if ($LASTEXITCODE -ne 0 -or ($waitingQueue -join '') -notmatch 'flowforge\.executions\.v1\s+0') { throw 'Delivery permaneceu aberta durante Delay.' }
             $keyNames = docker compose exec -T worker sh -c 'ls /var/lib/flowforge/keys/key-*.xml'
             if ($LASTEXITCODE -ne 0 -or -not $keyNames) { throw 'Keyring não foi persistido.' }
+            Invoke-Check @('compose', 'exec', '-T', 'rabbitmq', 'rabbitmqctl', 'stop_app')
             Invoke-Check @('compose', 'up', '--detach', '--force-recreate', '--no-deps', 'worker')
+            Invoke-Check @('compose', 'exec', '-T', 'rabbitmq', 'rabbitmqctl', 'start_app')
+            ./scripts/smoke-declarative.ps1 -ExecutionId $pausedDelay.ExecutionId
             ./scripts/smoke-executions.ps1
             $keyNamesAfter = docker compose exec -T worker sh -c 'ls /var/lib/flowforge/keys/key-*.xml'
             if ($LASTEXITCODE -ne 0 -or ($keyNames -join ',') -ne ($keyNamesAfter -join ',')) { throw 'Keyring mudou ao recriar Worker.' }
