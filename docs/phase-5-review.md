@@ -1,6 +1,8 @@
 # Revisão técnica da Fase 5
 
-Status: implementação e validações de backend concluídas; validação Compose/publicação em andamento. Data: 10/10/2026. Base: main e402ce7.
+Status: concluída e integrada à main em 10/10/2026 pelo [PR #2](https://github.com/gabxw/flowforge/pull/2). Base: e402ce7. Código aprovado: 9aea3a0fac96933d53ec35f86c627f21b4bb6d26.
+
+[CI do PR aprovado](https://github.com/gabxw/flowforge/actions/runs/38055684941) e [CI da main aprovado](https://github.com/gabxw/flowforge/actions/runs/38056044404), com backend, frontend e ambiente Docker completos. Os commits usam português sem prefixos e autoria noreply vinculada a gabxw. A integração por fast-forward preservou essa autoria.
 
 ## Entrega
 
@@ -25,12 +27,19 @@ Status: implementação e validações de backend concluídas; validação Compo
 | Total xUnit | 879 aprovados; 0 falhas/ignorados |
 | EF pending model changes | Nenhuma alteração pendente |
 | npm ci/lint/build/audit | Aprovados; nenhuma vulnerabilidade encontrada |
-| Compose completo local | Em validação; Docker Hub apresentou timeout no download de imagens |
-| GitHub Actions | Pendente de publicação |
+| Compose local no Windows | Aprovado com imagem temporária do frontend; ver ressalva abaixo |
+| Dockerfiles/Compose completos no CI | Aprovados, incluindo build novo de todas as imagens |
+| GitHub Actions na main | Aprovado nos três jobs |
 
 Os testes locais em .local/phase-5-evidence cobrem inserção de outbox que falha, falha no commit da conclusão, associação versão/proprietário, arquivamento, claims concorrentes, expiração/token antigo, duplicação, janela confirm→marcação, janela commit→ack, broker indisponível, mensagem sem rota e consumer interrompido após Received. PostgreSQL e RabbitMQ são containers reais descartáveis. Os testes de replay verificam que o resultado e os horários não mudam.
 
 A primeira execução identificou a exceção específica PublishReturnException para mensagem sem rota; a expectativa foi corrigida e repetida com sucesso. Essa falha não foi suprimida. A suíte de integração final passou integralmente.
+
+O Compose local isolado aprovou migrations duas vezes, liveness, CRUD direto/pelo proxy, despacho direto/pelo proxy, recriação da API com recuperação do proxy, Redis opcional e encerramento do Worker com exited:0:false. Somente recursos descartáveis desse roteiro foram removidos.
+
+O primeiro CI apontou um erro de interpolação PowerShell no smoke novo. Foi corrigido, todos os scripts passaram pelo parser e as execuções seguintes do PR e da main passaram completas.
+
+Ressalva de ambiente: Docker Desktop local continua com timeout ao baixar Node/Nginx do Docker Hub, mesmo após reinício oficial sem aplicações em execução. API/Worker foram construídos localmente; o frontend do smoke local foi montado temporariamente com os artefatos atuais de npm run build e o runtime FlowForge em cache. Isso não conta como build novo do Dockerfile frontend no Windows. O build completo foi validado no CI. As imagens validadas ficaram em cache nas tags locais flowforge-api, flowforge-worker e flowforge-frontend para agilizar docker compose up; --build ainda exige acesso ao registro. Nenhuma configuração de rede/proxy foi alterada.
 
 ## Revisão
 

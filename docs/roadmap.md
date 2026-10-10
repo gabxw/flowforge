@@ -1,6 +1,6 @@
 # Roadmap técnico
 
-O trabalho é incremental. Cada fase entrega um comportamento executável, documentação atualizada e revisão técnica antes da próxima. As Fases 1 a 4 estão concluídas, com as evidências atuais em [phase-4-review.md](phase-4-review.md). A Fase 5 está implementada e em validação final; veja [phase-5-review.md](phase-5-review.md). As Fases 6 a 16 permanecem planejadas.
+O trabalho é incremental. Cada fase entrega um comportamento executável, documentação atualizada e revisão técnica antes da próxima. As Fases 1 a 5 estão concluídas, com as evidências atuais em [phase-5-review.md](phase-5-review.md). As Fases 6 a 16 permanecem planejadas.
 
 Não se avança só porque uma pasta ou endpoint existe. O critério de saída inclui build, testes pertinentes e verificação do comportamento anunciado. Uma verificação impedida pelo ambiente permanece pendente e deve ser informada; ela não equivale a um resultado aprovado.
 
@@ -78,7 +78,7 @@ Commit sugerido: Disponibilizar API de gerenciamento de workflows.
 
 ## Fase 5 — RabbitMQ e Worker
 
-Status: implementação concluída, validação operacional/publicação em andamento. Decisão em [ADR 0005](decisions/0005-durable-execution-dispatch.md), operação em [execution-dispatch.md](execution-dispatch.md) e revisão em [phase-5-review.md](phase-5-review.md).
+Status: concluída e integrada à main pelo [PR #2](https://github.com/gabxw/flowforge/pull/2), com [CI completo aprovado](https://github.com/gabxw/flowforge/actions/runs/38056044404). Decisão em [ADR 0005](decisions/0005-durable-execution-dispatch.md), operação em [execution-dispatch.md](execution-dispatch.md) e revisão em [phase-5-review.md](phase-5-review.md).
 
 Entregas: WorkflowExecution inicial, OutboxMessage, InboxMessage, publisher confirms, acknowledgements manuais, contrato de mensagem versionado, consumer e claim mínimo no PostgreSQL. Mensagens levam IDs e contexto, sem secrets ou payload integral.
 

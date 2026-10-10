@@ -6,13 +6,11 @@ O problema central é aceitar eventos rapidamente e processar etapas externas de
 
 ## Estado atual
 
-**Fases 1 a 4 concluídas; Fase 5 em validação final.**
+**Fases 1 a 5 concluídas.**
 
 Disponível: API privada para criar/listar/editar/publicar/arquivar workflows, domínio tipado com validação de DAG, persistência EF Core/PostgreSQL, migrations explícitas, Problem Details e OpenAPI. Há testes HTTP com banco real, controle de revisão e isolamento por proprietário técnico do servidor. A Fase 5 acrescenta solicitações de execução, outbox transacional, RabbitMQ e Worker com inbox recuperável. O frontend continua como shell; engine, autenticação e editor pertencem às próximas fases.
 
-A Fase 4 está integrada à main, com [CI aprovado](https://github.com/gabxw/flowforge/actions/runs/37991399269/attempts/2). Passaram **849 testes xUnit** (726 Domain + 71 API + 52 Integration), incluindo PostgreSQL real, sem falhas ou ignorados. Frontend, migrations e roteiro Docker direto/pelo proxy também foram aprovados. As evidências, decisões e duas pendências menores estão na [revisão da Fase 4](docs/phase-4-review.md).
-
-A Fase 5 passou **879 testes xUnit** (729 Domain + 76 API + 74 Integration), incluindo duplicação e recuperação com PostgreSQL/RabbitMQ reais. A [revisão da Fase 5](docs/phase-5-review.md) registra as verificações e o estado da publicação. O resultado atual do Worker é uma falha explícita engineUnavailable; nenhum node é executado.
+A Fase 5 está integrada à main pelo [PR #2](https://github.com/gabxw/flowforge/pull/2), com [CI completo aprovado](https://github.com/gabxw/flowforge/actions/runs/38056044404). Passaram **879 testes xUnit** (729 Domain + 76 API + 74 Integration), incluindo duplicação e recuperação com PostgreSQL/RabbitMQ reais. A [revisão da Fase 5](docs/phase-5-review.md) registra as verificações e a ressalva do cache de frontend usado no smoke Windows. O resultado atual do Worker é uma falha explícita engineUnavailable; nenhum node é executado.
 
 Os lockfiles NuGet e npm são versionados. As revisões das [Fases 1](docs/phase-1-review.md), [2](docs/phase-2-review.md) e [3](docs/phase-3-review.md) preservam o histórico; a [operação da API](docs/api.md) descreve o contrato e o exemplo executável atual.
 
