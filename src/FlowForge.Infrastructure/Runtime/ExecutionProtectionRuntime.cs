@@ -6,6 +6,9 @@ namespace FlowForge.Infrastructure.Runtime;
 public static class ExecutionProtectionRuntime
 {
     public static ExecutionContextProtection Create(IConfiguration configuration, bool isDevelopment)
+        => new(CreateProvider(configuration, isDevelopment));
+
+    public static IDataProtectionProvider CreateProvider(IConfiguration configuration, bool isDevelopment)
     {
         var path = configuration["FlowForge:DataProtection:KeyRingPath"];
         // O MVP privado usa volume protegido pelo SO. Produção precisa de proteção das chaves em repouso.
@@ -14,8 +17,7 @@ public static class ExecutionProtectionRuntime
         try
         {
             var directory = Directory.CreateDirectory(path);
-            var provider = DataProtectionProvider.Create(directory, b => b.SetApplicationName("FlowForge"));
-            return new(provider);
+            return DataProtectionProvider.Create(directory, b => b.SetApplicationName("FlowForge"));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException)
         {

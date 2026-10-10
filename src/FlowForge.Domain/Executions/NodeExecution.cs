@@ -4,7 +4,7 @@ namespace FlowForge.Domain.Executions;
 public sealed record PayloadSummary(int ByteLength, string Kind);
 public sealed record NodeExecutionSnapshot(Guid Id, Guid ExecutionId, Guid WorkflowVersionId, Guid NodeId,
     NodeExecutionStatus Status, int AttemptCount, DateTimeOffset? StartedAt, DateTimeOffset? FinishedAt,
-    PayloadSummary? Input, PayloadSummary? Output, ExecutionFailureCode? ErrorCode);
+    PayloadSummary? Input, PayloadSummary? Output, ExecutionFailureCode? ErrorCode, int? CredentialRevisionUsed = null);
 
 public sealed class NodeExecution
 {
@@ -35,6 +35,7 @@ public sealed class NodeExecution
             _ => false // Retry e histórico de tentativas entram na Fase 10.
         };
         Validate(s.Input); Validate(s.Output);
+        if (s.CredentialRevisionUsed is { } revision && (revision < 1 || !active)) valid = false;
         if (!valid) throw new ArgumentException("Estado persistido do node inconsistente.");
         node.Snapshot = s;
         return node;
@@ -53,6 +54,13 @@ public sealed class NodeExecution
     {
         if (Snapshot.Status != NodeExecutionStatus.Running) throw new InvalidOperationException("O node não está interrompido em Running.");
         Snapshot = Snapshot with { AttemptCount = checked(Snapshot.AttemptCount + 1) };
+    }
+
+    public void RecordCredentialRevision(int revision)
+    {
+        if (Snapshot.Status != NodeExecutionStatus.Running) throw new InvalidOperationException("O node precisa estar em Running.");
+        if (revision < 1) throw new ArgumentOutOfRangeException(nameof(revision));
+        Snapshot = Snapshot with { CredentialRevisionUsed = revision };
     }
 
     public void Succeed(PayloadSummary output, DateTimeOffset now)

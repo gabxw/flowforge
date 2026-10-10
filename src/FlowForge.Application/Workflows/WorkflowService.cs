@@ -10,7 +10,8 @@ public sealed record ConnectionDefinition(Guid Id, Guid SourceNodeId, Guid Targe
 
 public sealed class WorkflowStateConflictException(string message) : Exception(message);
 
-public sealed class WorkflowService(IWorkflowStore workflows, ITechnicalUserStore users, TimeProvider clock)
+public sealed class WorkflowService(IWorkflowStore workflows, ITechnicalUserStore users, TimeProvider clock,
+    FlowForge.Application.Credentials.CredentialService credentials)
 {
     public async Task<Workflow> CreateAsync(Guid owner, string name, string? description, CancellationToken ct = default)
     {
@@ -70,6 +71,7 @@ public sealed class WorkflowService(IWorkflowStore workflows, ITechnicalUserStor
             new GraphValidationError(GraphErrorCode.DuplicateConnectionId,
                 "A identidade da conexão já pertence ao histórico publicado.", ConnectionId: c.Id)));
         if (errors.Count != 0) throw new WorkflowValidationException(errors);
+        await credentials.ValidateReferencesAsync(owner, domainNodes, ct);
         workflow.ReplaceDraftGraph(domainNodes, domainConnections, Now(workflow));
         return await SaveAsync(workflow, expectedRevision, ct);
     }
@@ -77,7 +79,7 @@ public sealed class WorkflowService(IWorkflowStore workflows, ITechnicalUserStor
     public async Task<Workflow> PublishAsync(Guid owner, Guid id, int expectedRevision, CancellationToken ct = default)
     {
         var workflow = await EditableAsync(owner, id, expectedRevision, ct);
-        _ = RequireDraft(workflow);
+        await credentials.ValidateReferencesAsync(owner, RequireDraft(workflow).Nodes, ct);
         workflow.PublishDraft(Now(workflow));
         return await SaveAsync(workflow, expectedRevision, ct);
     }

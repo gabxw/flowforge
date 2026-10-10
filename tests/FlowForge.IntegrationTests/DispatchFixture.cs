@@ -17,6 +17,7 @@ public sealed class DispatchFixture : IAsyncLifetime
 {
     private readonly string keyDirectory = Path.Combine(Path.GetTempPath(), "flowforge-tests-" + Guid.NewGuid().ToString("N"));
     public ExecutionContextProtection Protection => new(DataProtectionProvider.Create(Directory.CreateDirectory(keyDirectory), b => b.SetApplicationName("FlowForge")));
+    public CredentialProtection CredentialProtection => new(DataProtectionProvider.Create(Directory.CreateDirectory(keyDirectory), b => b.SetApplicationName("FlowForge")));
     public PostgresExecutionEngineStore EngineStore => new(Factory, Protection);
     public SequentialExecutionEngine Engine(IEnumerable<INodeExecutor>? executors = null, EngineOptions? options = null) =>
         new(EngineStore, executors ?? [new TriggerNodeExecutor(), new LogNodeExecutor()], options ?? EngineOptions.Default);

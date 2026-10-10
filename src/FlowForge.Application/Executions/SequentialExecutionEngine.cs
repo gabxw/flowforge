@@ -32,11 +32,12 @@ public sealed class SequentialExecutionEngine
                 if (checkpoint is null) return MessageDisposition.Busy;
                 var path = new ExecutionPath(checkpoint.Version, checkpoint.Execution.OwnerUserId);
                 var node = path.Node(checkpoint.NextNodeId);
-                var start = await store.BeginNodeAsync(claim, checkpoint.Revision, node.NodeId, ct);
+                var hasExecutor = executors.TryGetValue(node.Type, out var executor);
+                var start = await store.BeginNodeAsync(claim, checkpoint.Revision, node.NodeId, executor?.CanReplayAfterInterruption ?? false, ct);
                 if (start.Status == NodeStartStatus.Completed) return MessageDisposition.Completed;
                 if (start.Status == NodeStartStatus.Lost) return MessageDisposition.Busy;
                 NodeResult result;
-                if (!executors.TryGetValue(node.Type, out var executor))
+                if (!hasExecutor || executor is null)
                     result = NodeResult.Failure(ExecutionFailureCode.UnsupportedNode);
                 else if (checkpoint.Nodes.Single(n => n.NodeId == node.NodeId).Status == NodeExecutionStatus.Running &&
                     !executor.CanReplayAfterInterruption)
@@ -48,7 +49,7 @@ public sealed class SequentialExecutionEngine
                     try
                     {
                         result = await executor.ExecuteAsync(new(checkpoint.Execution.Id, checkpoint.Execution.CorrelationId,
-                            node, checkpoint.Input.Clone()), timeout.Token).WaitAsync(timeout.Token);
+                            node, checkpoint.Input.Clone(), checkpoint.Execution.OwnerUserId), timeout.Token).WaitAsync(timeout.Token);
                     }
                     catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
                     catch (OperationCanceledException) when (lease.Status == LeaseStatus.Lost) { return MessageDisposition.Busy; }
@@ -59,7 +60,8 @@ public sealed class SequentialExecutionEngine
                 Guid? next = null;
                 try
                 {
-                    if (result is null || (result.ErrorCode.HasValue && !Enum.IsDefined(result.ErrorCode.Value)) ||
+                    if (result is null || (result.CredentialRevisionUsed is { } credentialRevision &&
+                        (credentialRevision < 1 || node.Type != NodeType.HttpRequest || node.Credential is null)) || (result.ErrorCode.HasValue && !Enum.IsDefined(result.ErrorCode.Value)) ||
                         (result.IsCancelled && (result.Output.HasValue || result.ErrorCode.HasValue)) ||
                         (result.ErrorCode.HasValue && result.Output.HasValue) ||
                         (result.LogMessage is not null && (node.Type != NodeType.Log || string.IsNullOrWhiteSpace(result.LogMessage) || result.LogMessage.Length > 2000)) ||

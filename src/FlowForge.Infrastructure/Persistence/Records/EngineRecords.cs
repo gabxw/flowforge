@@ -11,6 +11,7 @@ internal sealed class NodeExecutionRecord
     public int Ordinal { get; set; }
     public NodeExecutionStatus Status { get; set; }
     public int AttemptCount { get; set; }
+    public int? CredentialRevisionUsed { get; set; }
     public DateTimeOffset? StartedAt { get; set; }
     public DateTimeOffset? FinishedAt { get; set; }
     public string? InputSummary { get; set; }

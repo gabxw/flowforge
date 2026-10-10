@@ -11,6 +11,14 @@ internal static class WorkflowStoreFixtures
     {
         await new PostgresTechnicalUserStore(fixture.Factory).EnsureExistsAsync(owner, Start);
         var workflow = Definition(owner, name, draft);
+        // Referências agora exigem credencial real do mesmo dono; dados fictícios, somente no container de teste.
+        foreach (var reference in workflow.Versions.SelectMany(v => v.Nodes).Where(n => n.Credential is not null).Select(n => n.Credential!).DistinctBy(c => c.Id))
+        {
+            var credential = new FlowForge.Domain.Credentials.Credential(reference.Id, owner, "Test API",
+                FlowForge.Domain.Credentials.CredentialType.BearerToken, FlowForge.Domain.Credentials.HttpsOrigin.Parse("https://example.com"), null, Start);
+            await new PostgresCredentialStore(fixture.Factory, new FlowForge.Infrastructure.Security.CredentialProtection(new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider()))
+                .CreateAsync(credential.Snapshot, new FlowForge.Application.Credentials.CredentialSecret(Guid.NewGuid().ToString("N")));
+        }
         await new PostgresWorkflowStore(fixture.Factory).AddAsync(workflow);
         return workflow;
     }

@@ -117,7 +117,7 @@ public sealed class SequentialEngineTests
                 Version.Nodes.Select(n => new NodeExecutionSnapshot(Guid.NewGuid(), Claim.ExecutionId, Version.Id, n.NodeId,
                     Interrupted ? NodeExecutionStatus.Running : NodeExecutionStatus.Pending, 0, null, null, null, null, null)).ToArray()));
         public Task<LeaseStatus> RenewAsync(InboxClaim claim, TimeSpan lease, CancellationToken ct = default) => Task.FromResult(LeaseStatus.Active);
-        public Task<NodeStart> BeginNodeAsync(InboxClaim claim, int revision, Guid nodeId, CancellationToken ct = default)
+        public Task<NodeStart> BeginNodeAsync(InboxClaim claim, int revision, Guid nodeId, bool allowReplay = false, CancellationToken ct = default)
         { Started.Add(nodeId); return Task.FromResult(new NodeStart(NodeStartStatus.Started, 1)); }
         public Task<CheckpointWriteStatus> SaveNodeAsync(InboxClaim claim, int revision, Guid nodeId, NodeResult result, Guid? nextNodeId, CancellationToken ct = default)
         {

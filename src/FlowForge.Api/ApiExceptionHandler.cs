@@ -1,3 +1,4 @@
+using FlowForge.Application.Credentials;
 using FlowForge.Application.Webhooks;
 using FlowForge.Infrastructure.Runtime;
 using System.Text.Json;
@@ -19,10 +20,12 @@ internal sealed class ApiExceptionHandler : IExceptionHandler
             exception = exception.InnerException;
         var (status, title, detail) = exception switch
         {
+            CredentialConcurrencyException => (409, "Conflito de revisão.", "Recarregue a credencial antes de repetir a alteração."),
+            CredentialUnavailableException => (404, "Credencial indisponível.", "Verifique proprietário, origem e revogação."),
             WebhookRejectedException => (404, "Webhook indisponível.", "Verifique o endpoint e o segredo do header."),
             WebhookIdempotencyConflictException => (409, "Chave de idempotência em conflito.", "Esta chave já foi usada com outro corpo."),
             WebhookPayloadLimitException => (413, "Payload excede o limite.", "O corpo e o contexto JSON devem respeitar o limite de 64 KiB."),
-            RuntimeConfigurationException => (503, "Webhooks indisponíveis.", "Verifique a configuração privada e o keyring persistente."),
+            RuntimeConfigurationException => (503, "Proteção de dados indisponível.", "Verifique a configuração privada e o keyring persistente."),
             WorkflowValidationException => (422, "Grafo de workflow inválido.", "Corrija as regras indicadas em errors."),
             WorkflowConcurrencyException => (409, "Conflito de revisão.", "Recarregue o workflow antes de repetir a alteração."),
             WorkflowStateConflictException state => (409, "Operação incompatível com o estado.", state.Message),

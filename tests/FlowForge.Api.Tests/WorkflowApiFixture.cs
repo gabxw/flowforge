@@ -31,7 +31,8 @@ public sealed class WorkflowApiFixture : IAsyncLifetime
         await db.Database.MigrateAsync();
     }
 
-    private readonly ExecutionContextProtection testProtection = new(new EphemeralDataProtectionProvider());
+    private readonly IDataProtectionProvider testProvider = new EphemeralDataProtectionProvider();
+    private ExecutionContextProtection TestProtection => new(testProvider);
     public WebApplicationFactory<Program> CreateApi(Guid? owner = null, int permits = 60, bool protectWebhookInput = true) =>
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
@@ -45,7 +46,7 @@ public sealed class WorkflowApiFixture : IAsyncLifetime
                     ["FlowForge:Webhooks:WindowSeconds"] = "3600"
                 }));
             // Somente testes: substitui explicitamente a proteção lazy do runtime Production.
-            if (protectWebhookInput) builder.ConfigureTestServices(services => services.AddSingleton(testProtection));
+            if (protectWebhookInput) builder.ConfigureTestServices(services => { services.AddSingleton(testProvider); services.AddSingleton(TestProtection); });
         });
 
     public async Task DisposeAsync() => await container.DisposeAsync();

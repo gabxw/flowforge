@@ -18,6 +18,8 @@ internal sealed class WorkflowNodeConfiguration : IEntityTypeConfiguration<Workf
         builder.Property(node => node.Configuration).HasColumnType("jsonb").IsRequired();
         builder.HasOne<WorkflowVersionRecord>().WithMany().HasForeignKey(node => new { node.WorkflowVersionId, node.WorkflowId, node.OwnerUserId })
             .HasPrincipalKey(version => new { version.Id, version.WorkflowId, version.OwnerUserId }).OnDelete(DeleteBehavior.NoAction);
+        builder.HasOne<CredentialRecord>().WithMany().HasForeignKey(node => new { node.CredentialId, node.OwnerUserId })
+            .HasPrincipalKey(c => new { c.Id, c.OwnerUserId }).OnDelete(DeleteBehavior.NoAction);
         builder.HasIndex(node => new { node.WorkflowVersionId, node.Ordinal }).IsUnique();
     }
 }

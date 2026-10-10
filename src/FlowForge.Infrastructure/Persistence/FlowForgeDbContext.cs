@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 namespace FlowForge.Infrastructure.Persistence;
 public sealed class FlowForgeDbContext(DbContextOptions<FlowForgeDbContext> options) : DbContext(options)
 {
+    internal DbSet<CredentialRecord> Credentials => Set<CredentialRecord>();
     internal DbSet<TechnicalUserRecord> Users => Set<TechnicalUserRecord>();
     internal DbSet<WorkflowRecord> Workflows => Set<WorkflowRecord>();
     internal DbSet<WorkflowVersionRecord> WorkflowVersions => Set<WorkflowVersionRecord>();

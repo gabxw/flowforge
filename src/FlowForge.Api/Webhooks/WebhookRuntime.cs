@@ -10,8 +10,10 @@ internal static class WebhookRuntime
     public static void AddWebhookRuntime(this IServiceCollection services)
     {
         // Lazy: liveness e os comandos manuais continuam independentes do keyring.
-        services.AddSingleton(sp => ExecutionProtectionRuntime.Create(sp.GetRequiredService<IConfiguration>(),
+        services.AddSingleton(sp => ExecutionProtectionRuntime.CreateProvider(sp.GetRequiredService<IConfiguration>(),
             sp.GetRequiredService<IHostEnvironment>().IsDevelopment()));
+        services.AddSingleton(sp => new FlowForge.Infrastructure.Security.ExecutionContextProtection(
+            sp.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>()));
         services.AddSingleton(sp => {
             var raw = sp.GetRequiredService<IConfiguration>()["FlowForge:Webhooks:IdempotencyHours"];
             if (raw is null) return WebhookAcceptanceOptions.Default;

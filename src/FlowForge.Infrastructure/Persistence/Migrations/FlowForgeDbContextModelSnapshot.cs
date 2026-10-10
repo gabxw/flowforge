@@ -23,6 +23,79 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("FlowForge.Infrastructure.Persistence.Records.CredentialRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("HeaderName")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("header_name");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("origin");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_user_id");
+
+                    b.Property<byte[]>("ProtectedValue")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("protected_value");
+
+                    b.Property<int>("Revision")
+                        .HasColumnType("integer")
+                        .HasColumnName("revision");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer")
+                        .HasColumnName("type");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_credentials");
+
+                    b.HasAlternateKey("Id", "OwnerUserId")
+                        .HasName("ak_credentials_id_owner_user_id");
+
+                    b.HasIndex("OwnerUserId", "CreatedAt", "Id")
+                        .HasDatabaseName("ix_credentials_owner_user_id_created_at_id");
+
+                    b.ToTable("credentials", "public", t =>
+                        {
+                            t.HasCheckConstraint("ck_credential_identity", "id <> '00000000-0000-0000-0000-000000000000'::uuid AND revision > 0");
+
+                            t.HasCheckConstraint("ck_credential_time", "updated_at >= created_at AND (revoked_at IS NULL OR revoked_at = updated_at)");
+
+                            t.HasCheckConstraint("ck_credential_type", "(type = 1 AND header_name IS NULL) OR (type = 2 AND header_name IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_credential_value", "octet_length(protected_value) BETWEEN 1 AND 16384");
+                        });
+                });
+
             modelBuilder.Entity("FlowForge.Infrastructure.Persistence.Records.ExecutionLogRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -129,6 +202,10 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("attempt_count");
 
+                    b.Property<int?>("CredentialRevisionUsed")
+                        .HasColumnType("integer")
+                        .HasColumnName("credential_revision_used");
+
                     b.Property<int?>("ErrorCode")
                         .HasColumnType("integer")
                         .HasColumnName("error_code");
@@ -191,9 +268,11 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
 
                     b.ToTable("node_executions", "public", t =>
                         {
+                            t.HasCheckConstraint("ck_node_credential_revision", "credential_revision_used IS NULL OR (credential_revision_used > 0 AND attempt_count > 0 AND status IN (2, 3, 4, 7))");
+
                             t.HasCheckConstraint("ck_node_execution_id", "id <> '00000000-0000-0000-0000-000000000000'::uuid AND ordinal >= 0");
 
-                            t.HasCheckConstraint("ck_node_execution_state", "(status = 1 AND attempt_count = 0 AND started_at IS NULL AND finished_at IS NULL AND input_summary IS NULL AND output_summary IS NULL AND error_code IS NULL) OR (status = 2 AND attempt_count > 0 AND started_at IS NOT NULL AND finished_at IS NULL AND input_summary IS NOT NULL AND output_summary IS NULL AND error_code IS NULL) OR (status = 3 AND attempt_count > 0 AND started_at IS NOT NULL AND finished_at IS NOT NULL AND finished_at >= started_at AND input_summary IS NOT NULL AND output_summary IS NOT NULL AND error_code IS NULL) OR (status = 4 AND attempt_count > 0 AND started_at IS NOT NULL AND finished_at IS NOT NULL AND finished_at >= started_at AND input_summary IS NOT NULL AND output_summary IS NULL AND error_code IS NOT NULL AND error_code BETWEEN 1 AND 7) OR (status = 6 AND attempt_count = 0 AND started_at IS NULL AND finished_at IS NOT NULL AND input_summary IS NULL AND output_summary IS NULL AND error_code IS NULL) OR (status = 7 AND attempt_count > 0 AND started_at IS NOT NULL AND finished_at IS NOT NULL AND finished_at >= started_at AND input_summary IS NOT NULL AND output_summary IS NULL AND error_code IS NULL)");
+                            t.HasCheckConstraint("ck_node_execution_state", "(status = 1 AND attempt_count = 0 AND started_at IS NULL AND finished_at IS NULL AND input_summary IS NULL AND output_summary IS NULL AND error_code IS NULL) OR (status = 2 AND attempt_count > 0 AND started_at IS NOT NULL AND finished_at IS NULL AND input_summary IS NOT NULL AND output_summary IS NULL AND error_code IS NULL) OR (status = 3 AND attempt_count > 0 AND started_at IS NOT NULL AND finished_at IS NOT NULL AND finished_at >= started_at AND input_summary IS NOT NULL AND output_summary IS NOT NULL AND error_code IS NULL) OR (status = 4 AND attempt_count > 0 AND started_at IS NOT NULL AND finished_at IS NOT NULL AND finished_at >= started_at AND input_summary IS NOT NULL AND output_summary IS NULL AND error_code IS NOT NULL AND error_code BETWEEN 1 AND 14) OR (status = 6 AND attempt_count = 0 AND started_at IS NULL AND finished_at IS NOT NULL AND input_summary IS NULL AND output_summary IS NULL AND error_code IS NULL) OR (status = 7 AND attempt_count > 0 AND started_at IS NOT NULL AND finished_at IS NOT NULL AND finished_at >= started_at AND input_summary IS NOT NULL AND output_summary IS NULL AND error_code IS NULL)");
                         });
                 });
 
@@ -536,7 +615,7 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_execution_id", "id <> '00000000-0000-0000-0000-000000000000'::uuid AND correlation_id <> '00000000-0000-0000-0000-000000000000'::uuid");
 
-                            t.HasCheckConstraint("ck_execution_state", "(status = 1 AND started_at IS NULL AND finished_at IS NULL AND error_code IS NULL) OR (status = 2 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NULL AND error_code IS NULL) OR (status = 4 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NOT NULL AND finished_at >= started_at AND error_code IS NOT NULL AND error_code BETWEEN 1 AND 7) OR (status = 3 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NOT NULL AND finished_at >= started_at AND error_code IS NULL) OR (status = 5 AND cancel_requested_at IS NOT NULL AND finished_at IS NOT NULL AND finished_at >= cancel_requested_at AND finished_at >= COALESCE(started_at, created_at) AND (started_at IS NULL OR started_at >= created_at) AND error_code IS NULL)");
+                            t.HasCheckConstraint("ck_execution_state", "(status = 1 AND started_at IS NULL AND finished_at IS NULL AND error_code IS NULL) OR (status = 2 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NULL AND error_code IS NULL) OR (status = 4 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NOT NULL AND finished_at >= started_at AND error_code IS NOT NULL AND error_code BETWEEN 1 AND 14) OR (status = 3 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NOT NULL AND finished_at >= started_at AND error_code IS NULL) OR (status = 5 AND cancel_requested_at IS NOT NULL AND finished_at IS NOT NULL AND finished_at >= cancel_requested_at AND finished_at >= COALESCE(started_at, created_at) AND (started_at IS NULL OR started_at >= created_at) AND error_code IS NULL)");
 
                             t.HasCheckConstraint("ck_execution_trigger_input", "(webhook_endpoint_id IS NULL) = (trigger_input_protected IS NULL) AND (trigger_input_protected IS NULL OR octet_length(trigger_input_protected) BETWEEN 1 AND 131072)");
                         });
@@ -587,6 +666,9 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
 
                     b.HasKey("WorkflowVersionId", "NodeId")
                         .HasName("pk_workflow_nodes");
+
+                    b.HasIndex("CredentialId", "OwnerUserId")
+                        .HasDatabaseName("ix_workflow_nodes_credential_id_owner_user_id");
 
                     b.HasIndex("WorkflowVersionId", "Ordinal")
                         .IsUnique()
@@ -738,6 +820,16 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("FlowForge.Infrastructure.Persistence.Records.CredentialRecord", b =>
+                {
+                    b.HasOne("FlowForge.Infrastructure.Persistence.Records.TechnicalUserRecord", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("fk_credentials_owner_user_id");
+                });
+
             modelBuilder.Entity("FlowForge.Infrastructure.Persistence.Records.ExecutionLogRecord", b =>
                 {
                     b.HasOne("FlowForge.Infrastructure.Persistence.Records.NodeExecutionRecord", null)
@@ -861,6 +953,13 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("FlowForge.Infrastructure.Persistence.Records.WorkflowNodeRecord", b =>
                 {
+                    b.HasOne("FlowForge.Infrastructure.Persistence.Records.CredentialRecord", null)
+                        .WithMany()
+                        .HasForeignKey("CredentialId", "OwnerUserId")
+                        .HasPrincipalKey("Id", "OwnerUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("fk_workflow_nodes_credential_id_owner_user_id");
+
                     b.HasOne("FlowForge.Infrastructure.Persistence.Records.WorkflowVersionRecord", null)
                         .WithMany()
                         .HasForeignKey("WorkflowVersionId", "WorkflowId", "OwnerUserId")

@@ -3,7 +3,9 @@ namespace FlowForge.Domain.Executions;
 public enum ExecutionFailureCode
 {
     EngineUnavailable = 1, UnsupportedNode = 2, NodeFailed = 3, NodeTimeout = 4,
-    InterruptedNode = 5, InvalidExecutorResult = 6, ContextLimitExceeded = 7
+    InterruptedNode = 5, InvalidExecutorResult = 6, ContextLimitExceeded = 7,
+    HttpDestinationDenied = 8, CredentialUnavailable = 9, HttpRemoteFailure = 10,
+    HttpResponseLimitExceeded = 11, HttpResponseInvalid = 12, HttpTransportFailed = 13, HttpResponseSensitive = 14
 }
 
 public sealed record WorkflowExecutionSnapshot(Guid Id, Guid WorkflowId, Guid WorkflowVersionId,

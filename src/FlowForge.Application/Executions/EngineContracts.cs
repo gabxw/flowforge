@@ -14,18 +14,19 @@ public interface IExecutionEngineStore
 {
     Task<ExecutionCheckpoint?> LoadAsync(InboxClaim claim, CancellationToken ct = default);
     Task<LeaseStatus> RenewAsync(InboxClaim claim, TimeSpan lease, CancellationToken ct = default);
-    Task<NodeStart> BeginNodeAsync(InboxClaim claim, int revision, Guid nodeId, CancellationToken ct = default);
+    Task<NodeStart> BeginNodeAsync(InboxClaim claim, int revision, Guid nodeId, bool allowReplay = false, CancellationToken ct = default);
     Task<CheckpointWriteStatus> SaveNodeAsync(InboxClaim claim, int revision, Guid nodeId,
         NodeResult result, Guid? nextNodeId, CancellationToken ct = default);
 }
 
-public sealed record NodeRunContext(Guid ExecutionId, Guid CorrelationId, WorkflowNode Node, JsonElement Input);
+public sealed record NodeRunContext(Guid ExecutionId, Guid CorrelationId, WorkflowNode Node, JsonElement Input, Guid OwnerUserId = default);
 public sealed record NodeResult(JsonElement? Output, string Port, ExecutionFailureCode? ErrorCode,
-    bool IsCancelled = false, string? LogMessage = null)
+    bool IsCancelled = false, string? LogMessage = null, int? CredentialRevisionUsed = null)
 {
-    public static NodeResult Success(JsonElement output, string port = "next", string? logMessage = null) =>
-        new(output.Clone(), port, null, LogMessage: logMessage);
-    public static NodeResult Failure(ExecutionFailureCode code) => new(null, "next", code);
+    public static NodeResult Success(JsonElement output, string port = "next", string? logMessage = null, int? credentialRevisionUsed = null) =>
+        new(output.Clone(), port, null, LogMessage: logMessage, CredentialRevisionUsed: credentialRevisionUsed);
+    public static NodeResult Failure(ExecutionFailureCode code, int? credentialRevisionUsed = null) =>
+        new(null, "next", code, CredentialRevisionUsed: credentialRevisionUsed);
     public static NodeResult Cancelled() => new(null, "next", null, true);
 }
 public interface INodeExecutor

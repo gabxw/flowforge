@@ -1,3 +1,5 @@
+using FlowForge.Application.Credentials;
+using FlowForge.Domain.Credentials;
 using FlowForge.Application.Users;
 using FlowForge.Application.Workflows;
 using FlowForge.Domain.Workflows;
@@ -12,7 +14,7 @@ public sealed class WorkflowCommandTests
     {
         var owner = Guid.NewGuid();
         var store = new InterleavingStore(owner);
-        var service = new WorkflowService(store, new TechnicalUser(), TimeProvider.System);
+        var service = new WorkflowService(store, new TechnicalUser(), TimeProvider.System, new CredentialService(new UnexpectedCredentialStore(), new TechnicalUser(), TimeProvider.System));
         var result = await service.UpdateAsync(owner, store.Id, 0, "Minha edição", null);
         Assert.Equal("Minha edição", result.Name);
         Assert.Equal(1, result.Revision);
@@ -23,11 +25,21 @@ public sealed class WorkflowCommandTests
     public async Task Creation_has_microsecond_timestamps_and_returns_the_created_resource_without_a_second_read()
     {
         var store = new CreateOnlyStore();
-        var service = new WorkflowService(store, new TechnicalUser(), TimeProvider.System);
+        var service = new WorkflowService(store, new TechnicalUser(), TimeProvider.System, new CredentialService(new UnexpectedCredentialStore(), new TechnicalUser(), TimeProvider.System));
         var result = await service.CreateAsync(Guid.NewGuid(), "Novo", null);
         Assert.Same(store.Created, result);
         Assert.Equal(0, result.CreatedAt.UtcTicks % 10);
         Assert.Equal(result.CreatedAt, result.DraftVersion!.CreatedAt);
+    }
+
+    private sealed class UnexpectedCredentialStore : ICredentialStore
+    {
+        public Task CreateAsync(CredentialSnapshot metadata, CredentialSecret secret, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<CredentialSnapshot?> GetAsync(Guid id, Guid owner, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<CredentialSnapshot>> ListAsync(Guid owner, int offset, int limit, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<CredentialSnapshot> RotateAsync(Guid id, Guid owner, int expectedRevision, CredentialSecret secret, DateTimeOffset now, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<CredentialSnapshot> RevokeAsync(Guid id, Guid owner, int expectedRevision, DateTimeOffset now, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<ResolvedCredential?> ResolveAsync(Guid id, Guid owner, HttpsOrigin origin, CancellationToken ct = default) => throw new NotSupportedException();
     }
 
     private sealed class TechnicalUser : ITechnicalUserStore

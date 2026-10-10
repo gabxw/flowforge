@@ -1,3 +1,4 @@
+using FlowForge.Api.Credentials;
 using FlowForge.Api.Webhooks;
 using FlowForge.Api.Executions;
 using System.Text.Json;
@@ -27,6 +28,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 builder.Services.AddWorkflowRuntime();
 builder.Services.AddWebhookRuntime();
+builder.Services.AddCredentialRuntime();
 
 var app = builder.Build();
 app.UseExceptionHandler();
@@ -57,6 +59,7 @@ if (app.Environment.IsDevelopment())
 app.MapWorkflows();
 app.MapExecutions();
 app.MapWebhooks();
+app.MapCredentials();
 
 app.Run();
 

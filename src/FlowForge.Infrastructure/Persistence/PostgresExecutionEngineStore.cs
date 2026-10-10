@@ -62,7 +62,7 @@ public sealed class PostgresExecutionEngineStore(IDbContextFactory<FlowForgeDbCo
         return held.Row.CancelRequestedAt.HasValue ? LeaseStatus.CancelRequested : LeaseStatus.Active;
     }
 
-    public async Task<NodeStart> BeginNodeAsync(InboxClaim claim, int revision, Guid nodeId, CancellationToken ct = default)
+    public async Task<NodeStart> BeginNodeAsync(InboxClaim claim, int revision, Guid nodeId, bool allowReplay = false, CancellationToken ct = default)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
         await using var tx = await db.Database.BeginTransactionAsync(ct);
@@ -78,7 +78,10 @@ public sealed class PostgresExecutionEngineStore(IDbContextFactory<FlowForgeDbCo
         }
         var record = nodes.Single(n => n.NodeId == nodeId);
         var node = NodeExecution.Restore(NodeExecutionPersistence.Snapshot(record));
-        if (node.Snapshot.Status == NodeExecutionStatus.Running) node.Resume();
+        if (node.Snapshot.Status == NodeExecutionStatus.Running)
+        {
+            if (allowReplay) node.Resume(); // Recusa de replay não representa outra tentativa HTTP.
+        }
         else node.Start(ExecutionPayload.Summarize(protection.Unprotect(held.Row.ExecutionContextProtected!, held.Row.Id)), held.Now);
         NodeExecutionPersistence.Apply(record, node.Snapshot);
         held.Row.CheckpointRevision = checked(revision + 1);
@@ -98,6 +101,12 @@ public sealed class PostgresExecutionEngineStore(IDbContextFactory<FlowForgeDbCo
         var record = nodes.Single(n => n.NodeId == nodeId);
         var node = NodeExecution.Restore(NodeExecutionPersistence.Snapshot(record));
         var now = record.StartedAt > held.Now ? record.StartedAt.Value : held.Now;
+        if (result.CredentialRevisionUsed is { } usedRevision)
+        {
+            var definition = await db.WorkflowNodes.AsNoTracking().SingleAsync(n => n.WorkflowVersionId == record.WorkflowVersionId && n.NodeId == record.NodeId, ct);
+            if (definition.Type != NodeType.HttpRequest || definition.CredentialId is null) throw new ArgumentException("Revisão sem credencial HTTP.");
+            node.RecordCredentialRevision(usedRevision);
+        }
         var successful = !result.IsCancelled && result.ErrorCode is null && result.Output.HasValue;
         if (successful)
         {

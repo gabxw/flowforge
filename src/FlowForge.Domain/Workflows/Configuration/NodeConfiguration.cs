@@ -32,7 +32,7 @@ public sealed class HttpRequestConfiguration : NodeConfiguration
         ArgumentNullException.ThrowIfNull(url);
         // StrongAuthority preserva o delimitador @ mesmo quando userinfo está vazio.
         if (!url.IsAbsoluteUri || url.Scheme != Uri.UriSchemeHttps ||
-            url.GetComponents(UriComponents.StrongAuthority, UriFormat.UriEscaped).Contains('@') || url.Fragment.Length != 0)
+            url.GetComponents(UriComponents.StrongAuthority, UriFormat.UriEscaped).Contains('@') || url.Fragment.Length != 0 || url.AbsoluteUri.Length > 2048)
             throw new ArgumentException("A URL deve ser HTTPS absoluta, sem userinfo ou fragmento.", nameof(url));
         if (!Enum.IsDefined(method))
             throw new ArgumentOutOfRangeException(nameof(method), "Método HTTP desconhecido.");
