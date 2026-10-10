@@ -8,7 +8,7 @@ O problema central é aceitar eventos rapidamente e processar etapas externas de
 
 **Fases 1 a 8 concluídas.**
 
-Disponível: API privada para criar/listar/editar/publicar/arquivar workflows, domínio tipado com validação de DAG, persistência EF Core/PostgreSQL, migrations explícitas, Problem Details e OpenAPI. Há testes HTTP com banco real, controle de revisão e isolamento por proprietário técnico do servidor. A Fase 5 acrescenta solicitações de execução, outbox transacional, RabbitMQ e Worker com inbox recuperável. A Fase 6 acrescenta engine sequencial, executores Trigger/Log, checkpoints protegidos, histórico e cancelamento cooperativo. A Fase 7 acrescenta webhook com secret em header/hash, input protegido, idempotência opcional, rate limit e administração do endpoint. A Fase 8 acrescenta HTTP Request com conexão aprovada/TLS, limites e Credential com rotação/revogação e ciphertext autenticado. O frontend continua como shell; autenticação/editor e demais executores seguem no roadmap.
+Disponível: API privada para criar/listar/editar/publicar/arquivar workflows, domínio tipado com validação de DAG, persistência EF Core/PostgreSQL, migrations explícitas, Problem Details e OpenAPI. Há testes HTTP com banco real, controle de revisão e isolamento por proprietário técnico do servidor. A Fase 5 acrescenta solicitações de execução, outbox transacional, RabbitMQ e Worker com inbox recuperável. A Fase 6 acrescenta engine sequencial, executores Trigger/Log, checkpoints protegidos, histórico e cancelamento cooperativo. A Fase 7 acrescenta webhook com secret em header/hash, input protegido, idempotência opcional, rate limit e administração do endpoint. A Fase 8 acrescenta HTTP Request com conexão aprovada/TLS, limites e Credential com rotação/revogação e ciphertext autenticado. A Fase 9 implementa Condition, Transform JSON e Delay durável; build/testes e Docker local passaram, com publicação/CI remoto ainda pendentes. Consulte a [revisão da Fase 9](docs/phase-9-review.md). O frontend continua como shell; autenticação/editor e confiabilidade completa seguem no roadmap.
 
 A Fase 8 está integrada à main pelo [PR #5](https://github.com/gabxw/flowforge/pull/5), com [CI do PR](https://github.com/gabxw/flowforge/actions/runs/38079316141) e [CI completo na main](https://github.com/gabxw/flowforge/actions/runs/38079618578) aprovados, incluindo imagens novas e recuperação com broker parado. Passaram **1.112 testes xUnit** (771 Domain + 36 Application + 112 API + 193 Integration). O [contrato de HTTP/Credentials](docs/http-and-credentials.md), a [ADR 0008](docs/decisions/0008-secure-http-and-credentials.md) e a [revisão da Fase 8](docs/phase-8-review.md) registram proteção de rede, rotação e limites atuais.
 
@@ -30,7 +30,7 @@ flowchart LR
     Worker --> HTTP[Destinos HTTP autorizados]
 ```
 
-O ingresso por webhook, API, outbox, RabbitMQ e Worker estão implementados. A engine executa Trigger, HTTP Request e Log; destinos HTTP exigem autorização explícita do operador. A API aceita também solicitações manuais com input {}. O aceite do webhook persiste o payload protegido e responde antes do processamento.
+O ingresso por webhook, API, outbox, RabbitMQ e Worker estão implementados. A engine executa os seis tipos iniciais: Trigger, HTTP Request, Delay, Condition, Transform JSON e Log; destinos HTTP exigem autorização explícita do operador. A API aceita também solicitações manuais com input {}. O aceite do webhook persiste o payload protegido e responde antes do processamento.
 
 ```text
 FlowForge.slnx
@@ -114,9 +114,10 @@ Quando os serviços estiverem ativos:
 .\scripts\smoke-executions.ps1
 .\scripts\smoke-webhooks.ps1
 .\scripts\smoke-http.ps1
+.\scripts\smoke-declarative.ps1
 ```
 
-O primeiro smoke verifica host/proxy. O segundo percorre criação, edição, erros, publicação dos seis tipos, nova versão e arquivamento com PostgreSQL; deixa um exemplo arquivado, sem executar nodes. O terceiro smoke verifica execução Trigger → Log, histórico protegido e preservação de resultado terminal. O quarto percorre webhook Trigger → Log, idempotência, desativação e rotação com dados fictícios e sem imprimir secrets. O quinto cria/rotaciona/revoga uma credencial fictícia, verifica conflito de revisão e confirma que Trigger → HTTP → Log recusa um destino fora da allowlist sem executar Log. Sucesso HTTP é exercitado com HTTPS real controlado nos testes. Os scripts locais preservam volumes. No CI, down --volumes ocorre somente no runner descartável.
+O primeiro smoke verifica host/proxy. O segundo percorre criação, edição, erros, publicação dos seis tipos, nova versão e arquivamento com PostgreSQL; deixa um exemplo arquivado, sem executar nodes. O terceiro smoke verifica execução Trigger → Log, histórico protegido e preservação de resultado terminal. O quarto percorre webhook Trigger → Log, idempotência, desativação e rotação com dados fictícios e sem imprimir secrets. O quinto cria/rotaciona/revoga uma credencial fictícia, verifica conflito de revisão e confirma que Trigger → HTTP → Log recusa um destino fora da allowlist sem executar Log. Sucesso HTTP é exercitado com HTTPS real controlado nos testes. O sexto verifica Condition/Transform, true/false com convergência, Delay e cancelamento de 24h. Use -PausedOnly e depois -ExecutionId para verificar a retomada de uma espera após recriação do Worker. Os scripts locais preservam volumes. No CI, down --volumes ocorre somente no runner descartável.
 
 ## Executar hosts no computador e verificar
 
@@ -147,7 +148,7 @@ Para executar a sequência de restore, build, testes, lint e validação do Comp
 
 ## Exemplo e MVP
 
-Já executável: **Webhook → HTTP Request → Log**, com destino autorizado, credencial opcional e consulta de nodes/logs. Trigger → Log continua disponível, inclusive com entrada manual {}. Exemplo do MVP completo, ainda dependente dos próximos executores:
+Já executável: **Webhook → HTTP Request → Log**, com destino autorizado, credencial opcional e consulta de nodes/logs. Trigger → Log continua disponível, inclusive com entrada manual {}. O fluxo com condição também é executável; retry/DLQ e política completa de confiabilidade ainda dependem da Fase 10:
 
 ```text
 Webhook → Condition (total > 100)
@@ -164,7 +165,7 @@ A versão de portfólio termina na Fase 16, com interface/editor, autenticação
 - Execuções fixam versões publicadas imutáveis: uma edição não altera trabalho em andamento.
 - Outbox acompanha a primeira publicação na Fase 5: execução e mensagem pendente são gravadas na mesma transação.
 - Entrega é pelo menos uma vez: deduplicação e claim são necessários; efeitos HTTP não recebem promessa de exactly-once.
-- Delay é durável e libera o Worker; retries têm limite e só se aplicam a operações elegíveis.
+- Delay é durável e libera a entrega/lease; o dispatcher existente agenda a continuação na outbox. Retry com limite/elegibilidade entra na Fase 10.
 - Lease e estado ficam no PostgreSQL inicialmente; Redis exige um problema adicional concreto.
 - Webhook secret vai em header, com hash persistido; URL não transporta segredo.
 - HTTP usa allowlist de origens HTTPS, valida todos os IPs DNS e conecta somente a um IP aprovado, preservando TLS/Host/SNI. Redirects e reconexões HTTP automáticas ficam recusados; timeout não prova ausência de efeito remoto.
@@ -174,7 +175,7 @@ A versão de portfólio termina na Fase 16, com interface/editor, autenticação
 
 Alternativas, trade-offs e formas de explicar essas escolhas em entrevista estão no [ADR 0001](docs/decisions/0001-architecture-and-scope.md) e na [ADR 0002, sobre domínio e publicação](docs/decisions/0002-workflow-domain-and-publication.md).
 
-No domínio, um rascunho pode ficar incompleto enquanto é editado. Publicar exige exatamente um trigger, alcance de todos os nodes, ausência de ciclos e portas válidas. Condition tem uma conexão true e uma false; os ramos podem convergir. Publicações expõem valores imutáveis e coleções protegidas. Editar novamente cria outra versão, preservando o grafo anterior. O [contrato da Fase 2](docs/superpowers/specs/2026-10-09-phase-2-domain-design.md) define limites e as configurações declarativas de Condition/Transform; avaliar payloads fica para a Fase 9.
+No domínio, um rascunho pode ficar incompleto enquanto é editado. Publicar exige exatamente um trigger, alcance de todos os nodes, ausência de ciclos e portas válidas. Condition tem uma conexão true e uma false; os ramos podem convergir. Publicações expõem valores imutáveis e coleções protegidas. Editar novamente cria outra versão, preservando o grafo anterior. O [contrato da Fase 2](docs/superpowers/specs/2026-10-09-phase-2-domain-design.md) define limites e as configurações declarativas de Condition/Transform; a Fase 9 implementa avaliação com precisão, tipos e limites explícitos em [contrato declarativo e Delay](docs/declarative-nodes-and-delay.md).
 
 ## Documentação e roadmap
 
@@ -200,6 +201,9 @@ No domínio, um rascunho pode ficar incompleto enquanto é editado. Publicar exi
 - [HTTP seguro e operação de credenciais](docs/http-and-credentials.md)
 - [Decisão de conexão aprovada e credenciais](docs/decisions/0008-secure-http-and-credentials.md)
 - [Revisão e validações da Fase 8](docs/phase-8-review.md)
+- [Condition, Transform e Delay durável](docs/declarative-nodes-and-delay.md)
+- [Decisão dos nodes declarativos e continuação na outbox](docs/decisions/0009-declarative-nodes-and-durable-delay.md)
+- [Revisão e validações da Fase 9](docs/phase-9-review.md)
 
 Novos commits usam mensagens curtas e descritivas em português, sem qualquer prefixo; o histórico existente é preservado. A preferência pela conta gabxw e as demais regras do projeto estão em [AGENTS.md](AGENTS.md).
 

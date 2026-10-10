@@ -1,6 +1,6 @@
 # Roadmap técnico
 
-O trabalho é incremental. Cada fase entrega um comportamento executável, documentação atualizada e revisão técnica antes da próxima. As Fases 1 a 6 estão concluídas, com as evidências atuais em [phase-6-review.md](phase-6-review.md). As Fases 7 a 16 permanecem planejadas.
+O trabalho é incremental. Cada fase entrega um comportamento executável, documentação atualizada e revisão técnica antes da próxima. As Fases 1 a 8 estão concluídas. A Fase 9 está em validação, com contrato em [declarative-nodes-and-delay.md](declarative-nodes-and-delay.md) e revisão em [phase-9-review.md](phase-9-review.md). As Fases 10 a 16 permanecem planejadas.
 
 Não se avança só porque uma pasta ou endpoint existe. O critério de saída inclui build, testes pertinentes e verificação do comportamento anunciado. Uma verificação impedida pelo ambiente permanece pendente e deve ser informada; ela não equivale a um resultado aprovado.
 

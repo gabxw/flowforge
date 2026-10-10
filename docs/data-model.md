@@ -1,6 +1,6 @@
 # Modelo inicial de dados
 
-Status: cinco tabelas de definição implementadas na Fase 3. A Fase 5 acrescenta workflow_executions, outbox_messages e inbox_messages; estado e revisão em [phase-5-review.md](phase-5-review.md). A Fase 6 acrescenta node_executions, execution_logs e checkpoint/contexto/cancelamento; são dez tabelas de aplicação. A Fase 7 acrescenta webhook_endpoints e webhook_idempotency. A Fase 8 acrescenta credentials, FK por dono e revisão utilizada no node: treze tabelas e cinco migrations. Demais extensões continuam conceituais.
+Status: cinco tabelas de definição implementadas na Fase 3. A Fase 5 acrescenta workflow_executions, outbox_messages e inbox_messages; estado e revisão em [phase-5-review.md](phase-5-review.md). A Fase 6 acrescenta node_executions, execution_logs e checkpoint/contexto/cancelamento; são dez tabelas de aplicação. A Fase 7 acrescenta webhook_endpoints e webhook_idempotency. A Fase 8 acrescenta credentials, FK por dono e revisão utilizada no node: treze tabelas e cinco migrations. A Fase 9 acrescenta suspensão/continuação durável na sexta migration, mantendo treze tabelas. Demais extensões continuam conceituais.
 
 PostgreSQL é a fonte de verdade. UUID identifica os recursos; datas são instantes UTC, armazenados como timestamptz. Estados têm valores explícitos e transições validadas, sem depender da ordem numérica de enums. Configurações variáveis usam JSONB; identidade, ownership, relações e campos consultáveis usam colunas.
 
@@ -14,7 +14,7 @@ O codec é responsável pela forma completa da configuração; o domínio valida
 
 ## Schema acrescentado na Fase 5
 
-Execuções fixam versão/workflow/proprietário com FK composta. Outbox tem uma mensagem v1 por execução; inbox associa MessageId/ExecutionId à outbox e impede dois recebimentos independentes do mesmo trabalho. Claims usam token e expiração, e índices parciais atendem ao polling de mensagens ainda não confirmadas.
+Execuções fixam versão/workflow/proprietário com FK composta. Na Fase 5, outbox tem uma mensagem v1 por execução; a Fase 9 amplia para uma por execução/DispatchSequence. Inbox associa MessageId/ExecutionId à outbox e impede dois recebimentos ativos do mesmo trabalho. Claims usam token e expiração, e índices parciais atendem ao polling de mensagens ainda não confirmadas.
 
 Os checks originais aceitavam Pending, Running e Failed/engineUnavailable. A migration da Fase 6 amplia estados/resultados, preservando os históricos antigos. CorrelationId e horários continuam persistidos; o contexto cifrado agora reside em workflow_executions. Nenhum material de Credential é resolvido nesta fase.
 
@@ -24,7 +24,7 @@ Consulte [ADR 0005](decisions/0005-durable-execution-dispatch.md) e [operação 
 
 workflow_executions ganha cancel_requested_at, next_node_id, checkpoint_revision e execution_context_protected (bytea). Próximo node referencia o par versão/node da própria execução. node_executions tem FK execução/versão, FK versão/node e unicidade execução/node; guarda estados/datas, AttemptCount e summaries JSONB de tipo/tamanho. execution_logs referencia NodeExecution/ExecutionId, contém event_code, message_byte_length e message_protected; um evento lógico por node Log impede duplicação por replay.
 
-O contexto admite 64 KiB de JSON operacional e até 128 KiB de envelope cifrado. Snapshot não preserva conteúdo nem serve como input de retomada. Logs/inputs/outputs HTTP expõem metadados, nunca ciphertext ou conteúdo. A chave fica em keyring persistente separado do banco; a mensagem Log usa purpose diferente. Não há tabela de tentativas ou scheduler ainda.
+O contexto admite 64 KiB de JSON operacional e até 128 KiB de envelope cifrado. Snapshot não preserva conteúdo nem serve como input de retomada. Logs/inputs/outputs HTTP expõem metadados, nunca ciphertext ou conteúdo. A chave fica em keyring persistente separado do banco; a mensagem Log usa purpose diferente. Não há tabela de tentativas; a Fase 9 reutiliza o polling de AvailableAt da outbox como scheduler de Delay.
 
 ClaimToken identifica o dono; ClaimAttempts é a geração crescente da inbox. Checkpoints validam ambos e a lease, além da revisão. A transação terminal inclui execução, nodes pendentes como Skipped, evento Log quando aplicável e inbox concluída. Consultas de histórico têm teto natural de 50 nodes/50 eventos nesta versão.
 
@@ -49,6 +49,12 @@ FK composta dos nodes exige credencial do mesmo dono; referências históricas s
 node_executions ganha credential_revision_used nullable/positiva. O resultado/checkpoint registra a revisão conhecida; se houver queda antes disso, ela pode ficar nula. A recuperação de HTTP interrompido não repete o efeito nem acrescenta tentativa. Checks de falha agora incluem códigos HTTP 8..14. Auditoria completa de tentativas entra na Fase 10.
 
 A nova FK recusa IDs fictícios legados: o upgrade requer revisão explícita e preservação de publicações, sem inventar credenciais automaticamente. Detalhes de migração, proteção e limites em [http-and-credentials.md](http-and-credentials.md) e [ADR 0008](decisions/0008-secure-http-and-credentials.md).
+
+## Schema acrescentado na Fase 9
+
+workflow_executions ganha resume_at e dispatch_sequence. Delay mantém execução/node Running e contexto cifrado, conclui a inbox atual e cria uma outbox futura em uma transação. Outbox é única por ExecutionId/DispatchSequence; inbox passa a ser única por execução somente enquanto completed_at é nulo, preservando mensagens concluídas. Checks de falha aceitam códigos 1..18. A mensagem RabbitMQ permanece v1, com IDs/correlação.
+
+O índice parcial existente AvailableAt/Id atende ao scheduler; não acrescentamos índice em ResumeAt porque não é a consulta usada. A sequência inicial zero preserva registros anteriores. A sexta migration não acrescenta tabelas. Operação/upgrade em [declarative-nodes-and-delay.md](declarative-nodes-and-delay.md), decisão em [ADR 0009](decisions/0009-declarative-nodes-and-durable-delay.md).
 
 ## Relações
 
@@ -92,9 +98,9 @@ A posição visual pertence à definição; não influencia ordem de execução.
 
 ### Estados
 
-WorkflowExecution: Pending → Running → Succeeded, Failed ou Cancelled. Pode passar diretamente de Pending para Cancelled. Retomada depois de uma suspensão não cria uma segunda execução. Running com ResumeAt futuro representa Delay ou retry durável.
+WorkflowExecution: Pending → Running → Succeeded, Failed ou Cancelled. Pode passar diretamente de Pending para Cancelled. Retomada depois de uma suspensão não cria uma segunda execução. Running com ResumeAt futuro representa Delay durável implementado na Fase 9. Retry durável permanece na Fase 10.
 
-NodeExecutionStatus: Pending, Running, Succeeded, Failed, Retrying, Skipped e Cancelled. Cancelled foi adotado na Fase 2 para um node interrompido. Pending pode transicionar para Running ou Skipped; Running para Succeeded, Failed, Retrying ou Cancelled; Retrying para Running ou Cancelled. A execução futura usará Skipped para nodes não iniciados e preservará as tentativas anteriores ao retomar Retrying.
+NodeExecutionStatus: Pending, Running, Succeeded, Failed, Retrying, Skipped e Cancelled. Cancelled foi adotado na Fase 2 para um node interrompido. Pending pode transicionar para Running ou Skipped; Running para Succeeded, Failed, Retrying ou Cancelled; Retrying para Running ou Cancelled. A engine marca Skipped nos nodes não iniciados ao concluir o percurso; a continuação de Delay não incrementa AttemptCount. Retrying e tentativas individuais permanecem na Fase 10.
 
 As políticas puras de transição da Fase 2 rejeitam estados desconhecidos, repetições e saídas de estados terminais. Elas não implementam redelivery nem persistência: os futuros casos de uso precisam aplicá-las e garantir que uma atualização SQL não transforme uma execução terminal de volta em Running.
 
@@ -102,8 +108,8 @@ As políticas puras de transição da Fase 2 rejeitam estados desconhecidos, rep
 
 | Registro | Fase | Campos propostos e propósito |
 | --- | --- | --- |
-| OutboxMessage | 5 | Id/MessageId, Type, ContractVersion, WorkflowExecutionId, Payload, CreatedAt, AvailableAt, PublishedAt, AttemptCount, LastErrorCode. Publicação confiável a partir da mesma transação da execução ou continuação. |
-| InboxMessage | 5 | ConsumerName, MessageId, WorkflowExecutionId, Status, ReceivedAt, CompletedAt. PK em ConsumerName/MessageId; Received não equivale a processamento concluído. |
+| OutboxMessage | 5 e 9 | Id/MessageId, ExecutionId, CorrelationId, ContractVersion, DispatchSequence, CreatedAt, AvailableAt, PublishedAt, PublishAttempts, ClaimToken, ClaimUntil. Implementado; mensagem de IDs construída a partir da linha. |
+| InboxMessage | 5 e 9 | MessageId PK, ExecutionId, ReceivedAt, CompletedAt, ClaimToken, ClaimUntil, ClaimAttempts. Implementado; uma linha ativa por execução e histórico concluído. |
 | WebhookIdempotencyRecord | 7, completado na 10 | OwnerUserId, WebhookEndpointId, KeyDigest, RequestHash, WorkflowExecutionId, CreatedAt, ExpiresAt. Reserva atômica da chave e comparação do conteúdo. |
 | NodeExecutionAttempt | 10 | Id, NodeExecutionId, AttemptNumber, StartedAt, FinishedAt, Status, ErrorCode, ErrorSummary, DurationMs, ExternalOutcome, CredentialRevisionUsed. Uma linha por tentativa, inclusive falha e resultado externo desconhecido. |
 | RefreshSession | 13 | Id, UserId, FamilyId, TokenHash, CreatedAt, ExpiresAt, RevokedAt, ReplacedBySessionId, ReuseDetectedAt. Token opaco com alta entropia, apenas hash no banco, rotação e revogação de família. |
@@ -149,13 +155,13 @@ As buscas são sempre escopadas pelo usuário autenticado. Antes da autenticaç�
 | WorkflowConnection WorkflowVersionId/TargetNodeId | Validação e navegação reversa do grafo |
 | WorkflowExecution OwnerUserId/CreatedAt/Id | Histórico paginado e autorização |
 | WorkflowExecution WorkflowId/CreatedAt/Id | Histórico por workflow |
-| WorkflowExecution ResumeAt/Id parcial para execuções retomáveis | Scheduler de Delay e retry |
+| WorkflowExecution ResumeAt/Id parcial para execuções retomáveis | Não criado na Fase 9: scheduler usa o índice de AvailableAt da outbox |
 | WorkflowExecution LeaseExpiresAt/Id parcial onde Status = Running | Recuperar claims vencidos |
 | NodeExecution WorkflowExecutionId/NodeId unique | Uma execução lógica por node |
 | NodeExecutionAttempt NodeExecutionId/AttemptNumber unique | Tentativas sem sobrescrita e sem duplicação |
 | ExecutionLog WorkflowExecutionId/CreatedAt/Id | Timeline ordenada e paginação |
 | OutboxMessage AvailableAt/Id parcial onde PublishedAt é nulo | Dispatcher sem varrer histórico publicado |
-| InboxMessage ConsumerName/MessageId unique | Deduplicação por consumidor |
+| InboxMessage MessageId PK; ExecutionId unique parcial quando CompletedAt nulo | Deduplicação de mensagem e apenas um dispatch ativo por execução, implementado |
 | WebhookIdempotencyRecord OwnerUserId/WebhookEndpointId/KeyDigest unique | Chave de idempotência isolada por endpoint e dono |
 | RefreshSession TokenHash unique; UserId/FamilyId | Encontrar sessão e revogar família |
 

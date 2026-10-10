@@ -122,7 +122,7 @@ MessageId é único na inbox. Receber uma mensagem não significa concluir seu t
 
 Uma execução é reclamada por atualização atômica no PostgreSQL. Apenas um Worker possui uma lease válida, identificada por proprietário, vencimento e um token de dono e uma geração crescente (ClaimAttempts na inbox). Persistência de checkpoints exige o token vigente. Um processo que perdeu a lease não pode sobrescrever resultados de quem recuperou a execução.
 
-A lease vence para permitir recuperação; deve ser renovada enquanto o Worker trabalha. Não mantemos uma transação ou um lock de linha aberto durante uma chamada HTTP. Um serviço de recuperação busca execuções vencidas e retomadas vencidas; o caminho de recuperação é testado, e não depende somente de um novo webhook.
+A lease vence para permitir recuperação; deve ser renovada enquanto o Worker trabalha. Não mantemos uma transação ou um lock de linha aberto durante uma chamada HTTP. Redelivery recupera claims vencidos, e a outbox acorda os Delays da Fase 9 sem novo webhook. Um scanner independente e políticas completas de recuperação permanecem no incremento de confiabilidade.
 
 A mensagem é confirmada após o estado correspondente estar durável. Se uma lease estiver ocupada, a mensagem não inicia trabalho concorrente: a entrega será reagendada com limite, evitando um loop de requeue imediato. A inbox não substitui as invariantes de estado e a lease.
 
@@ -134,9 +134,9 @@ O contrato é at-least-once. Não prometemos exactly-once para HTTP: um destino 
 
 Para destinos compatíveis, o mesmo identificador estável de efeito acompanha todas as tentativas do node como chave de idempotência. POST/PATCH com efeito não recebem retry automático sem contrato de idempotência do destino ou autorização explícita na configuração. Um timeout pode representar resultado desconhecido, e será mostrado como tal nos detalhes da tentativa.
 
-### Delay e retry — fases futuras
+### Delay implementado na Fase 9; retry na Fase 10
 
-Delay grava ResumeAt no banco e suspende a execução. Libera o consumer e a lease depois do checkpoint; um scheduler publica a continuação por outbox quando o horário vencer. Não usamos Task.Delay de longa duração nem seguramos uma mensagem no broker durante horas.
+Delay grava ResumeAt no banco e suspende a execução. Libera o consumer e a lease depois do checkpoint; o polling de AvailableAt da outbox existente publica a continuação quando o horário vencer. DispatchSequence no banco e um MessageId por continuação impedem mensagens antigas de assumir o próximo trabalho. O node fica Running durante a espera e o wakeup não incrementa sua tentativa. [ADR 0009](decisions/0009-declarative-nodes-and-durable-delay.md) detalha contrato e alternativas. Não usamos Task.Delay de longa duração nem seguramos uma mensagem no broker durante horas.
 
 Retry tem máximo de tentativas, atraso exponencial com jitter e prazo total. Somente falhas transitórias elegíveis são repetidas: conectividade, alguns 5xx e 429 conforme política e Retry-After limitado. Validação, segredo inválido e configuração incompatível falham sem retry. Cada tentativa será um NodeExecutionAttempt; NodeExecution representa o resultado lógico do node.
 
@@ -190,7 +190,7 @@ A Fase 13 implementa access token JWT de curta duração e refresh tokens opacos
 
 A interface usa refresh token em cookie HttpOnly/Secure com SameSite definido para o modo de implantação; access token em memória. A escolha de cookie exige tratar CSRF conforme o contrato da aplicação.
 
-Limites de definição adotados na Fase 2: 50 nodes/100 conexões por versão, 50 campos de Transform, JSON Pointer de até 1.024 unidades UTF-16/32 segmentos e Delay configurado de até 24 horas. O domínio valida a configuração; não executa esperas ou transformações. Limites implementados: webhook e contexto até 64 KiB; snapshots contêm somente tipo/tamanho. HTTP aceita resposta até 32 KiB e headers até 8 KiB, prazo padrão de 8 segundos sob teto de node de 10 segundos. Credential requests têm 32 KiB e 10 segundos; rate limiting local de webhook está ativo. Prazo global, quotas e retenção continuam propostas para os próximos incrementos.
+Limites de definição adotados na Fase 2: 50 nodes/100 conexões por versão, 50 campos de Transform, JSON Pointer de até 1.024 unidades UTF-16/32 segmentos e Delay configurado de até 24 horas. O domínio valida a configuração; os executores declarativos em Application avaliam Condition/Transform e o store em Infrastructure persiste a suspensão de Delay. Limites implementados: webhook e contexto até 64 KiB; snapshots contêm somente tipo/tamanho. HTTP aceita resposta até 32 KiB e headers até 8 KiB, prazo padrão de 8 segundos sob teto de node de 10 segundos. Credential requests têm 32 KiB e 10 segundos; rate limiting local de webhook está ativo. Prazo global, quotas e retenção continuam propostas para os próximos incrementos.
 
 ## Observabilidade e testes
 

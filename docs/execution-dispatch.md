@@ -1,6 +1,6 @@
-# Operação do despacho — Fases 5 e 6
+# Operação do despacho — Fases 5 a 9
 
-Esta fase entrega API → PostgreSQL/outbox → RabbitMQ → Worker → resultado durável. A Fase 6 executa Trigger/Log com checkpoints e histórico protegido. A falha engineUnavailable é resultado histórico da Fase 5; execuções já concluídas são preservadas. Consulte [operação da engine](execution-engine.md).
+Esta fase entrega API → PostgreSQL/outbox → RabbitMQ → Worker → resultado durável. A Fase 6 executa Trigger/Log com checkpoints e histórico protegido. A falha engineUnavailable é resultado histórico da Fase 5; execuções já concluídas são preservadas. Os seis executores estão disponíveis na Fase 9; Delay libera a mensagem atual e cria continuação com outro MessageId na mesma transação do prazo. Consulte [operação da engine](execution-engine.md) e [espera durável](declarative-nodes-and-delay.md).
 
 ## Contrato HTTP privado
 

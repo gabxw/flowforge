@@ -1,6 +1,6 @@
 # Operar a persistência da Fase 3
 
-A Fase 3 disponibilizou adaptadores e migrations. A Fase 4 compõe a API com esses stores; veja [operação e contrato HTTP](api.md). Criar workflow assegura o usuário técnico configurado no servidor, sem senha/login. O Worker ainda não utiliza o banco.
+A Fase 3 disponibilizou adaptadores e migrations. A Fase 4 compõe a API com esses stores; veja [operação e contrato HTTP](api.md). Criar workflow assegura o usuário técnico configurado no servidor, sem senha/login. Desde a Fase 5, o Worker utiliza outbox/inbox; a Fase 6 acrescenta checkpoints, e a Fase 9 reutiliza AvailableAt para espera durável. A documentação abaixo preserva a operação da persistência.
 
 ## Verificação completa
 

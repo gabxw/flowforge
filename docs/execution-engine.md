@@ -1,13 +1,13 @@
-# Operação da engine — Fases 6 a 8
+# Operação da engine — Fases 6 a 9
 
-A API privada aceita um comando sem corpo e fixa a versão publicada. O Worker executa Trigger → Log (ou uma sequência de Logs) e registra progresso durável. O input manual é {}. A Fase 7 acrescenta input original protegido aceito por [webhook](webhooks.md); o Worker inicializa o contexto/nodes a partir dele. A Fase 8 acrescenta HTTP Request com [destinos e credenciais protegidos](http-and-credentials.md). Demais executores continuam nas fases seguintes.
+A API privada aceita um comando sem corpo e fixa a versão publicada. O Worker executa Trigger → Log (ou uma sequência de Logs) e registra progresso durável. O input manual é {}. A Fase 7 acrescenta input original protegido aceito por [webhook](webhooks.md); o Worker inicializa o contexto/nodes a partir dele. A Fase 8 acrescenta HTTP Request com [destinos e credenciais protegidos](http-and-credentials.md). A Fase 9 completa os seis tipos com [Condition, Transform e Delay durável](declarative-nodes-and-delay.md).
 
 ## Contrato HTTP
 
 | Método | Caminho | Resultado |
 | --- | --- | --- |
 | POST | /api/workflows/{id}/executions | Sem corpo; 202 Pending e Location |
-| GET | /api/executions/{id} | Estado, versão fixa, CorrelationId, horários, ErrorCode e CancelRequestedAt |
+| GET | /api/executions/{id} | Estado, versão fixa, CorrelationId, horários, ErrorCode, CancelRequestedAt e ResumeAt |
 | GET | /api/executions/{id}/nodes | Até 50 nodes, ordenados pelo ordinal do grafo; horário determina a execução efetiva |
 | GET | /api/executions/{id}/logs | Até 50 eventos logRecorded, ordenados por CreatedAt/Id; tamanho, sem mensagem/ciphertext |
 | POST | /api/executions/{id}/cancel | Sem corpo; 202 para execução ativa, 200 para terminal; pedido idempotente |
@@ -24,9 +24,9 @@ Um workflow com tipo sem executor termina Failed/unsupportedNode; os nodes resta
 2. O Worker carrega somente a versão fixada e cria os registros Pending dos nodes. Contexto inicial {} é protegido uma vez.
 3. Início do node e AttemptCount ficam duráveis antes de chamar o executor.
 4. Resultado, próximo node e contexto protegido são gravados na mesma transação; Log também grava seu evento protegido.
-5. No último node, o resultado terminal e a conclusão da inbox são atômicos. Só depois o consumer confirma a mensagem.
+5. No último node, o resultado terminal e a conclusão da inbox são atômicos. Delay grava prazo/nova continuação e conclui a inbox anterior atomicamente, liberando a entrega durante a espera. Só depois o consumer confirma a mensagem.
 
-A engine renova a lease de 30 s a cada 5 s. Cada checkpoint valida autoridade e revisão. Redelivery de inbox concluída não repete nodes, logs ou horários. Queda após checkpoint retoma no próximo node. Queda com node Running permite replay apenas quando o executor declara segurança para isso; Trigger/Log são locais e seguros. HTTP não permite replay depois de Running: termina interruptedNode e não incrementa AttemptCount sem nova chamada. Replay não é retry automático de falhas terminais.
+A engine renova a lease de 30 s a cada 5 s. Cada checkpoint valida autoridade e revisão. Redelivery de inbox concluída não repete nodes, logs ou horários. Queda após checkpoint retoma no próximo node. Queda com node Running permite replay apenas quando o executor declara segurança para isso; Trigger/Log/Condition/Transform são locais e seguros; Delay distingue recuperação antes de suspender da continuação durável, mantendo seu prazo original. HTTP não permite replay depois de Running: termina interruptedNode e não incrementa AttemptCount sem nova chamada. Replay não é retry automático de falhas terminais.
 
 Shutdown não persiste CancelRequestedAt. O delivery sem ack volta ao broker, a lease expira e outro Worker retoma. Pedido do usuário é observado entre nodes e no heartbeat; node interrompido fica Cancelled, anteriores são preservados e restantes Skipped. Uma chamada externa pode já ter produzido efeito quando o cancelamento é observado; HTTP mantém essa condição explícita e não repete a chamada automaticamente.
 
@@ -60,6 +60,7 @@ O smoke publica Trigger → Log, espera Succeeded, verifica dois NodeExecutions 
 | Sintoma | Ação |
 | --- | --- |
 | Pending | Verificar dispatcher/outbox/broker e schema aplicado |
+| Running com ResumeAt | Espera durável; se vencida, verificar outbox/dispatcher/broker conforme a operação da Fase 9 |
 | Running após queda | Aguardar lease e redelivery; verificar consumer e checkpoint |
 | Running com CryptographicException | Restaurar keyring correto; não apagar contexto ou concluir artificialmente |
 | Failed/unsupportedNode | Usar somente executores disponíveis ou aguardar o incremento correspondente |
