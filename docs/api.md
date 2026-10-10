@@ -1,6 +1,6 @@
 # API privada de workflows
 
-A Fase 4 disponibiliza definição, edição e publicação com PostgreSQL. O Worker ainda não executa nodes. A API não tem autenticação: use somente ambiente local/privado. O proprietário vem de FlowForge:TechnicalOwnerId no servidor; headers, query ou corpo não escolhem o dono.
+A Fase 4 disponibiliza definição, edição e publicação com PostgreSQL. A Fase 5 acrescenta [solicitação e consulta de execuções](execution-dispatch.md); o Worker ainda não executa nodes. A API não tem autenticação: use somente ambiente local/privado. O proprietário vem de FlowForge:TechnicalOwnerId no servidor; headers, query ou corpo não escolhem o dono.
 
 ## Subir e preparar o banco
 
@@ -11,6 +11,9 @@ Na raiz do projeto, configure o segredo sem registrá-lo no histórico:
 ~~~powershell
 $env:FLOWFORGE_POSTGRES_PASSWORD = [System.Net.NetworkCredential]::new(
   '', (Read-Host 'Senha local do PostgreSQL' -AsSecureString)
+).Password
+$env:FLOWFORGE_RABBITMQ_PASSWORD = [System.Net.NetworkCredential]::new(
+  '', (Read-Host 'Senha local do RabbitMQ' -AsSecureString)
 ).Password
 docker compose up --build --detach --wait
 .\scripts\migrate-compose.ps1 -GenerateOnly

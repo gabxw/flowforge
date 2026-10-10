@@ -1,6 +1,6 @@
 # Modelo inicial de dados
 
-Status: a Fase 3 implementa users (Id/CreatedAt), workflows, workflow_versions, workflow_nodes e workflow_connections. A validação real do incremento é registrada em [phase-3-review.md](phase-3-review.md). As demais entidades permanecem conceituais e entram nas fases indicadas.
+Status: cinco tabelas de definição implementadas na Fase 3. A Fase 5 acrescenta workflow_executions, outbox_messages e inbox_messages; estado e revisão em [phase-5-review.md](phase-5-review.md). As demais entidades continuam conceituais.
 
 PostgreSQL é a fonte de verdade. UUID identifica os recursos; datas são instantes UTC, armazenados como timestamptz. Estados têm valores explícitos e transições validadas, sem depender da ordem numérica de enums. Configurações variáveis usam JSONB; identidade, ownership, relações e campos consultáveis usam colunas.
 
@@ -11,6 +11,14 @@ As cinco tabelas usam UUIDs definidos pelo domínio, timestamptz, nomes snake_ca
 Há UNIQUE de número de versão, índice parcial de um draft (status=1) por workflow, unicidade de porta de saída e ordinais para preservar a ordem das coleções. A listagem usa (owner_user_id, updated_at DESC, id DESC). Revisões são inteiros não negativos; checks cobrem status/datas, configurações schemaVersion=1, IDs não vazios e posições finitas.
 
 O codec é responsável pela forma completa da configuração; o domínio valida o DAG ao publicar/restaurar publicações. CredentialId é apenas uma referência, sem FK até existir o armazenamento seguro de credenciais. Consulte [ADR 0003](decisions/0003-postgresql-persistence.md) e [operação](persistence.md).
+
+## Schema acrescentado na Fase 5
+
+Execuções fixam versão/workflow/proprietário com FK composta. Outbox tem uma mensagem v1 por execução; inbox associa MessageId/ExecutionId à outbox e impede dois recebimentos independentes do mesmo trabalho. Claims usam token e expiração, e índices parciais atendem ao polling de mensagens ainda não confirmadas.
+
+Checks aceitam somente Pending, Running e Failed/engineUnavailable neste incremento. A Fase 6 ampliará estados/resultados na migration da engine. CorrelationId e horários são persistidos; payload, NodeExecution e ExecutionLog continuam nas fases seguintes. Nenhum secret é armazenado nessas três tabelas.
+
+Consulte [ADR 0005](decisions/0005-durable-execution-dispatch.md) e [operação do despacho](execution-dispatch.md).
 
 ## Relações
 

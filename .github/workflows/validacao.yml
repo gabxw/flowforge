@@ -123,6 +123,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $env:FLOWFORGE_POSTGRES_PASSWORD = [Guid]::NewGuid().ToString('N')
+          $env:FLOWFORGE_RABBITMQ_PASSWORD = [Guid]::NewGuid().ToString('N')
           function Invoke-Check([string[]] $Arguments) {
             & docker @Arguments
             if ($LASTEXITCODE -ne 0) { throw "Falha no comando Docker (código $LASTEXITCODE)." }
@@ -137,6 +138,8 @@ jobs:
             ./scripts/smoke-compose.ps1
             ./scripts/smoke-workflows.ps1
             ./scripts/smoke-workflows.ps1 -BaseUri 'http://127.0.0.1:5173'
+            ./scripts/smoke-executions.ps1
+            ./scripts/smoke-executions.ps1 -BaseUri 'http://127.0.0.1:5173'
             $workerId = docker compose ps -q worker
             if ($LASTEXITCODE -ne 0 -or -not $workerId) { throw 'Worker não foi criado.' }
             $workerRunning = docker inspect -f '{{.State.Running}}' $workerId

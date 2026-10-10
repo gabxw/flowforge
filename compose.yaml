@@ -1,6 +1,6 @@
 name: flowforge
 
-# Ambiente privado/local; API persiste definições. Migrations são uma operação explícita.
+# Ambiente privado/local; API persiste e solicita despacho. Migrations são explícitas.
 services:
   api:
     build:
@@ -30,6 +30,19 @@ services:
       dockerfile: src/FlowForge.Worker/Dockerfile
     environment:
       DOTNET_ENVIRONMENT: Development
+      FlowForge__Postgres__Host: postgres
+      FlowForge__Postgres__Database: flowforge
+      FlowForge__Postgres__Username: flowforge
+      FlowForge__Postgres__PasswordFile: /run/secrets/postgres_password
+      FlowForge__RabbitMq__Host: rabbitmq
+      FlowForge__RabbitMq__Username: flowforge
+      FlowForge__RabbitMq__PasswordFile: /run/secrets/rabbitmq_password
+    secrets:
+      - postgres_password
+      - rabbitmq_password
+    depends_on:
+      postgres:
+        condition: service_healthy
     init: true
     stop_grace_period: 30s
 
@@ -52,6 +65,12 @@ services:
 
   rabbitmq:
     image: rabbitmq:4.2-management-alpine
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: flowforge
+    secrets:
+      - rabbitmq_password
+    entrypoint: ["/bin/sh", "-ec", 'export RABBITMQ_DEFAULT_PASS="$(cat /run/secrets/rabbitmq_password)"; exec docker-entrypoint.sh rabbitmq-server']
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
@@ -89,3 +108,6 @@ volumes:
 secrets:
   postgres_password:
     environment: FLOWFORGE_POSTGRES_PASSWORD
+
+  rabbitmq_password:
+    environment: FLOWFORGE_RABBITMQ_PASSWORD

@@ -1,6 +1,6 @@
 # Arquitetura e escopo do FlowForge
 
-Status: Fases 1 a 3 concluídas; Fase 4 implementa API privada composta com PostgreSQL, casos de uso, revisão otimista e DTOs próprios. Validação final em [phase-4-review.md](phase-4-review.md). Mensageria, executores e autenticação continuam nas fases indicadas.
+Status: Fases 1 a 4 concluídas. A Fase 5 implementa despacho com outbox transacional, RabbitMQ e consumer recuperável; validações em [phase-5-review.md](phase-5-review.md). Engine, webhook e autenticação continuam nas fases indicadas.
 
 ## Problema e requisitos
 
