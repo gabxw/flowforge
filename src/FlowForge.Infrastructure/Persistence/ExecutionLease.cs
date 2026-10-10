@@ -20,6 +20,8 @@ internal static class ExecutionLease
         if (row is null || inbox is null || inbox.CompletedAt is not null || inbox.ClaimToken != claim.Token ||
             inbox.ClaimAttempts != claim.Generation || inbox.ClaimUntil <= now ||
             row.Status is not (WorkflowExecutionStatus.Pending or WorkflowExecutionStatus.Running)) return null;
+        if (!await db.OutboxMessages.AnyAsync(o => o.Id == claim.MessageId && o.ExecutionId == row.Id && o.DispatchSequence == row.DispatchSequence, ct) ||
+            (row.ResumeAt > now && row.CancelRequestedAt is null)) return null;
         now = new[] { now, row.CreatedAt, row.StartedAt ?? row.CreatedAt, row.CancelRequestedAt ?? row.CreatedAt }.Max();
         return new(row, inbox, now);
     }

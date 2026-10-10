@@ -62,6 +62,12 @@ public sealed class PostgresExecutionStore(IDbContextFactory<FlowForgeDbContext>
         var now = await ExecutionPersistence.NowAsync(db, ct);
         execution.RequestCancellation(now < row.CreatedAt ? row.CreatedAt : now);
         row.CancelRequestedAt = execution.Snapshot.CancelRequestedAt;
+        if (row.ResumeAt.HasValue && row.CancelRequestedAt.HasValue)
+        {
+            // Acorda pela mensagem já existente; não executa a engine na request nem cria outro timer.
+            await db.OutboxMessages.Where(o => o.ExecutionId == row.Id && o.DispatchSequence == row.DispatchSequence && o.PublishedAt == null)
+                .ExecuteUpdateAsync(set => set.SetProperty(o => o.AvailableAt, now), ct);
+        }
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
         return execution.Snapshot;
     }

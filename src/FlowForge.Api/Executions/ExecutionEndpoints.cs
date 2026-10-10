@@ -5,10 +5,10 @@ namespace FlowForge.Api.Executions;
 
 internal sealed record ExecutionDto(Guid Id, Guid WorkflowId, Guid WorkflowVersionId, Guid CorrelationId,
     WorkflowExecutionStatus Status, DateTimeOffset CreatedAt, DateTimeOffset? StartedAt,
-    DateTimeOffset? FinishedAt, ExecutionFailureCode? ErrorCode, DateTimeOffset? CancelRequestedAt)
+    DateTimeOffset? FinishedAt, ExecutionFailureCode? ErrorCode, DateTimeOffset? CancelRequestedAt, DateTimeOffset? ResumeAt)
 {
     public static ExecutionDto From(WorkflowExecutionSnapshot s) =>
-        new(s.Id, s.WorkflowId, s.WorkflowVersionId, s.CorrelationId, s.Status, s.CreatedAt, s.StartedAt, s.FinishedAt, s.ErrorCode, s.CancelRequestedAt);
+        new(s.Id, s.WorkflowId, s.WorkflowVersionId, s.CorrelationId, s.Status, s.CreatedAt, s.StartedAt, s.FinishedAt, s.ErrorCode, s.CancelRequestedAt, s.ResumeAt);
 }
 
 internal static class ExecutionEndpoints

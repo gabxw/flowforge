@@ -28,6 +28,9 @@ builder.Services.AddSingleton<IExecutionEngineStore, PostgresExecutionEngineStor
 builder.Services.AddSingleton(EngineOptions.Default);
 builder.Services.AddSingleton<INodeExecutor, TriggerNodeExecutor>();
 builder.Services.AddSingleton<INodeExecutor, LogNodeExecutor>();
+builder.Services.AddSingleton<INodeExecutor, ConditionNodeExecutor>();
+builder.Services.AddSingleton<INodeExecutor, TransformJsonNodeExecutor>();
+builder.Services.AddSingleton<INodeExecutor, DelayNodeExecutor>();
 builder.Services.AddSingleton<INodeExecutor, HttpRequestNodeExecutor>();
 builder.Services.AddSingleton<SequentialExecutionEngine>();
 builder.Services.AddSingleton<IExecutionMessageHandler, ExecutionMessageHandler>();

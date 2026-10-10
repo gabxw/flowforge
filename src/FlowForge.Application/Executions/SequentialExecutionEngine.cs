@@ -1,5 +1,6 @@
 using FlowForge.Domain.Executions;
 using FlowForge.Domain.Workflows;
+using FlowForge.Domain.Workflows.Configuration;
 
 namespace FlowForge.Application.Executions;
 
@@ -37,7 +38,10 @@ public sealed class SequentialExecutionEngine
                 if (start.Status == NodeStartStatus.Completed) return MessageDisposition.Completed;
                 if (start.Status == NodeStartStatus.Lost) return MessageDisposition.Busy;
                 NodeResult result;
-                if (!hasExecutor || executor is null)
+                if (checkpoint.Execution.ResumeAt.HasValue)
+                    result = node.Type == NodeType.Delay && checkpoint.Nodes.Single(n => n.NodeId == node.NodeId).Status == NodeExecutionStatus.Running
+                        ? NodeResult.Success(checkpoint.Input) : NodeResult.Failure(ExecutionFailureCode.InvalidExecutorResult);
+                else if (!hasExecutor || executor is null)
                     result = NodeResult.Failure(ExecutionFailureCode.UnsupportedNode);
                 else if (checkpoint.Nodes.Single(n => n.NodeId == node.NodeId).Status == NodeExecutionStatus.Running &&
                     !executor.CanReplayAfterInterruption)
@@ -60,7 +64,10 @@ public sealed class SequentialExecutionEngine
                 Guid? next = null;
                 try
                 {
-                    if (result is null || (result.CredentialRevisionUsed is { } credentialRevision &&
+                    if (result is null || (result.SuspendFor is { } duration &&
+                        (node.Configuration is not DelayConfiguration delay || duration != delay.Duration ||
+                         result.IsCancelled || result.ErrorCode.HasValue || result.LogMessage is not null || result.CredentialRevisionUsed.HasValue)) ||
+                        (result.CredentialRevisionUsed is { } credentialRevision &&
                         (credentialRevision < 1 || node.Type != NodeType.HttpRequest || node.Credential is null)) || (result.ErrorCode.HasValue && !Enum.IsDefined(result.ErrorCode.Value)) ||
                         (result.IsCancelled && (result.Output.HasValue || result.ErrorCode.HasValue)) ||
                         (result.ErrorCode.HasValue && result.Output.HasValue) ||
@@ -77,7 +84,7 @@ public sealed class SequentialExecutionEngine
                 catch (ExecutionPayloadLimitException) { result = NodeResult.Failure(ExecutionFailureCode.ContextLimitExceeded); }
                 catch (ArgumentException) { result = NodeResult.Failure(ExecutionFailureCode.InvalidExecutorResult); }
                 var saved = await store.SaveNodeAsync(claim, start.Revision, node.NodeId, result, next, ct);
-                if (saved == CheckpointWriteStatus.Completed) return MessageDisposition.Completed;
+                if (saved is CheckpointWriteStatus.Completed or CheckpointWriteStatus.Suspended) return MessageDisposition.Completed;
                 if (saved == CheckpointWriteStatus.Lost) return MessageDisposition.Busy;
             }
         }

@@ -3,6 +3,7 @@ using System.Text.Json;
 using FlowForge.Application.Executions;
 using FlowForge.Domain.Executions;
 using FlowForge.Domain.Workflows;
+using FlowForge.Domain.Workflows.Configuration;
 using FlowForge.Infrastructure.Persistence.Records;
 using FlowForge.Infrastructure.Persistence.Serialization;
 using FlowForge.Infrastructure.Security;
@@ -80,7 +81,7 @@ public sealed class PostgresExecutionEngineStore(IDbContextFactory<FlowForgeDbCo
         var node = NodeExecution.Restore(NodeExecutionPersistence.Snapshot(record));
         if (node.Snapshot.Status == NodeExecutionStatus.Running)
         {
-            if (allowReplay) node.Resume(); // Recusa de replay não representa outra tentativa HTTP.
+            if (allowReplay && held.Row.ResumeAt is null) node.Resume(); // Recusa de replay não representa outra tentativa HTTP.
         }
         else node.Start(ExecutionPayload.Summarize(protection.Unprotect(held.Row.ExecutionContextProtected!, held.Row.Id)), held.Now);
         NodeExecutionPersistence.Apply(record, node.Snapshot);
@@ -107,12 +108,40 @@ public sealed class PostgresExecutionEngineStore(IDbContextFactory<FlowForgeDbCo
             if (definition.Type != NodeType.HttpRequest || definition.CredentialId is null) throw new ArgumentException("Revisão sem credencial HTTP.");
             node.RecordCredentialRevision(usedRevision);
         }
-        var successful = !result.IsCancelled && result.ErrorCode is null && result.Output.HasValue;
+        var successful = !result.IsCancelled && result.ErrorCode is null && result.Output.HasValue &&
+            (result.SuspendFor is null || held.Row.CancelRequestedAt is null);
         if (successful)
         {
             var version = await ReadVersionAsync(db, held.Row, ct);
             if (new ExecutionPath(version, held.Row.OwnerUserId).Next(nodeId, result.Port) != nextNodeId)
                 throw new ArgumentException("Checkpoint não corresponde à porta do grafo.");
+            if (result.SuspendFor is { } duration)
+            {
+                if (version.Nodes.Single(n => n.NodeId == nodeId).Configuration is not DelayConfiguration delay ||
+                    duration != delay.Duration || held.Row.ResumeAt.HasValue || node.Snapshot.Status != NodeExecutionStatus.Running)
+                    throw new ArgumentException("Suspensão incompatível com o node.");
+                // Prazo parte do primeiro início persistido; replay antes do commit não reinicia toda a espera.
+                var deadline = node.Snapshot.StartedAt!.Value + duration;
+                var remainder = deadline.Ticks % 10;
+                if (remainder != 0) deadline = deadline.AddTicks(10 - remainder); // PostgreSQL: microssegundos, nunca acordar antes.
+                var execution = WorkflowExecution.Restore(ExecutionPersistence.Snapshot(held.Row));
+                execution.Suspend(deadline); held.Row.ResumeAt = execution.Snapshot.ResumeAt;
+                held.Row.DispatchSequence = checked(held.Row.DispatchSequence + 1);
+                held.Row.CheckpointRevision = checked(revision + 1);
+                held.Inbox.CompletedAt = now; held.Inbox.ClaimToken = null; held.Inbox.ClaimUntil = null;
+                db.OutboxMessages.Add(new() { Id = Guid.NewGuid(), ExecutionId = held.Row.Id, CorrelationId = held.Row.CorrelationId,
+                    ContractVersion = ExecutionRequestedMessage.CurrentVersion, DispatchSequence = held.Row.DispatchSequence,
+                    CreatedAt = now, AvailableAt = deadline > now ? deadline : now });
+                await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+                return CheckpointWriteStatus.Suspended;
+            }
+            if (held.Row.ResumeAt.HasValue)
+            {
+                if (version.Nodes.Single(n => n.NodeId == nodeId).Type != NodeType.Delay)
+                    throw new ArgumentException("Retomada incompatível com o node.");
+                var execution = WorkflowExecution.Restore(ExecutionPersistence.Snapshot(held.Row));
+                execution.Resume(now); held.Row.ResumeAt = null;
+            }
             node.Succeed(ExecutionPayload.Summarize(result.Output!.Value), now);
             held.Row.ExecutionContextProtected = protection.Protect(result.Output.Value, held.Row.Id);
             held.Row.NextNodeId = nextNodeId;
@@ -171,7 +200,7 @@ public sealed class PostgresExecutionEngineStore(IDbContextFactory<FlowForgeDbCo
             default: throw new ArgumentOutOfRangeException(nameof(status));
         }
         held.Row.Status = execution.Snapshot.Status; held.Row.FinishedAt = execution.Snapshot.FinishedAt;
-        held.Row.ErrorCode = execution.Snapshot.ErrorCode; held.Row.NextNodeId = null;
+        held.Row.ErrorCode = execution.Snapshot.ErrorCode; held.Row.NextNodeId = null; held.Row.ResumeAt = null;
         held.Row.CheckpointRevision = checked(held.Row.CheckpointRevision + 1);
         held.Inbox.CompletedAt = now; held.Inbox.ClaimToken = null; held.Inbox.ClaimUntil = null;
         await db.SaveChangesAsync(ct);

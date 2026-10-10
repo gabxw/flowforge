@@ -29,7 +29,7 @@ public sealed class PersistenceSchemaTests(PostgreSqlFixture fixture)
     {
         await using var context = await fixture.Factory.CreateDbContextAsync();
         var applied = (await context.Database.GetAppliedMigrationsAsync()).ToArray();
-        Assert.Equal(5, applied.Length);
+        Assert.Equal(6, applied.Length);
         await context.Database.MigrateAsync();
         Assert.Equal(applied, await context.Database.GetAppliedMigrationsAsync());
         Assert.Empty(await context.Database.GetPendingMigrationsAsync());

@@ -9,7 +9,7 @@ public sealed record ExecutionCheckpoint(WorkflowExecutionSnapshot Execution, Wo
 public enum LeaseStatus { Active, CancelRequested, Lost }
 public enum NodeStartStatus { Started, Completed, Lost }
 public sealed record NodeStart(NodeStartStatus Status, int Revision);
-public enum CheckpointWriteStatus { Saved, Completed, Lost }
+public enum CheckpointWriteStatus { Saved, Completed, Lost, Suspended }
 public interface IExecutionEngineStore
 {
     Task<ExecutionCheckpoint?> LoadAsync(InboxClaim claim, CancellationToken ct = default);
@@ -21,12 +21,13 @@ public interface IExecutionEngineStore
 
 public sealed record NodeRunContext(Guid ExecutionId, Guid CorrelationId, WorkflowNode Node, JsonElement Input, Guid OwnerUserId = default);
 public sealed record NodeResult(JsonElement? Output, string Port, ExecutionFailureCode? ErrorCode,
-    bool IsCancelled = false, string? LogMessage = null, int? CredentialRevisionUsed = null)
+    bool IsCancelled = false, string? LogMessage = null, int? CredentialRevisionUsed = null, TimeSpan? SuspendFor = null)
 {
     public static NodeResult Success(JsonElement output, string port = "next", string? logMessage = null, int? credentialRevisionUsed = null) =>
         new(output.Clone(), port, null, LogMessage: logMessage, CredentialRevisionUsed: credentialRevisionUsed);
     public static NodeResult Failure(ExecutionFailureCode code, int? credentialRevisionUsed = null) =>
         new(null, "next", code, CredentialRevisionUsed: credentialRevisionUsed);
+    public static NodeResult Suspend(JsonElement input, TimeSpan duration) => new(input.Clone(), "next", null, SuspendFor: duration);
     public static NodeResult Cancelled() => new(null, "next", null, true);
 }
 public interface INodeExecutor

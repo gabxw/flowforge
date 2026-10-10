@@ -181,7 +181,8 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ExecutionId")
                         .IsUnique()
-                        .HasDatabaseName("ix_inbox_messages_execution_id");
+                        .HasDatabaseName("ix_inbox_messages_execution_id")
+                        .HasFilter("completed_at IS NULL");
 
                     b.HasIndex("MessageId", "ExecutionId")
                         .HasDatabaseName("ix_inbox_messages_message_id_execution_id");
@@ -272,7 +273,7 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_node_execution_id", "id <> '00000000-0000-0000-0000-000000000000'::uuid AND ordinal >= 0");
 
-                            t.HasCheckConstraint("ck_node_execution_state", "(status = 1 AND attempt_count = 0 AND started_at IS NULL AND finished_at IS NULL AND input_summary IS NULL AND output_summary IS NULL AND error_code IS NULL) OR (status = 2 AND attempt_count > 0 AND started_at IS NOT NULL AND finished_at IS NULL AND input_summary IS NOT NULL AND output_summary IS NULL AND error_code IS NULL) OR (status = 3 AND attempt_count > 0 AND started_at IS NOT NULL AND finished_at IS NOT NULL AND finished_at >= started_at AND input_summary IS NOT NULL AND output_summary IS NOT NULL AND error_code IS NULL) OR (status = 4 AND attempt_count > 0 AND started_at IS NOT NULL AND finished_at IS NOT NULL AND finished_at >= started_at AND input_summary IS NOT NULL AND output_summary IS NULL AND error_code IS NOT NULL AND error_code BETWEEN 1 AND 14) OR (status = 6 AND attempt_count = 0 AND started_at IS NULL AND finished_at IS NOT NULL AND input_summary IS NULL AND output_summary IS NULL AND error_code IS NULL) OR (status = 7 AND attempt_count > 0 AND started_at IS NOT NULL AND finished_at IS NOT NULL AND finished_at >= started_at AND input_summary IS NOT NULL AND output_summary IS NULL AND error_code IS NULL)");
+                            t.HasCheckConstraint("ck_node_execution_state", "(status = 1 AND attempt_count = 0 AND started_at IS NULL AND finished_at IS NULL AND input_summary IS NULL AND output_summary IS NULL AND error_code IS NULL) OR (status = 2 AND attempt_count > 0 AND started_at IS NOT NULL AND finished_at IS NULL AND input_summary IS NOT NULL AND output_summary IS NULL AND error_code IS NULL) OR (status = 3 AND attempt_count > 0 AND started_at IS NOT NULL AND finished_at IS NOT NULL AND finished_at >= started_at AND input_summary IS NOT NULL AND output_summary IS NOT NULL AND error_code IS NULL) OR (status = 4 AND attempt_count > 0 AND started_at IS NOT NULL AND finished_at IS NOT NULL AND finished_at >= started_at AND input_summary IS NOT NULL AND output_summary IS NULL AND error_code IS NOT NULL AND error_code BETWEEN 1 AND 18) OR (status = 6 AND attempt_count = 0 AND started_at IS NULL AND finished_at IS NOT NULL AND input_summary IS NULL AND output_summary IS NULL AND error_code IS NULL) OR (status = 7 AND attempt_count > 0 AND started_at IS NOT NULL AND finished_at IS NOT NULL AND finished_at >= started_at AND input_summary IS NOT NULL AND output_summary IS NULL AND error_code IS NULL)");
                         });
                 });
 
@@ -306,6 +307,12 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<int>("DispatchSequence")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("dispatch_sequence");
+
                     b.Property<Guid>("ExecutionId")
                         .HasColumnType("uuid")
                         .HasColumnName("execution_id");
@@ -324,17 +331,17 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
                     b.HasAlternateKey("Id", "ExecutionId")
                         .HasName("ak_outbox_messages_id_execution_id");
 
-                    b.HasIndex("ExecutionId")
-                        .IsUnique()
-                        .HasDatabaseName("ix_outbox_messages_execution_id");
-
                     b.HasIndex("AvailableAt", "Id")
                         .HasDatabaseName("ix_outbox_messages_available_at_id")
                         .HasFilter("published_at IS NULL");
 
+                    b.HasIndex("ExecutionId", "DispatchSequence")
+                        .IsUnique()
+                        .HasDatabaseName("ix_outbox_messages_execution_id_dispatch_sequence");
+
                     b.ToTable("outbox_messages", "public", t =>
                         {
-                            t.HasCheckConstraint("ck_outbox_contract", "contract_version = 1 AND publish_attempts >= 0");
+                            t.HasCheckConstraint("ck_outbox_contract", "contract_version = 1 AND publish_attempts >= 0 AND dispatch_sequence >= 0");
 
                             t.HasCheckConstraint("ck_outbox_id", "id <> '00000000-0000-0000-0000-000000000000'::uuid AND correlation_id <> '00000000-0000-0000-0000-000000000000'::uuid");
 
@@ -544,6 +551,12 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<int>("DispatchSequence")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("dispatch_sequence");
+
                     b.Property<int?>("ErrorCode")
                         .HasColumnType("integer")
                         .HasColumnName("error_code");
@@ -563,6 +576,10 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("OwnerUserId")
                         .HasColumnType("uuid")
                         .HasColumnName("owner_user_id");
+
+                    b.Property<DateTimeOffset?>("ResumeAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("resume_at");
 
                     b.Property<DateTimeOffset?>("StartedAt")
                         .HasColumnType("timestamp with time zone")
@@ -615,7 +632,9 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_execution_id", "id <> '00000000-0000-0000-0000-000000000000'::uuid AND correlation_id <> '00000000-0000-0000-0000-000000000000'::uuid");
 
-                            t.HasCheckConstraint("ck_execution_state", "(status = 1 AND started_at IS NULL AND finished_at IS NULL AND error_code IS NULL) OR (status = 2 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NULL AND error_code IS NULL) OR (status = 4 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NOT NULL AND finished_at >= started_at AND error_code IS NOT NULL AND error_code BETWEEN 1 AND 14) OR (status = 3 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NOT NULL AND finished_at >= started_at AND error_code IS NULL) OR (status = 5 AND cancel_requested_at IS NOT NULL AND finished_at IS NOT NULL AND finished_at >= cancel_requested_at AND finished_at >= COALESCE(started_at, created_at) AND (started_at IS NULL OR started_at >= created_at) AND error_code IS NULL)");
+                            t.HasCheckConstraint("ck_execution_resume", "dispatch_sequence >= 0 AND (resume_at IS NULL OR (status = 2 AND next_node_id IS NOT NULL AND resume_at > started_at))");
+
+                            t.HasCheckConstraint("ck_execution_state", "(status = 1 AND started_at IS NULL AND finished_at IS NULL AND error_code IS NULL) OR (status = 2 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NULL AND error_code IS NULL) OR (status = 4 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NOT NULL AND finished_at >= started_at AND error_code IS NOT NULL AND error_code BETWEEN 1 AND 18) OR (status = 3 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NOT NULL AND finished_at >= started_at AND error_code IS NULL) OR (status = 5 AND cancel_requested_at IS NOT NULL AND finished_at IS NOT NULL AND finished_at >= cancel_requested_at AND finished_at >= COALESCE(started_at, created_at) AND (started_at IS NULL OR started_at >= created_at) AND error_code IS NULL)");
 
                             t.HasCheckConstraint("ck_execution_trigger_input", "(webhook_endpoint_id IS NULL) = (trigger_input_protected IS NULL) AND (trigger_input_protected IS NULL OR octet_length(trigger_input_protected) BETWEEN 1 AND 131072)");
                         });
