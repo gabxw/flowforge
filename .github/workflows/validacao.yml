@@ -140,6 +140,8 @@ jobs:
             ./scripts/smoke-workflows.ps1 -BaseUri 'http://127.0.0.1:5173'
             ./scripts/smoke-executions.ps1
             ./scripts/smoke-executions.ps1 -BaseUri 'http://127.0.0.1:5173'
+            ./scripts/smoke-webhooks.ps1
+            ./scripts/smoke-webhooks.ps1 -BaseUri 'http://127.0.0.1:5173'
             # O volume de keyring deve sobreviver à recriação do Worker sem expor seu conteúdo.
             $keyNames = docker compose exec -T worker sh -c 'ls /var/lib/flowforge/keys/key-*.xml'
             if ($LASTEXITCODE -ne 0 -or -not $keyNames) { throw 'Keyring não foi persistido.' }
@@ -161,6 +163,15 @@ jobs:
               Start-Sleep -Milliseconds 500
             }
             if (-not $proxyOk) { throw 'Proxy não recuperou após recriação da API.' }
+            # A API aceita sem broker; input inicial precisa sobreviver à recriação de ambos os processos.
+            Invoke-Check @('compose', 'exec', '-T', 'rabbitmq', 'rabbitmqctl', 'stop_app')
+            $pendingWebhook = ./scripts/smoke-webhooks.ps1 -PendingOnly
+            Invoke-Check @('compose', 'up', '--detach', '--force-recreate', '--no-deps', 'api', 'worker')
+            Invoke-Check @('compose', 'exec', '-T', 'rabbitmq', 'rabbitmqctl', 'start_app')
+            Invoke-Check @('compose', 'up', '--detach', '--wait', '--wait-timeout', '180')
+            ./scripts/smoke-webhooks.ps1 -ExecutionId $pendingWebhook.ExecutionId -ExpectedInputBytes $pendingWebhook.ExpectedInputBytes
+            $workerId = docker compose ps -q worker
+            if ($LASTEXITCODE -ne 0 -or -not $workerId) { throw 'Worker recriado ausente.' }
             Invoke-Check @('compose', '--profile', 'redis', 'up', '--detach', '--wait', '--wait-timeout', '60', 'redis')
             Invoke-Check @('compose', 'stop', '--timeout', '10', 'worker')
             $workerExit = docker inspect -f '{{.State.Status}}:{{.State.ExitCode}}:{{.State.OOMKilled}}' $workerId

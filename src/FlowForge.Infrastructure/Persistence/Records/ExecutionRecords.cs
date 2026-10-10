@@ -17,6 +17,8 @@ internal sealed class WorkflowExecutionRecord
     public DateTimeOffset? CancelRequestedAt { get; set; }
     public Guid? NextNodeId { get; set; }
     public byte[]? ExecutionContextProtected { get; set; }
+    public Guid? WebhookEndpointId { get; set; }
+    public byte[]? TriggerInputProtected { get; set; }
     public int CheckpointRevision { get; set; }
 }
 

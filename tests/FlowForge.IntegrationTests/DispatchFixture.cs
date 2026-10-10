@@ -46,7 +46,7 @@ public sealed class DispatchFixture : IAsyncLifetime
     {
         // Apenas banco/fila descartáveis desta collection; nunca usa ambiente Compose operacional.
         await using var db = await Factory.CreateDbContextAsync();
-        await db.Database.ExecuteSqlRawAsync("TRUNCATE execution_logs, node_executions, inbox_messages, outbox_messages, workflow_executions");
+        await db.Database.ExecuteSqlRawAsync("TRUNCATE webhook_idempotency, execution_logs, node_executions, inbox_messages, outbox_messages, workflow_executions");
         await using var connection = await ConnectAsync();
         await using var channel = await connection.CreateChannelAsync();
         await ExecutionRabbitTopology.DeclareAsync(channel);

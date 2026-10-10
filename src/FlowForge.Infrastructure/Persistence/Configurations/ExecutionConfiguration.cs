@@ -14,6 +14,11 @@ internal sealed class WorkflowExecutionConfiguration : IEntityTypeConfiguration<
             t.HasCheckConstraint("ck_execution_state", "(status = 1 AND started_at IS NULL AND finished_at IS NULL AND error_code IS NULL) OR (status = 2 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NULL AND error_code IS NULL) OR (status = 4 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NOT NULL AND finished_at >= started_at AND error_code IS NOT NULL AND error_code BETWEEN 1 AND 7) OR (status = 3 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NOT NULL AND finished_at >= started_at AND error_code IS NULL) OR (status = 5 AND cancel_requested_at IS NOT NULL AND finished_at IS NOT NULL AND finished_at >= cancel_requested_at AND finished_at >= COALESCE(started_at, created_at) AND (started_at IS NULL OR started_at >= created_at) AND error_code IS NULL)");
         });
         builder.HasKey(e => e.Id);
+        builder.HasAlternateKey(e => new { e.Id, e.WorkflowId, e.OwnerUserId });
+        builder.HasOne<WebhookEndpointRecord>().WithMany().HasForeignKey(e => new { e.WebhookEndpointId, e.WorkflowId, e.OwnerUserId })
+            .HasPrincipalKey(e => new { e.Id, e.WorkflowId, e.OwnerUserId }).OnDelete(DeleteBehavior.NoAction);
+        builder.ToTable("workflow_executions", t => t.HasCheckConstraint("ck_execution_trigger_input",
+            "(webhook_endpoint_id IS NULL) = (trigger_input_protected IS NULL) AND (trigger_input_protected IS NULL OR octet_length(trigger_input_protected) BETWEEN 1 AND 131072)"));
         builder.HasAlternateKey(e => new { e.Id, e.WorkflowVersionId });
         builder.Property(e => e.CheckpointRevision).HasDefaultValue(0);
         builder.ToTable("workflow_executions", t =>

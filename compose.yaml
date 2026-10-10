@@ -9,6 +9,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_HTTP_PORTS: 8080
+      FlowForge__DataProtection__KeyRingPath: /var/lib/flowforge/keys
       FlowForge__TechnicalOwnerId: ${FLOWFORGE_TECHNICAL_OWNER_ID:-843ca847-7868-4d1c-bd21-fc1db0d224a7}
       FlowForge__Postgres__Host: postgres
       FlowForge__Postgres__Database: flowforge
@@ -23,6 +24,8 @@ services:
       - "127.0.0.1:${FLOWFORGE_API_PORT:-5080}:8080"
     init: true
     stop_grace_period: 15s
+    volumes:
+      - execution_keyring:/var/lib/flowforge/keys
 
   worker:
     build:

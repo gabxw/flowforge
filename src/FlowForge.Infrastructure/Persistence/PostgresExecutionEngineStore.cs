@@ -24,9 +24,12 @@ public sealed class PostgresExecutionEngineStore(IDbContextFactory<FlowForgeDbCo
         var path = new ExecutionPath(version, row.OwnerUserId);
         if (row.ExecutionContextProtected is null)
         {
-            // Todos os aceites até a Fase 6 são comandos sem corpo, com input inicial {}.
+            // Input original permanece separado do contexto mutável. Comandos manuais/legados usam {}.
             using var empty = JsonDocument.Parse("{}");
-            row.ExecutionContextProtected = protection.Protect(empty.RootElement, row.Id);
+            var initial = row.WebhookEndpointId.HasValue
+                ? protection.UnprotectTrigger(row.TriggerInputProtected ?? throw new InvalidOperationException("Input inicial ausente."), row.Id)
+                : empty.RootElement;
+            row.ExecutionContextProtected = protection.Protect(initial, row.Id);
             row.NextNodeId = path.First;
             for (var i = 0; i < version.Nodes.Count; i++)
             {

@@ -1,3 +1,7 @@
+using FlowForge.Infrastructure.Security;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 using FlowForge.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -27,7 +31,8 @@ public sealed class WorkflowApiFixture : IAsyncLifetime
         await db.Database.MigrateAsync();
     }
 
-    public WebApplicationFactory<Program> CreateApi(Guid? owner = null) =>
+    private readonly ExecutionContextProtection testProtection = new(new EphemeralDataProtectionProvider());
+    public WebApplicationFactory<Program> CreateApi(Guid? owner = null, int permits = 60, bool protectWebhookInput = true) =>
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Production");
@@ -35,8 +40,12 @@ public sealed class WorkflowApiFixture : IAsyncLifetime
                 new Dictionary<string, string?>
                 {
                     ["FLOWFORGE_POSTGRES_CONNECTION_STRING"] = container.GetConnectionString(),
-                    ["FlowForge:TechnicalOwnerId"] = (owner ?? Guid.NewGuid()).ToString()
+                    ["FlowForge:TechnicalOwnerId"] = (owner ?? Guid.NewGuid()).ToString(),
+                    ["FlowForge:Webhooks:PermitLimit"] = permits.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    ["FlowForge:Webhooks:WindowSeconds"] = "3600"
                 }));
+            // Somente testes: substitui explicitamente a proteção lazy do runtime Production.
+            if (protectWebhookInput) builder.ConfigureTestServices(services => services.AddSingleton(testProtection));
         });
 
     public async Task DisposeAsync() => await container.DisposeAsync();

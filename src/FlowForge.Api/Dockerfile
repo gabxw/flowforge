@@ -11,5 +11,6 @@ WORKDIR /app
 ENV ASPNETCORE_HTTP_PORTS=8080
 EXPOSE 8080
 COPY --from=build /app/publish .
+RUN mkdir -p /var/lib/flowforge/keys && chown $APP_UID:$APP_UID /var/lib/flowforge/keys && chmod 700 /var/lib/flowforge/keys
 USER $APP_UID
 ENTRYPOINT ["dotnet", "FlowForge.Api.dll"]

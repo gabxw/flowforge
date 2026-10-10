@@ -1,3 +1,4 @@
+using FlowForge.Api.Webhooks;
 using FlowForge.Api.Executions;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -25,9 +26,12 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false));
 });
 builder.Services.AddWorkflowRuntime();
+builder.Services.AddWebhookRuntime();
 
 var app = builder.Build();
 app.UseExceptionHandler();
+app.UseRouting();
+app.UseRateLimiter();
 app.UseStatusCodePages(async status => await Results.Problem(
     statusCode: status.HttpContext.Response.StatusCode,
     title: "Requisição não atendida.",
@@ -40,8 +44,8 @@ app.MapHealthChecks("/api/health/live");
 app.MapGet("/", () => Results.Ok(new
 {
     service = "FlowForge.Api",
-    phase = 6,
-    status = "private-sequential-engine"
+    phase = 7,
+    status = "private-webhook-engine"
 })).WithName("ServiceInfo");
 
 if (app.Environment.IsDevelopment())
@@ -52,6 +56,7 @@ if (app.Environment.IsDevelopment())
 
 app.MapWorkflows();
 app.MapExecutions();
+app.MapWebhooks();
 
 app.Run();
 

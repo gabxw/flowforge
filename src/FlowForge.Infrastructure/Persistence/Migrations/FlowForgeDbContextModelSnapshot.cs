@@ -282,6 +282,116 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("FlowForge.Infrastructure.Persistence.Records.WebhookEndpointRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("enabled");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_user_id");
+
+                    b.Property<DateTimeOffset?>("RotatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("rotated_at");
+
+                    b.Property<byte[]>("SecretHash")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("secret_hash");
+
+                    b.Property<Guid>("WorkflowId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workflow_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_webhook_endpoints");
+
+                    b.HasAlternateKey("Id", "OwnerUserId")
+                        .HasName("ak_webhook_endpoints_id_owner_user_id");
+
+                    b.HasAlternateKey("Id", "WorkflowId", "OwnerUserId")
+                        .HasName("ak_webhook_endpoints_id_workflow_id_owner_user_id");
+
+                    b.HasIndex("WorkflowId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_webhook_endpoints_workflow_id");
+
+                    b.HasIndex("WorkflowId", "OwnerUserId")
+                        .HasDatabaseName("ix_webhook_endpoints_workflow_id_owner_user_id");
+
+                    b.ToTable("webhook_endpoints", "public", t =>
+                        {
+                            t.HasCheckConstraint("ck_webhook_endpoint", "id <> '00000000-0000-0000-0000-000000000000'::uuid AND octet_length(secret_hash) = 32 AND (rotated_at IS NULL OR rotated_at >= created_at)");
+                        });
+                });
+
+            modelBuilder.Entity("FlowForge.Infrastructure.Persistence.Records.WebhookIdempotencyRecord", b =>
+                {
+                    b.Property<Guid>("EndpointId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("endpoint_id");
+
+                    b.Property<string>("KeyDigest")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("key_digest");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("ExecutionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("execution_id");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_user_id");
+
+                    b.Property<string>("RequestDigest")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_digest");
+
+                    b.Property<Guid>("WorkflowId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workflow_id");
+
+                    b.HasKey("EndpointId", "KeyDigest")
+                        .HasName("pk_webhook_idempotency");
+
+                    b.HasIndex("ExpiresAt")
+                        .HasDatabaseName("ix_webhook_idempotency_expires_at");
+
+                    b.HasIndex("EndpointId", "WorkflowId", "OwnerUserId")
+                        .HasDatabaseName("ix_webhook_idempotency_endpoint_id_workflow_id_owner_user_id");
+
+                    b.HasIndex("ExecutionId", "WorkflowId", "OwnerUserId")
+                        .HasDatabaseName("ix_webhook_idempotency_execution_id_workflow_id_owner_user_id");
+
+                    b.ToTable("webhook_idempotency", "public", t =>
+                        {
+                            t.HasCheckConstraint("ck_webhook_digests", "key_digest ~ '^[0-9A-F]{64}$' AND request_digest ~ '^[0-9A-F]{64}$'");
+
+                            t.HasCheckConstraint("ck_webhook_retention", "expires_at > created_at");
+                        });
+                });
+
             modelBuilder.Entity("FlowForge.Infrastructure.Persistence.Records.WorkflowConnectionRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -383,6 +493,14 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("status");
 
+                    b.Property<byte[]>("TriggerInputProtected")
+                        .HasColumnType("bytea")
+                        .HasColumnName("trigger_input_protected");
+
+                    b.Property<Guid?>("WebhookEndpointId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("webhook_endpoint_id");
+
                     b.Property<Guid>("WorkflowId")
                         .HasColumnType("uuid")
                         .HasColumnName("workflow_id");
@@ -397,11 +515,17 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
                     b.HasAlternateKey("Id", "WorkflowVersionId")
                         .HasName("ak_workflow_executions_id_workflow_version_id");
 
+                    b.HasAlternateKey("Id", "WorkflowId", "OwnerUserId")
+                        .HasName("ak_workflow_executions_id_workflow_id_owner_user_id");
+
                     b.HasIndex("WorkflowVersionId", "NextNodeId")
                         .HasDatabaseName("ix_workflow_executions_version_id_next_node_id");
 
                     b.HasIndex("OwnerUserId", "CreatedAt", "Id")
                         .HasDatabaseName("ix_workflow_executions_owner_user_id_created_at_id");
+
+                    b.HasIndex("WebhookEndpointId", "WorkflowId", "OwnerUserId")
+                        .HasDatabaseName("ix_workflow_executions_hook_id_workflow_id_owner_user_id");
 
                     b.HasIndex("WorkflowVersionId", "WorkflowId", "OwnerUserId")
                         .HasDatabaseName("ix_workflow_executions_version_id_workflow_id_owner_user_id");
@@ -413,6 +537,8 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_execution_id", "id <> '00000000-0000-0000-0000-000000000000'::uuid AND correlation_id <> '00000000-0000-0000-0000-000000000000'::uuid");
 
                             t.HasCheckConstraint("ck_execution_state", "(status = 1 AND started_at IS NULL AND finished_at IS NULL AND error_code IS NULL) OR (status = 2 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NULL AND error_code IS NULL) OR (status = 4 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NOT NULL AND finished_at >= started_at AND error_code IS NOT NULL AND error_code BETWEEN 1 AND 7) OR (status = 3 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NOT NULL AND finished_at >= started_at AND error_code IS NULL) OR (status = 5 AND cancel_requested_at IS NOT NULL AND finished_at IS NOT NULL AND finished_at >= cancel_requested_at AND finished_at >= COALESCE(started_at, created_at) AND (started_at IS NULL OR started_at >= created_at) AND error_code IS NULL)");
+
+                            t.HasCheckConstraint("ck_execution_trigger_input", "(webhook_endpoint_id IS NULL) = (trigger_input_protected IS NULL) AND (trigger_input_protected IS NULL OR octet_length(trigger_input_protected) BETWEEN 1 AND 131072)");
                         });
                 });
 
@@ -662,6 +788,36 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_outbox_messages_execution_id");
                 });
 
+            modelBuilder.Entity("FlowForge.Infrastructure.Persistence.Records.WebhookEndpointRecord", b =>
+                {
+                    b.HasOne("FlowForge.Infrastructure.Persistence.Records.WorkflowRecord", null)
+                        .WithMany()
+                        .HasForeignKey("WorkflowId", "OwnerUserId")
+                        .HasPrincipalKey("Id", "OwnerUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("fk_webhook_endpoints_workflow_id_owner_user_id");
+                });
+
+            modelBuilder.Entity("FlowForge.Infrastructure.Persistence.Records.WebhookIdempotencyRecord", b =>
+                {
+                    b.HasOne("FlowForge.Infrastructure.Persistence.Records.WebhookEndpointRecord", null)
+                        .WithMany()
+                        .HasForeignKey("EndpointId", "WorkflowId", "OwnerUserId")
+                        .HasPrincipalKey("Id", "WorkflowId", "OwnerUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("fk_webhook_idempotency_endpoint_id_workflow_id_owner_user_id");
+
+                    b.HasOne("FlowForge.Infrastructure.Persistence.Records.WorkflowExecutionRecord", null)
+                        .WithMany()
+                        .HasForeignKey("ExecutionId", "WorkflowId", "OwnerUserId")
+                        .HasPrincipalKey("Id", "WorkflowId", "OwnerUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("fk_webhook_idempotency_execution_id_workflow_id_owner_user_id");
+                });
+
             modelBuilder.Entity("FlowForge.Infrastructure.Persistence.Records.WorkflowConnectionRecord", b =>
                 {
                     b.HasOne("FlowForge.Infrastructure.Persistence.Records.WorkflowNodeRecord", null)
@@ -686,6 +842,13 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
                         .HasForeignKey("WorkflowVersionId", "NextNodeId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .HasConstraintName("fk_workflow_executions_workflow_version_id_next_node_id");
+
+                    b.HasOne("FlowForge.Infrastructure.Persistence.Records.WebhookEndpointRecord", null)
+                        .WithMany()
+                        .HasForeignKey("WebhookEndpointId", "WorkflowId", "OwnerUserId")
+                        .HasPrincipalKey("Id", "WorkflowId", "OwnerUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("fk_workflow_executions_hook_id_workflow_id_owner_user_id");
 
                     b.HasOne("FlowForge.Infrastructure.Persistence.Records.WorkflowVersionRecord", null)
                         .WithMany()
