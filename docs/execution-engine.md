@@ -1,6 +1,6 @@
 # Operação da engine — Fase 6
 
-A API privada aceita um comando sem corpo e fixa a versão publicada. O Worker executa Trigger → Log (ou uma sequência de Logs) e registra progresso durável. O input inicial é {}. O webhook e os demais executores continuam nas fases seguintes.
+A API privada aceita um comando sem corpo e fixa a versão publicada. O Worker executa Trigger → Log (ou uma sequência de Logs) e registra progresso durável. O input manual é {}. A Fase 7 acrescenta input original protegido aceito por [webhook](webhooks.md); o Worker inicializa o contexto/nodes a partir dele. Demais executores continuam nas fases seguintes.
 
 ## Contrato HTTP
 
@@ -32,7 +32,7 @@ Shutdown não persiste CancelRequestedAt. O delivery sem ack volta ao broker, a 
 
 ## Keyring e limites
 
-O volume execution_keyring deve acompanhar o banco em backup/restauração e sobreviver à recriação do Worker. Contextos de até 64 KiB e mensagens Log são cifrados com purposes/identidades diferentes; snapshots HTTP mostram metadados. Não registrar bodies ou secrets na mensagem de Log/configuração do workflow.
+O volume execution_keyring compartilhado por API/Worker deve acompanhar o banco em backup/restauração e sobreviver à recriação do Worker. Contextos de até 64 KiB e mensagens Log são cifrados com purposes/identidades diferentes; snapshots HTTP mostram metadados. Não registrar bodies ou secrets na mensagem de Log/configuração do workflow.
 
 No Compose, a configuração e o diretório com permissões 0700 estão preparados. O perfil Development usa chaves XML sem wrapping, em volume separado; o runtime rejeita essa configuração em Production. Wrapping e operação de chaves em produção precisam ser implementados antes de abrir o serviço ao público. Não existe keyring efêmero no runtime.
 

@@ -102,6 +102,8 @@ Commit sugerido: Implementar execução sequencial de workflows.
 
 ## Fase 7 — Webhook Trigger
 
+Status: implementada e aprovada nos testes locais; Compose/publicação/CI em validação. Consulte [phase-7-review.md](phase-7-review.md).
+
 Entregas: POST /hooks/{endpointId}, segredo em header com hash no banco, validação de endpoint/versionamento, limite de payload, rate limit local e resposta 202 após transação. Reserva inicial de Idempotency-Key por proprietário/endpoint e comparação do conteúdo.
 
 Critério de saída: requests válidos, segredo errado, endpoint desativado, payload excedido e indisponibilidade do broker. Duas chamadas simultâneas com a mesma chave geram uma execução; mesma chave e conteúdo diferente retorna conflito.

@@ -1,6 +1,6 @@
 # Arquitetura e escopo do FlowForge
 
-Status: Fases 1 a 6 concluídas. A Fase 6 implementa engine sequencial, Trigger/Log, checkpoints protegidos, histórico e cancelamento. Evidências em [phase-6-review.md](phase-6-review.md). Webhook, outros executores e autenticação seguem nas fases indicadas.
+Status: Fases 1 a 6 concluídas. A Fase 6 implementa engine sequencial, Trigger/Log, checkpoints protegidos, histórico e cancelamento. Evidências em [phase-6-review.md](phase-6-review.md). A Fase 7 implementa ingresso protegido e está em validação final; outros executores e autenticação seguem nas fases indicadas.
 
 ## Problema e requisitos
 
@@ -68,7 +68,7 @@ flowchart LR
     W --> E[Destinos HTTP autorizados]
 ```
 
-A imagem mostra o fluxo previsto a partir da Fase 5. A API já acessa PostgreSQL para definições; Worker, outbox e RabbitMQ ainda não integram o processamento.
+API, PostgreSQL, outbox, RabbitMQ e Worker integram o processamento. O webhook da Fase 7 aceita o input protegido; HTTP externo entra na Fase 8.
 
 ### Projetos .NET e dependências
 
@@ -154,13 +154,13 @@ Cancelamento é cooperativo. Interromper a espera local não prova que uma chama
 
 Uma Idempotency-Key opcional é escopada pelo proprietário e endpoint. Sua reserva, hash da requisição e ExecutionId pertencem à mesma transação de criação. Repetir a mesma chave e o mesmo conteúdo retorna a execução original; reutilizar a chave para conteúdo diferente retorna conflito.
 
-O hash inclui o corpo recebido e os campos estáveis do contrato, sem credenciais. Não deduplicamos webhooks somente por hash de payload: eventos legítimos podem ter corpos iguais. A janela de retenção da chave deve ser documentada e configurável.
+O hash inclui o corpo recebido e os campos estáveis do contrato, sem credenciais. Não deduplicamos webhooks somente por hash de payload: eventos legítimos podem ter corpos iguais. A janela de validade é 24 h por padrão, configurável de 1 a 168 h. Na Fase 7, a comparação usa bytes exatos e a reserva expirada é reciclada sob lock; limpeza periódica entra na consolidação de confiabilidade. [ADR 0007](decisions/0007-webhook-acceptance-and-idempotency.md) e [operação](webhooks.md) detalham o contrato.
 
 ## Segurança planejada
 
 ### Webhooks
 
-Proposta: POST /hooks/{endpointId}, com o segredo no header X-FlowForge-Webhook-Secret. O identificador da rota é público; o segredo é gerado com alta entropia, armazenado somente como hash e comparado em tempo constante.
+Implementado na Fase 7: POST /hooks/{endpointId}, com o segredo no header X-FlowForge-Webhook-Secret. O identificador da rota é público; o segredo é gerado com alta entropia, armazenado somente como hash e comparado em tempo constante.
 
 A rota originalmente sugerida com o segredo embutido na URL foi substituída porque URLs são frequentemente registradas em proxies, traces e históricos. O header também exige configuração explícita de redação; mover um segredo não elimina a necessidade de protegê-lo.
 

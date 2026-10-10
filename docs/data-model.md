@@ -1,6 +1,6 @@
 # Modelo inicial de dados
 
-Status: cinco tabelas de definição implementadas na Fase 3. A Fase 5 acrescenta workflow_executions, outbox_messages e inbox_messages; estado e revisão em [phase-5-review.md](phase-5-review.md). A Fase 6 acrescenta node_executions, execution_logs e checkpoint/contexto/cancelamento; são dez tabelas de aplicação. Extensões seguintes continuam conceituais.
+Status: cinco tabelas de definição implementadas na Fase 3. A Fase 5 acrescenta workflow_executions, outbox_messages e inbox_messages; estado e revisão em [phase-5-review.md](phase-5-review.md). A Fase 6 acrescenta node_executions, execution_logs e checkpoint/contexto/cancelamento; são dez tabelas de aplicação. A Fase 7 acrescenta webhook_endpoints e webhook_idempotency, totalizando doze; demais extensões continuam conceituais.
 
 PostgreSQL é a fonte de verdade. UUID identifica os recursos; datas são instantes UTC, armazenados como timestamptz. Estados têm valores explícitos e transições validadas, sem depender da ordem numérica de enums. Configurações variáveis usam JSONB; identidade, ownership, relações e campos consultáveis usam colunas.
 
@@ -29,6 +29,16 @@ O contexto admite 64 KiB de JSON operacional e até 128 KiB de envelope cifrado.
 ClaimToken identifica o dono; ClaimAttempts é a geração crescente da inbox. Checkpoints validam ambos e a lease, além da revisão. A transação terminal inclui execução, nodes pendentes como Skipped, evento Log quando aplicável e inbox concluída. Consultas de histórico têm teto natural de 50 nodes/50 eventos nesta versão.
 
 [ADR 0006](decisions/0006-sequential-engine-and-checkpoints.md) e [operação da engine](execution-engine.md) detalham captura, keyring, recuperação e cancelamento.
+
+## Schema acrescentado na Fase 7
+
+webhook_endpoints possui UUID público, WorkflowId/OwnerUserId com FK composta, Enabled, SecretHash bytea de 32 bytes, CreatedAt e RotatedAt. UNIQUE WorkflowId limita a um endpoint por workflow. Segredo aleatório só é retornado uma vez no aceite da criação/rotação; não é armazenado em texto. Desativação/rotação mantém o registro para histórico.
+
+workflow_executions ganha WebhookEndpointId nullable e TriggerInputProtected bytea nullable, com check que exige ambos juntos e envelope de até 128 KiB. FK composta exige endpoint do mesmo workflow/proprietário. O original é separado do contexto mutável; requests manuais/legados têm ambos nulos e input inicial {}.
+
+webhook_idempotency tem PK EndpointId/KeyDigest, WorkflowId/OwnerUserId, RequestDigest, ExecutionId, CreatedAt e ExpiresAt. Endpoint é globalmente único; as FKs compostas vinculam reserva, workflow e execução ao mesmo proprietário. Digests SHA-256 são hexadecimal de 64 caracteres, com checks de formato e prazo. O endpoint único do workflow e os locks impedem reservas concorrentes distintas para uma chave. Índice ExpiresAt prepara consulta futura de limpeza; nenhuma rotina de exclusão foi acrescentada.
+
+Aceite grava input original, execução, outbox e reserva na mesma transação, sob locks workflow → endpoint. Expiração pode reutilizar a reserva, preservando a execução antiga. [ADR 0007](decisions/0007-webhook-acceptance-and-idempotency.md) explica comparação por bytes, validade, versionamento e limites.
 
 ## Relações
 

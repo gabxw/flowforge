@@ -6,11 +6,13 @@ O problema central é aceitar eventos rapidamente e processar etapas externas de
 
 ## Estado atual
 
-**Fases 1 a 6 concluídas.**
+**Fases 1 a 6 concluídas; Fase 7 em validação final.**
 
-Disponível: API privada para criar/listar/editar/publicar/arquivar workflows, domínio tipado com validação de DAG, persistência EF Core/PostgreSQL, migrations explícitas, Problem Details e OpenAPI. Há testes HTTP com banco real, controle de revisão e isolamento por proprietário técnico do servidor. A Fase 5 acrescenta solicitações de execução, outbox transacional, RabbitMQ e Worker com inbox recuperável. A Fase 6 acrescenta engine sequencial, executores Trigger/Log, checkpoints protegidos, histórico e cancelamento cooperativo. O frontend continua como shell; autenticação/editor e demais executores seguem no roadmap.
+Disponível: API privada para criar/listar/editar/publicar/arquivar workflows, domínio tipado com validação de DAG, persistência EF Core/PostgreSQL, migrations explícitas, Problem Details e OpenAPI. Há testes HTTP com banco real, controle de revisão e isolamento por proprietário técnico do servidor. A Fase 5 acrescenta solicitações de execução, outbox transacional, RabbitMQ e Worker com inbox recuperável. A Fase 6 acrescenta engine sequencial, executores Trigger/Log, checkpoints protegidos, histórico e cancelamento cooperativo. A Fase 7 acrescenta webhook com secret em header/hash, input protegido, idempotência opcional, rate limit e administração do endpoint. O frontend continua como shell; autenticação/editor e demais executores seguem no roadmap.
 
 A Fase 6 está integrada à main pelo [PR #3](https://github.com/gabxw/flowforge/pull/3), com [CI completo aprovado](https://github.com/gabxw/flowforge/actions/runs/38059749130), incluindo build novo das imagens. Passaram **915 testes xUnit** (737 Domain + 8 Application + 80 API + 90 Integration). A engine executa Trigger → Log, registra NodeExecution e retoma pelo contexto protegido, sem repetir nodes já concluídos. Tipos sem executor retornam unsupportedNode. A [revisão da Fase 6](docs/phase-6-review.md) registra resultados, decisões e limites.
+
+A suíte atual passa **960 testes xUnit** (740 Domain + 26 Application + 96 API + 98 Integration). O [contrato de webhooks](docs/webhooks.md), a [ADR 0007](docs/decisions/0007-webhook-acceptance-and-idempotency.md) e a [revisão da Fase 7](docs/phase-7-review.md) registram o novo aceite, suas verificações e as pendências de publicação.
 
 Os lockfiles NuGet e npm são versionados. As revisões das [Fases 1](docs/phase-1-review.md), [2](docs/phase-2-review.md) e [3](docs/phase-3-review.md) preservam o histórico; a [operação da API](docs/api.md) descreve o contrato e o exemplo executável atual.
 
@@ -30,7 +32,7 @@ flowchart LR
     Worker --> HTTP[Destinos HTTP autorizados]
 ```
 
-O diagrama representa o sistema planejado, com engine sequencial implementada na Fase 6. A API persiste definições e aceita solicitações manuais de execução; outbox, mensageria e consumer estão implementados. Webhook e executores HTTP pertencem às próximas fases.
+O ingresso por webhook, API, outbox, RabbitMQ e Worker estão implementados. A engine executa Trigger/Log; o destino HTTP no diagrama pertence à Fase 8. A API aceita também solicitações manuais com input {}. O aceite do webhook persiste o payload protegido e responde antes do processamento.
 
 ```text
 FlowForge.slnx
@@ -64,7 +66,7 @@ Domain não referencia outros projetos ou pacotes externos. Application referenc
 | RabbitMQ | Infraestrutura preparada; publicação/consumo na Fase 5 |
 | Redis | Profile opcional; integração depende de necessidade demonstrada |
 | xUnit | Testes de host e regras de domínio das Fases 1 e 2 |
-| Data Protection | Contexto/checkpoints e mensagens Log protegidos, keyring persistente na Fase 6 |
+| Data Protection | Contexto/Log na Fase 6 e input original na Fase 7; keyring persistente compartilhado API/Worker |
 | Testcontainers | Primeiros testes de adaptadores com serviços reais |
 | OpenAPI | Documento nativo em Development na Fase 1; interface Swagger avaliada junto da API funcional |
 | React Flow | Editor visual na Fase 12 |
@@ -99,6 +101,7 @@ As variáveis fornecem Compose secrets: PostgreSQL em API/Worker/banco e RabbitM
 | http://127.0.0.1:5173 | Shell frontend e consulta de liveness via proxy |
 | http://127.0.0.1:5080/health/live | API liveness |
 | http://127.0.0.1:5080/api/workflows | API privada de workflows |
+| POST http://127.0.0.1:5080/hooks/{id} | Ingresso com secret no header; também acessível pelo proxy 5173 |
 | http://127.0.0.1:5080/openapi/v1.json | OpenAPI em Development |
 
 O frontend repete a checagem de inicialização durante uma janela limitada. Liveness confirma que a API responde; não afirma prontidão de banco/fila.
@@ -111,13 +114,14 @@ Quando os serviços estiverem ativos:
 .\scripts\smoke-compose.ps1
 .\scripts\smoke-workflows.ps1
 .\scripts\smoke-executions.ps1
+.\scripts\smoke-webhooks.ps1
 ```
 
-O primeiro smoke verifica host/proxy. O segundo percorre criação, edição, erros, publicação dos seis tipos, nova versão e arquivamento com PostgreSQL; deixa um exemplo arquivado, sem executar nodes. O terceiro smoke verifica execução Trigger → Log, histórico protegido e preservação de resultado terminal. Os scripts locais preservam volumes. No CI, down --volumes ocorre somente no runner descartável.
+O primeiro smoke verifica host/proxy. O segundo percorre criação, edição, erros, publicação dos seis tipos, nova versão e arquivamento com PostgreSQL; deixa um exemplo arquivado, sem executar nodes. O terceiro smoke verifica execução Trigger → Log, histórico protegido e preservação de resultado terminal. O quarto percorre webhook Trigger → Log, idempotência, desativação e rotação com dados fictícios e sem imprimir secrets. Os scripts locais preservam volumes. No CI, down --volumes ocorre somente no runner descartável.
 
 ## Executar hosts no computador e verificar
 
-Pré-requisitos: SDK .NET 10 e Node.js 22.12 ou posterior na linha 22. A liveness da API independe de banco/fila. O Worker exige configuração PostgreSQL/RabbitMQ e keyring persistente em Development; detalhes em [operação da engine](docs/execution-engine.md). A suíte completa exige Docker para PostgreSQL e RabbitMQ descartáveis; veja [como operar migrations e testes](docs/persistence.md).
+Pré-requisitos: SDK .NET 10 e Node.js 22.12 ou posterior na linha 22. A liveness da API independe de banco/fila. O Worker exige configuração PostgreSQL/RabbitMQ e keyring persistente em Development; a API precisa do mesmo keyring para webhooks; detalhes em [operação da engine](docs/execution-engine.md). A suíte completa exige Docker para PostgreSQL e RabbitMQ descartáveis; veja [como operar migrations e testes](docs/persistence.md).
 
 ```powershell
 dotnet restore FlowForge.slnx --locked-mode
