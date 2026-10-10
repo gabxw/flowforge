@@ -1,6 +1,6 @@
 # Arquitetura e escopo do FlowForge
 
-Status: Fases 1 a 7 concluídas; Fase 8 em validação final/publicação. Webhook recebe input protegido, reserva idempotência e responde após commit; engine sequencial executa Trigger, HTTP Request e Log com checkpoints, histórico e cancelamento. HTTP/Credentials e suas evidências estão em [phase-8-review.md](phase-8-review.md). Outros executores e autenticação seguem nas fases indicadas.
+Status: Fases 1 a 8 concluídas, publicadas e com CI aprovado. Webhook recebe input protegido, reserva idempotência e responde após commit; engine sequencial executa Trigger, HTTP Request e Log com checkpoints, histórico e cancelamento. HTTP/Credentials e suas evidências estão em [phase-8-review.md](phase-8-review.md). Outros executores e autenticação seguem nas fases indicadas.
 
 ## Problema e requisitos
 

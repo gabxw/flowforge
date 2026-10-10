@@ -1,6 +1,6 @@
 # Revisão técnica da Fase 8
 
-Status: implementação, testes locais e Docker aprovados; publicação/CI em andamento. Esta revisão foi feita pelo agente de implementação e não é uma auditoria independente.
+Status: concluída em 10/10/2026, integrada à main e com CI do PR/main aprovados. Esta revisão foi feita pelo agente de implementação e não é uma auditoria independente.
 
 ## Entrega e limite
 
@@ -40,4 +40,11 @@ A FK nova recusa referências CredentialId fictícias de instalações antigas; 
 
 ## Publicação
 
-Pendente: registrar commits em português, CI do PR e main e confirmar integração. Não declarar conclusão antes dessas evidências.
+[PR #5](https://github.com/gabxw/flowforge/pull/5) integrado por fast-forward em 10/10/2026. Os commits preservam autoria gabxw, e-mail noreply reconhecido pelo GitHub e mensagens em português sem prefixos.
+
+- 2fd8ecd: armazenamento/rotação de credenciais, schema, API e testes; snapshot staged também compilado isoladamente.
+- 56e634b: executor HTTP e testes de conexão/efeitos remotos.
+- 4266d60: Docker, smoke, CI e documentação.
+- [CI do PR aprovado](https://github.com/gabxw/flowforge/actions/runs/38079316141) e [CI da main aprovado](https://github.com/gabxw/flowforge/actions/runs/38079618578): backend, frontend e ambiente Docker, três jobs em cada execução.
+
+Revisão de código validada: 4266d60765a2f6bf86a6a7fb44095cc1f99824b6. O registro posterior de conclusão altera somente documentação/instruções; não modifica os binários aprovados. Nenhum critério de saída da Fase 8 ficou pendente; riscos operacionais acima continuam explícitos. A Fase 9 não foi iniciada.

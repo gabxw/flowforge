@@ -6,13 +6,11 @@ O problema central é aceitar eventos rapidamente e processar etapas externas de
 
 ## Estado atual
 
-**Fases 1 a 7 concluídas; Fase 8 em validação final e publicação.**
+**Fases 1 a 8 concluídas.**
 
 Disponível: API privada para criar/listar/editar/publicar/arquivar workflows, domínio tipado com validação de DAG, persistência EF Core/PostgreSQL, migrations explícitas, Problem Details e OpenAPI. Há testes HTTP com banco real, controle de revisão e isolamento por proprietário técnico do servidor. A Fase 5 acrescenta solicitações de execução, outbox transacional, RabbitMQ e Worker com inbox recuperável. A Fase 6 acrescenta engine sequencial, executores Trigger/Log, checkpoints protegidos, histórico e cancelamento cooperativo. A Fase 7 acrescenta webhook com secret em header/hash, input protegido, idempotência opcional, rate limit e administração do endpoint. A Fase 8 acrescenta HTTP Request com conexão aprovada/TLS, limites e Credential com rotação/revogação e ciphertext autenticado. O frontend continua como shell; autenticação/editor e demais executores seguem no roadmap.
 
-A Fase 7 está integrada à main pelo [PR #4](https://github.com/gabxw/flowforge/pull/4), com [CI completo aprovado](https://github.com/gabxw/flowforge/actions/runs/38064004807), incluindo imagens novas e recuperação com broker parado. Passaram **960 testes xUnit** (740 Domain + 26 Application + 96 API + 98 Integration). O [contrato de webhooks](docs/webhooks.md), a [ADR 0007](docs/decisions/0007-webhook-acceptance-and-idempotency.md) e a [revisão da Fase 7](docs/phase-7-review.md) registram aceite, idempotência, proteção do input e limites atuais.
-
-A implementação da Fase 8 passou pelos testes locais e pelo Compose; publicação e CI ainda estão em andamento. O [contrato de HTTP/Credentials](docs/http-and-credentials.md), a [ADR 0008](docs/decisions/0008-secure-http-and-credentials.md) e a [revisão da Fase 8](docs/phase-8-review.md) explicam SSRF, rotação e efeitos remotos desconhecidos.
+A Fase 8 está integrada à main pelo [PR #5](https://github.com/gabxw/flowforge/pull/5), com [CI do PR](https://github.com/gabxw/flowforge/actions/runs/38079316141) e [CI completo na main](https://github.com/gabxw/flowforge/actions/runs/38079618578) aprovados, incluindo imagens novas e recuperação com broker parado. Passaram **1.112 testes xUnit** (771 Domain + 36 Application + 112 API + 193 Integration). O [contrato de HTTP/Credentials](docs/http-and-credentials.md), a [ADR 0008](docs/decisions/0008-secure-http-and-credentials.md) e a [revisão da Fase 8](docs/phase-8-review.md) registram proteção de rede, rotação e limites atuais.
 
 Os lockfiles NuGet e npm são versionados. As revisões das [Fases 1](docs/phase-1-review.md), [2](docs/phase-2-review.md) e [3](docs/phase-3-review.md) preservam o histórico; a [operação da API](docs/api.md) descreve o contrato e o exemplo executável atual.
 
