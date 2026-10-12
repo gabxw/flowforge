@@ -1,8 +1,7 @@
-
 # Revisão técnica — Fase 10
 
 Data: 12/10/2026.
-Status: implementação, build, testes e Docker aprovados localmente; publicação/CI remoto pendentes. A fase ainda não está encerrada.
+Status: concluída, revisada e publicada na main pelo [PR #7](https://github.com/gabxw/flowforge/pull/7). Build, testes, frontend e Docker aprovados localmente e no CI do PR/main. MVP de backend entregue; Fase 11 não iniciada.
 
 ## Entrega e escopo
 
@@ -58,4 +57,12 @@ Retenção tem política, mas limpeza/quotas automáticas continuam pendentes. A
 
 ## Publicação
 
-Pendentes: commits em português/autoria gabxw, PR, CI do PR, integração à main e CI da main. Registrar hashes/links reais depois da aprovação. Fase 11 não iniciada.
+Commits em português, autoria gabxw vinculada à conta por e-mail noreply:
+
+- 1981a5a — Persistir tentativas e recuperar execuções com retries limitados.
+- 486bb5f — Cobrir efeitos HTTP recuperação e transferência segura para DLQ.
+- 8adacd3 — Documentar garantias limites e operação do MVP de backend.
+
+[PR #7](https://github.com/gabxw/flowforge/pull/7) integrado à main em 12/10/2026, preservando os três commits. [CI do PR](https://github.com/gabxw/flowforge/actions/runs/38303437391) e [CI da main](https://github.com/gabxw/flowforge/actions/runs/38304241134) aprovados para o código 8adacd313ce4f47737cbcc153f622df1832cb976. O log da main confirma 787 Domain + 111 Application + 118 API + 224 Integration: **1.240 aprovados, zero falhas/ignorados**. Os jobs de lint/build do frontend e ambiente Docker/encerramento do Worker também passaram.
+
+O commit posterior de encerramento altera somente documentação/instruções, registrando estas evidências; não altera os binários validados. Todos os critérios de saída da Fase 10 foram atendidos dentro do ambiente local/privado. Os riscos operacionais acima continuam explícitos. Fase 11 não iniciada.

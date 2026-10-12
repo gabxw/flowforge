@@ -1,7 +1,6 @@
-
 # ADR 0010 — Tentativas limitadas e recuperação explícita
 
-Status: implementada na Fase 10; validação/publicação em andamento em 12/10/2026.
+Status: aceita, implementada e validada na Fase 10 em 12/10/2026; publicação e evidências na [revisão da fase](../phase-10-review.md).
 
 ## Problema e alternativas
 

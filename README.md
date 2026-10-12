@@ -6,11 +6,11 @@ O problema central é aceitar eventos rapidamente e processar etapas externas de
 
 ## Estado atual
 
-**Fases 1 a 9 concluídas.**
+**Fases 1 a 10 concluídas. MVP de backend entregue.**
 
-Disponível: API privada para criar/listar/editar/publicar/arquivar workflows, domínio tipado com validação de DAG, persistência EF Core/PostgreSQL, migrations explícitas, Problem Details e OpenAPI. Há testes HTTP com banco real, controle de revisão e isolamento por proprietário técnico do servidor. A Fase 5 acrescenta solicitações de execução, outbox transacional, RabbitMQ e Worker com inbox recuperável. A Fase 6 acrescenta engine sequencial, executores Trigger/Log, checkpoints protegidos, histórico e cancelamento cooperativo. A Fase 7 acrescenta webhook com secret em header/hash, input protegido, idempotência opcional, rate limit e administração do endpoint. A Fase 8 acrescenta HTTP Request com conexão aprovada/TLS, limites e Credential com rotação/revogação e ciphertext autenticado. A Fase 9 completa os seis executores iniciais com Condition tipada, Transform JSON limitada e Delay durável que libera a entrega/lease e retoma pela outbox existente. A Fase 10 acrescenta tentativas auditáveis, retry limitado, deadline, recuperação de leases, DLQ sanitizada e redrive/replay explícitos; está em validação. O frontend continua como shell; autenticação/editor seguem no roadmap.
+Disponível: API privada para criar/listar/editar/publicar/arquivar workflows, domínio tipado com validação de DAG, persistência EF Core/PostgreSQL, migrations explícitas, Problem Details e OpenAPI. Há testes HTTP com banco real, controle de revisão e isolamento por proprietário técnico do servidor. A Fase 5 acrescenta solicitações de execução, outbox transacional, RabbitMQ e Worker com inbox recuperável. A Fase 6 acrescenta engine sequencial, executores Trigger/Log, checkpoints protegidos, histórico e cancelamento cooperativo. A Fase 7 acrescenta webhook com secret em header/hash, input protegido, idempotência opcional, rate limit e administração do endpoint. A Fase 8 acrescenta HTTP Request com conexão aprovada/TLS, limites e Credential com rotação/revogação e ciphertext autenticado. A Fase 9 completa os seis executores iniciais com Condition tipada, Transform JSON limitada e Delay durável que libera a entrega/lease e retoma pela outbox existente. A Fase 10 acrescenta tentativas auditáveis, retry limitado, deadline, recuperação de leases, DLQ sanitizada e redrive/replay explícitos. O frontend continua como shell; autenticação/editor seguem no roadmap.
 
-A Fase 9 está integrada à main pelo [PR #6](https://github.com/gabxw/flowforge/pull/6), com [CI do PR](https://github.com/gabxw/flowforge/actions/runs/38082619640) e [CI completo na main](https://github.com/gabxw/flowforge/actions/runs/38082995151) aprovados. Passaram **1.187 testes xUnit** (777 Domain + 90 Application + 113 API + 207 Integration), além de Docker com ambos os ramos, cancelamento de 24h e retomada após broker/API/Worker recriados. O [contrato declarativo e de espera](docs/declarative-nodes-and-delay.md), a [ADR 0009](docs/decisions/0009-declarative-nodes-and-durable-delay.md) e a [revisão da Fase 9](docs/phase-9-review.md) registram semântica, garantias e limites atuais. HTTP/credenciais continuam descritos em [operação de HTTP](docs/http-and-credentials.md).
+A Fase 10 está integrada à main pelo [PR #7](https://github.com/gabxw/flowforge/pull/7), com [CI do PR](https://github.com/gabxw/flowforge/actions/runs/38303437391) e [CI completo na main](https://github.com/gabxw/flowforge/actions/runs/38304241134) aprovados. Passaram **1.240 testes xUnit** (787 Domain + 111 Application + 118 API + 224 Integration), além de lint/build do frontend e validação Docker com redrive/replay, cancelamento e retomada após broker/API/Worker recriados. O [contrato de confiabilidade](docs/execution-reliability.md), a [ADR 0010](docs/decisions/0010-bounded-retries-and-explicit-recovery.md) e a [revisão da Fase 10](docs/phase-10-review.md) registram garantias e limites. Os contratos de [Condition/Transform/Delay](docs/declarative-nodes-and-delay.md) e [HTTP/credenciais](docs/http-and-credentials.md) descrevem os seis executores atuais.
 
 Os lockfiles NuGet e npm são versionados. As revisões das [Fases 1](docs/phase-1-review.md), [2](docs/phase-2-review.md) e [3](docs/phase-3-review.md) preservam o histórico; a [operação da API](docs/api.md) descreve o contrato e o exemplo executável atual.
 
@@ -118,7 +118,7 @@ Quando os serviços estiverem ativos:
 .\scripts\smoke-reliability.ps1
 ```
 
-O primeiro smoke verifica host/proxy. O segundo percorre criação, edição, erros, publicação dos seis tipos, nova versão e arquivamento com PostgreSQL; deixa um exemplo arquivado, sem executar nodes. O terceiro smoke verifica execução Trigger → Log, histórico protegido e preservação de resultado terminal. O quarto percorre webhook Trigger → Log, idempotência, desativação e rotação com dados fictícios e sem imprimir secrets. O quinto cria/rotaciona/revoga uma credencial fictícia, verifica conflito de revisão e confirma que Trigger → HTTP → Log recusa um destino fora da allowlist sem executar Log. Sucesso HTTP é exercitado com HTTPS real controlado nos testes. O sexto verifica Condition/Transform, true/false com convergência, Delay e cancelamento de 24h. Use -PausedOnly e depois -ExecutionId para verificar a retomada de uma espera após recriação do Worker. Os scripts locais preservam volumes. No CI, down --volumes ocorre somente no runner descartável.
+O primeiro smoke verifica host/proxy. O segundo percorre criação, edição, erros, publicação dos seis tipos, nova versão e arquivamento com PostgreSQL; deixa um exemplo arquivado, sem executar nodes. O terceiro smoke verifica execução Trigger → Log, histórico protegido e preservação de resultado terminal. O quarto percorre webhook Trigger → Log, idempotência, desativação e rotação com dados fictícios e sem imprimir secrets. O quinto cria/rotaciona/revoga uma credencial fictícia, verifica conflito de revisão e confirma que Trigger → HTTP → Log recusa um destino fora da allowlist sem executar Log. Sucesso HTTP é exercitado com HTTPS real controlado nos testes. O sexto verifica Condition/Transform, true/false com convergência, Delay e cancelamento de 24h. Use -PausedOnly e depois -ExecutionId para verificar a retomada de uma espera após recriação do Worker. O sétimo verifica deadline, tentativas, falha permanente e replay idempotente. Use -PendingOnly com o Worker parado e depois -ExecutionId para verificar redrive auditado e retomada. Os scripts locais preservam volumes. No CI, down --volumes ocorre somente no runner descartável.
 
 ## Executar hosts no computador e verificar
 
@@ -149,7 +149,7 @@ Para executar a sequência de restore, build, testes, lint e validação do Comp
 
 ## Exemplo e MVP
 
-Já executável: **Webhook → HTTP Request → Log**, com destino autorizado, credencial opcional e consulta de nodes/logs. Trigger → Log continua disponível, inclusive com entrada manual {}. O fluxo com condição também é executável; retry/DLQ e política completa de confiabilidade ainda dependem da Fase 10:
+Já executável: **Webhook → HTTP Request → Log**, com destino autorizado, credencial opcional e consulta de nodes/logs. Trigger → Log continua disponível, inclusive com entrada manual {}. O fluxo com condição também é executável, com retry HTTP opt-in, tentativas auditáveis e recuperação durável:
 
 ```text
 Webhook → Condition (total > 100)
@@ -157,7 +157,7 @@ Webhook → Condition (total > 100)
              false → Log
 ```
 
-A Fase 10 fecha o MVP de backend após sua validação/publicação: criar/publicar via API privada, receber webhook, executar Webhook Trigger, HTTP Request, Delay, Condition, Transform JSON e Log, consultar histórico e cancelar cooperativamente. O grafo é acíclico, tem um trigger e executa um caminho por vez. Não há loops, fan-out paralelo, scripts arbitrários ou novos conectores.
+O MVP de backend foi concluído na Fase 10: criar/publicar via API privada, receber webhook, executar Webhook Trigger, HTTP Request, Delay, Condition, Transform JSON e Log, consultar histórico e cancelar cooperativamente. O grafo é acíclico, tem um trigger e executa um caminho por vez. Não há loops, fan-out paralelo, scripts arbitrários ou novos conectores.
 
 A versão de portfólio termina na Fase 16, com interface/editor, autenticação, observabilidade, testes/CI consolidados e documentação. Até autenticação, a aplicação permanece local ou privada.
 
@@ -181,7 +181,7 @@ No domínio, um rascunho pode ficar incompleto enquanto é editado. Publicar exi
 ## Documentação e roadmap
 
 - [Arquitetura, requisitos e limites do MVP](docs/architecture.md)
-- [Modelo inicial do banco](docs/data-model.md) — treze tabelas implementadas e extensões planejadas
+- [Modelo inicial do banco](docs/data-model.md) — dezesseis tabelas implementadas e extensões planejadas
 - [Roadmap técnico das 16 fases](docs/roadmap.md)
 - [Decisões e alternativas](docs/decisions/0001-architecture-and-scope.md)
 - [Revisão e validações da Fase 1](docs/phase-1-review.md)

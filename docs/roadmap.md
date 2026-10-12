@@ -1,6 +1,6 @@
 # Roadmap técnico
 
-O trabalho é incremental. Cada fase entrega um comportamento executável, documentação atualizada e revisão técnica antes da próxima. As Fases 1 a 9 estão concluídas, com evidências atuais em [phase-9-review.md](phase-9-review.md). A Fase 10 está em validação, conforme [phase-10-review.md](phase-10-review.md); as Fases 11 a 16 permanecem planejadas.
+O trabalho é incremental. Cada fase entrega um comportamento executável, documentação atualizada e revisão técnica antes da próxima. As Fases 1 a 10 estão concluídas, com evidências atuais em [phase-10-review.md](phase-10-review.md). O MVP de backend está entregue; as Fases 11 a 16 permanecem planejadas.
 
 Não se avança só porque uma pasta ou endpoint existe. O critério de saída inclui build, testes pertinentes e verificação do comportamento anunciado. Uma verificação impedida pelo ambiente permanece pendente e deve ser informada; ela não equivale a um resultado aprovado.
 
@@ -138,13 +138,15 @@ Commit sugerido: Adicionar condições transformações JSON e esperas duráveis
 
 ## Fase 10 — Retry, DLQ e idempotência
 
+Status: concluída em 12/10/2026. [PR #7](https://github.com/gabxw/flowforge/pull/7) integrado à main; [CI do PR](https://github.com/gabxw/flowforge/actions/runs/38303437391) e [CI da main](https://github.com/gabxw/flowforge/actions/runs/38304241134) aprovados, com 1.240 testes, lint/build do frontend e Docker. Decisões, evidências e riscos na [revisão da Fase 10](phase-10-review.md).
+
 Entregas: NodeExecutionAttempt, retry exponencial com jitter/prioridade de Retry-After limitado, máximo de tentativas e deadline. Lease renovável com fencing, recuperação de claims vencidos, deduplicação completa, concorrência limitada, DLQ, replay explícito e cancelamento em andamento.
 
 Critério de saída: duplicação de publish/delivery, queda antes/depois de commit/ack, Worker antigo tentando gravar após lease vencida, retomadas repetidas, broker indisponível e cancelamento durante HTTP/Delay. Validar POST com efeito sem retry automático e destino compatível recebendo chave de idempotência estável.
 
 Revisão: medir garantia at-least-once e registrar efeitos externos desconhecidos; definir janela de retenção para inbox, replay e chaves de entrada. Falha de negócio não deve ir indiscriminadamente para DLQ.
 
-Marco: MVP de backend concluído somente se o fluxo completo webhook → Condition → HTTP Request → Log e um fluxo com Transform/Delay forem executáveis e os testes de falha passarem.
+Marco atingido: MVP de backend com fluxo webhook → Condition → HTTP Request → Log e fluxo com Transform/Delay executáveis; testes de falha, recuperação e preservação de efeitos aprovados.
 
 Commits sugeridos: Implementar tentativas limitadas e recuperação de entregas; Cobrir cenários de falha das execuções.
 
