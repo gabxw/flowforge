@@ -1,4 +1,4 @@
-# Operação do despacho — Fases 5 a 9
+# Operação do despacho — Fases 5 a 10
 
 Esta fase entrega API → PostgreSQL/outbox → RabbitMQ → Worker → resultado durável. A Fase 6 executa Trigger/Log com checkpoints e histórico protegido. A falha engineUnavailable é resultado histórico da Fase 5; execuções já concluídas são preservadas. Os seis executores estão disponíveis na Fase 9; Delay libera a mensagem atual e cria continuação com outro MessageId na mesma transação do prazo. Consulte [operação da engine](execution-engine.md) e [espera durável](declarative-nodes-and-delay.md).
 
@@ -40,7 +40,7 @@ Exchange flowforge.executions (direct, durável), routing key execution.requeste
 
 O consumer valida versão, tamanho, formato e associação da mensagem à outbox. Campos desconhecidos e duplicados são rejeitados. O corpo, propriedades arbitrárias e texto de exceções não entram nos logs estruturados.
 
-Prefetch 1 limita entregas por consumer. Aguardamos claims ativos e falhas transitórias sem ack, evitando requeue em loop. Reiniciar o consumer devolve unacked à fila; uma lease pendente pode exigir até 30 s para expirar. Mensagens inválidas são descartadas sem requeue nesta fase; DLQ/redrive entram na Fase 10.
+Prefetch 1 limita entregas por consumer. Aguardamos claims ativos e falhas transitórias sem ack, evitando requeue em loop. Reiniciar o consumer devolve unacked à fila; uma lease pendente pode exigir até 30 s para expirar. Na Fase 10, falhas registradas de entrega têm orçamento e são transferidas com confirms antes do ACK. DLQ recebe somente metadados canônicos sanitizados. Duplicata Busy pode ser confirmada porque o scanner recupera leases vencidas; [operação de confiabilidade](execution-reliability.md) descreve redrive/replay.
 
 ## Executar
 

@@ -82,3 +82,7 @@ Down remove credenciais/revisões e restringe códigos a 1..7; históricos HTTP 
 O smoke cria/rotaciona uma credencial, valida CAS, publica Trigger → HTTP → Log e confirma que o destino reservado fora da allowlist falha e pula Log. Depois revoga/arquiva. Modos -PendingOnly e -ExecutionId/-CredentialId verificam retomada após broker/processos serem recriados, sem transportar valores secretos. Ele mantém volumes e histórico.
 
 Os testes automatizados de sucesso/falha/timeout/body/headers usam HTTPS real controlado, com CA e mapeamento de socket exclusivos do assembly de testes; não dependem de serviços de terceiros nem habilitam exceções de SSRF no Worker. Também exercitam o connector real com IP explícito e o fluxo pelo RabbitMQ. [Revisão da Fase 8](phase-8-review.md).
+
+## Ampliação na Fase 10
+
+[Confiabilidade](execution-reliability.md) acrescenta maxAttempts/supportsIdempotency, journal antes do envio, chave estável e recusa de rotação entre tentativas. Configurações antigas conservam uma tentativa. O risco de efeito externo desconhecido permanece explícito.

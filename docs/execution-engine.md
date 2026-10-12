@@ -1,4 +1,4 @@
-# Operação da engine — Fases 6 a 9
+# Operação da engine — Fases 6 a 10
 
 A API privada aceita um comando sem corpo e fixa a versão publicada. O Worker executa Trigger → Log (ou uma sequência de Logs) e registra progresso durável. O input manual é {}. A Fase 7 acrescenta input original protegido aceito por [webhook](webhooks.md); o Worker inicializa o contexto/nodes a partir dele. A Fase 8 acrescenta HTTP Request com [destinos e credenciais protegidos](http-and-credentials.md). A Fase 9 completa os seis tipos com [Condition, Transform e Delay durável](declarative-nodes-and-delay.md).
 
@@ -7,14 +7,14 @@ A API privada aceita um comando sem corpo e fixa a versão publicada. O Worker e
 | Método | Caminho | Resultado |
 | --- | --- | --- |
 | POST | /api/workflows/{id}/executions | Sem corpo; 202 Pending e Location |
-| GET | /api/executions/{id} | Estado, versão fixa, CorrelationId, horários, ErrorCode, CancelRequestedAt e ResumeAt |
+| GET | /api/executions/{id} | Estado, versão fixa, CorrelationId, horários, ErrorCode, CancelRequestedAt, ResumeAt e DeadlineAt |
 | GET | /api/executions/{id}/nodes | Até 50 nodes, ordenados pelo ordinal do grafo; horário determina a execução efetiva |
 | GET | /api/executions/{id}/logs | Até 50 eventos logRecorded, ordenados por CreatedAt/Id; tamanho, sem mensagem/ciphertext |
 | POST | /api/executions/{id}/cancel | Sem corpo; 202 para execução ativa, 200 para terminal; pedido idempotente |
 
 Proprietário é fornecido pelo servidor. Recurso de outro dono ou ausente retorna 404; corpo em comandos de execução/cancelamento retorna 400. Até autenticação, o ambiente é privado e o usuário técnico não representa login/JWT/RBAC.
 
-Nodes podem retornar Pending antes de iniciar, Running durante processamento, Succeeded, Failed, Skipped ou Cancelled. Antes de o Worker inicializar, /nodes pode retornar []. Retrying está reservado à Fase 10. NodeExecution expõe attemptCount, input/output como {byteLength, kind}, horários e código estável; não expõe JSON operacional.
+Nodes podem retornar Pending antes de iniciar, Running durante processamento, Succeeded, Failed, Skipped ou Cancelled. Antes de o Worker inicializar, /nodes pode retornar []. Retrying é implementado na Fase 10 com histórico separado de tentativas e prazo durável; [confiabilidade](execution-reliability.md) detalha política e recuperação. NodeExecution expõe attemptCount, input/output como {byteLength, kind}, horários e código estável; não expõe JSON operacional.
 
 Um workflow com tipo sem executor termina Failed/unsupportedNode; os nodes restantes ficam Skipped. Erros de executores são nodeFailed, timeout nodeTimeout, output acima do limite contextLimitExceeded e contrato incompatível invalidExecutorResult. HTTP acrescenta códigos sanitizados de destino/credencial/transport/response; CredentialRevisionUsed registra somente a revisão conhecida com o resultado, podendo ficar nula se o checkpoint se perder. Texto/objetos de exceções não são copiados ao histórico.
 

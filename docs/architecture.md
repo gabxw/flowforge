@@ -211,3 +211,7 @@ A arquitetura deve crescer a partir de medições e requisitos: primeiro execuç
 ## Persistência implementada na Fase 3
 
 Portas de armazenamento em Application, registros EF internos em Infrastructure e reidratação validada em Domain mantêm as regras independentes do banco. A gravação compara a revisão esperada e preserva o histórico sob uma transação; a leitura detalhada usa Repeatable Read. A API compõe esses adaptadores desde a Fase 4; o Worker usa persistência para inbox/outbox desde a Fase 5 e checkpoints desde a Fase 6. Alternativas e custos: [ADR 0003](decisions/0003-postgresql-persistence.md) e [ADR 0004](decisions/0004-private-workflow-api.md).
+
+## Confiabilidade implementada na Fase 10
+
+A outbox agenda retries; NodeExecutionAttempt registra cada início/envio/resultado. Deadline de 48h, scanner de leases vencidas e orçamento limitam recuperação. Fila/routing v1 continuam iguais; transferências para DLQ usam confirms antes do ACK e metadados sanitizados. Redrive retoma uma mensagem atual; replay terminal cria outra execução fixada, com request deduplicado e reconhecimento de efeitos. [ADR 0010](decisions/0010-bounded-retries-and-explicit-recovery.md) e [operação](execution-reliability.md) prevalecem sobre as propostas anteriores desta seção.

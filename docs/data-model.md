@@ -1,6 +1,6 @@
 # Modelo inicial de dados
 
-Status: cinco tabelas de definição implementadas na Fase 3. A Fase 5 acrescenta workflow_executions, outbox_messages e inbox_messages; estado e revisão em [phase-5-review.md](phase-5-review.md). A Fase 6 acrescenta node_executions, execution_logs e checkpoint/contexto/cancelamento; são dez tabelas de aplicação. A Fase 7 acrescenta webhook_endpoints e webhook_idempotency. A Fase 8 acrescenta credentials, FK por dono e revisão utilizada no node: treze tabelas e cinco migrations. A Fase 9 acrescenta suspensão/continuação durável na sexta migration, mantendo treze tabelas. Demais extensões continuam conceituais.
+Status: cinco tabelas de definição implementadas na Fase 3. A Fase 5 acrescenta workflow_executions, outbox_messages e inbox_messages; estado e revisão em [phase-5-review.md](phase-5-review.md). A Fase 6 acrescenta node_executions, execution_logs e checkpoint/contexto/cancelamento; são dez tabelas de aplicação. A Fase 7 acrescenta webhook_endpoints e webhook_idempotency. A Fase 8 acrescenta credentials, FK por dono e revisão utilizada no node: treze tabelas e cinco migrations. A Fase 9 acrescenta suspensão/continuação durável na sexta migration, mantendo treze tabelas. A Fase 10 acrescenta node_execution_attempts, execution_redrives e execution_replays, deadline/retry/recuperação: dezesseis tabelas e sete migrations. Demais extensões continuam conceituais.
 
 PostgreSQL é a fonte de verdade. UUID identifica os recursos; datas são instantes UTC, armazenados como timestamptz. Estados têm valores explícitos e transições validadas, sem depender da ordem numérica de enums. Configurações variáveis usam JSONB; identidade, ownership, relações e campos consultáveis usam colunas.
 
@@ -55,6 +55,12 @@ A nova FK recusa IDs fictícios legados: o upgrade requer revisão explícita e 
 workflow_executions ganha resume_at e dispatch_sequence. Delay mantém execução/node Running e contexto cifrado, conclui a inbox atual e cria uma outbox futura em uma transação. Outbox é única por ExecutionId/DispatchSequence; inbox passa a ser única por execução somente enquanto completed_at é nulo, preservando mensagens concluídas. Checks de falha aceitam códigos 1..18. A mensagem RabbitMQ permanece v1, com IDs/correlação.
 
 O índice parcial existente AvailableAt/Id atende ao scheduler; não acrescentamos índice em ResumeAt porque não é a consulta usada. A sequência inicial zero preserva registros anteriores. A sexta migration não acrescenta tabelas. Operação/upgrade em [declarative-nodes-and-delay.md](declarative-nodes-and-delay.md), decisão em [ADR 0009](decisions/0009-declarative-nodes-and-durable-delay.md).
+
+## Schema acrescentado na Fase 10
+
+Tentativas preservam início, dispatch, resultado, status HTTP, revisão de credencial e próxima espera, sem payload/headers. Redrive audita retomada da mensagem atual; replay liga a execução terminal à nova, com digest da chave. FKs preservam execução/node e dono/workflow. DeadlineAt é fixado no aceite; RetryAt representa espera no node. RecoveryNotBefore limita a frequência de republish de lease vencida.
+
+A sétima migration importa somente o resumo conhecido de histórico legado com Legacy=true e concede 48h de deadline na migração. [Contrato/operação](execution-reliability.md) define retenção e upgrade; [ADR 0010](decisions/0010-bounded-retries-and-explicit-recovery.md) explica escolhas.
 
 ## Relações
 
