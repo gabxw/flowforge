@@ -27,6 +27,11 @@ public sealed class ControlledHttpsServer : IAsyncLifetime
     private X509Certificate2 certificate = null!;
     public sealed class Gate { public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously); public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously); }
     public ConcurrentDictionary<string, Gate> Gates { get; } = new();
+    public ConcurrentDictionary<string, ConcurrentQueue<(int Status, string? RetryAfter)>> Plans { get; } = new();
+    public ConcurrentQueue<string?> IdempotencyKeys { get; } = new();
+    public ConcurrentDictionary<string, bool> IdempotentPaths { get; } = new();
+    public ConcurrentDictionary<string, int> Effects { get; } = new();
+    private readonly ConcurrentDictionary<string, bool> effectKeys = new();
     public int Port { get; private set; }
     public string Origin => "https://flowforge-http.test:" + Port.ToString(System.Globalization.CultureInfo.InvariantCulture);
     public ConcurrentDictionary<string, int> Counts { get; } = new();
@@ -77,7 +82,15 @@ public sealed class ControlledHttpsServer : IAsyncLifetime
             using var input = new MemoryStream(); await context.Request.Body.CopyToAsync(input, context.RequestAborted);
             Observations.Enqueue((context.Request.Host.Value ?? "", serverNames.GetValueOrDefault(context.Connection.Id),
                 context.Request.Headers.Authorization.SingleOrDefault(), context.Request.Headers["X-Api-Key"].SingleOrDefault(), input.ToArray()));
+            var effectKey = context.Request.Headers["Idempotency-Key"].SingleOrDefault(); IdempotencyKeys.Enqueue(effectKey);
+            if (IdempotentPaths.ContainsKey(path) && effectKeys.TryAdd(path + ":" + (effectKey ?? Guid.NewGuid().ToString()), true))
+                Effects.AddOrUpdate(path, 1, (_, count) => count + 1);
             context.Response.ContentType = "application/json; charset=utf-8";
+            if (Plans.TryGetValue(path, out var plan) && plan.TryDequeue(out var reply)) {
+                context.Response.StatusCode = reply.Status;
+                if (reply.RetryAfter is not null) context.Response.Headers.RetryAfter = reply.RetryAfter;
+                if (reply.Status >= 300) return;
+            }
             if (path == "/disconnect") { context.Abort(); return; }
             if (path == "/redirect") { context.Response.StatusCode = 302; context.Response.Headers.Location = "https://127.0.0.1/metadata"; return; }
             if (path.StartsWith("/status/", StringComparison.Ordinal)) { context.Response.StatusCode = int.Parse(path[8..], System.Globalization.CultureInfo.InvariantCulture); return; }

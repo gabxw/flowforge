@@ -147,6 +147,8 @@ jobs:
             ./scripts/smoke-http.ps1 -BaseUri 'http://127.0.0.1:5173'
             ./scripts/smoke-declarative.ps1
             ./scripts/smoke-declarative.ps1 -BaseUri 'http://127.0.0.1:5173'
+            ./scripts/smoke-reliability.ps1
+            ./scripts/smoke-reliability.ps1 -BaseUri 'http://127.0.0.1:5173'
             # O volume de keyring deve sobreviver à recriação do Worker sem expor seu conteúdo.
             $pausedDelay = ./scripts/smoke-declarative.ps1 -PausedOnly -DelaySeconds 45
             ./scripts/smoke-executions.ps1 # Consumer permanece disponível durante o Delay.
@@ -176,6 +178,10 @@ jobs:
               Start-Sleep -Milliseconds 500
             }
             if (-not $proxyOk) { throw 'Proxy não recuperou após recriação da API.' }
+            Invoke-Check @('compose', 'stop', '--timeout', '10', 'worker')
+            $redrive = ./scripts/smoke-reliability.ps1 -PendingOnly
+            Invoke-Check @('compose', 'up', '--detach', '--force-recreate', '--no-deps', 'worker')
+            ./scripts/smoke-reliability.ps1 -ExecutionId $redrive.ExecutionId
             # A API aceita sem broker; input inicial precisa sobreviver à recriação de ambos os processos.
             Invoke-Check @('compose', 'exec', '-T', 'rabbitmq', 'rabbitmqctl', 'stop_app')
             $pendingWebhook = ./scripts/smoke-webhooks.ps1 -PendingOnly
