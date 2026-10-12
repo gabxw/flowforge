@@ -6,12 +6,12 @@ public enum ExecutionFailureCode
     InterruptedNode = 5, InvalidExecutorResult = 6, ContextLimitExceeded = 7,
     HttpDestinationDenied = 8, CredentialUnavailable = 9, HttpRemoteFailure = 10,
     HttpResponseLimitExceeded = 11, HttpResponseInvalid = 12, HttpTransportFailed = 13, HttpResponseSensitive = 14,
-    ConditionValueNotComparable = 15, TransformSourceMissing = 16, JsonPointerAmbiguous = 17, TransformValueInvalid = 18
+    ConditionValueNotComparable = 15, TransformSourceMissing = 16, JsonPointerAmbiguous = 17, TransformValueInvalid = 18, ExecutionDeadlineExceeded = 19, AttemptLimitExceeded = 20
 }
 
 public sealed record WorkflowExecutionSnapshot(Guid Id, Guid WorkflowId, Guid WorkflowVersionId,
     Guid OwnerUserId, Guid CorrelationId, WorkflowExecutionStatus Status, DateTimeOffset CreatedAt,
-    DateTimeOffset? StartedAt, DateTimeOffset? FinishedAt, ExecutionFailureCode? ErrorCode, DateTimeOffset? CancelRequestedAt = null, DateTimeOffset? ResumeAt = null);
+    DateTimeOffset? StartedAt, DateTimeOffset? FinishedAt, ExecutionFailureCode? ErrorCode, DateTimeOffset? CancelRequestedAt = null, DateTimeOffset? ResumeAt = null, DateTimeOffset? DeadlineAt = null);
 
 public sealed class WorkflowExecution
 {
@@ -44,6 +44,7 @@ public sealed class WorkflowExecution
             _ => false
         };
         if (snapshot.ResumeAt.HasValue && (snapshot.Status != WorkflowExecutionStatus.Running || snapshot.ResumeAt <= snapshot.StartedAt)) valid = false;
+        if (snapshot.DeadlineAt.HasValue && snapshot.DeadlineAt <= snapshot.CreatedAt) valid = false;
         if (!valid || (snapshot.CancelRequestedAt.HasValue && snapshot.CancelRequestedAt < snapshot.CreatedAt)) throw new ArgumentException("Estado persistido da execução inconsistente.");
         execution.Snapshot = snapshot;
         return execution;

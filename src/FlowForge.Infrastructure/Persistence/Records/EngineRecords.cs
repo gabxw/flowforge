@@ -12,6 +12,7 @@ internal sealed class NodeExecutionRecord
     public NodeExecutionStatus Status { get; set; }
     public int AttemptCount { get; set; }
     public int? CredentialRevisionUsed { get; set; }
+    public DateTimeOffset? RetryAt { get; set; }
     public DateTimeOffset? StartedAt { get; set; }
     public DateTimeOffset? FinishedAt { get; set; }
     public string? InputSummary { get; set; }

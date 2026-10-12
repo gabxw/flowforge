@@ -56,7 +56,7 @@ internal static class WorkflowTransport
         WebhookConfigurationDto => new WebhookTriggerConfiguration(),
         HttpConfigurationDto http => new HttpRequestConfiguration(
             Uri.TryCreate(http.Url, UriKind.Absolute, out var uri) ? uri : throw new ArgumentException("URL inválida."),
-            http.Method),
+            http.Method, http.MaxAttempts, http.SupportsIdempotency),
         DelayConfigurationDto delay => new DelayConfiguration(TimeSpan.FromTicks(delay.DurationTicks)),
         LogConfigurationDto log => new LogConfiguration(log.Message),
         ConditionConfigurationDto condition => new ConditionConfiguration(new JsonPointer(condition.SourcePointer),
@@ -84,7 +84,7 @@ internal static class WorkflowTransport
     private static ConfigurationDto ToDto(NodeConfiguration configuration) => configuration switch
     {
         WebhookTriggerConfiguration => new WebhookConfigurationDto(),
-        HttpRequestConfiguration http => new HttpConfigurationDto { Url = http.Url.AbsoluteUri, Method = http.Method },
+        HttpRequestConfiguration http => new HttpConfigurationDto { Url = http.Url.AbsoluteUri, Method = http.Method, MaxAttempts = http.MaxAttempts, SupportsIdempotency = http.SupportsIdempotency },
         DelayConfiguration delay => new DelayConfigurationDto { DurationTicks = delay.Duration.Ticks },
         LogConfiguration log => new LogConfigurationDto { Message = log.Message },
         ConditionConfiguration condition => new ConditionConfigurationDto

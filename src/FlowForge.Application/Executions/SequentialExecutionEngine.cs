@@ -34,37 +34,51 @@ public sealed class SequentialExecutionEngine
                 var path = new ExecutionPath(checkpoint.Version, checkpoint.Execution.OwnerUserId);
                 var node = path.Node(checkpoint.NextNodeId);
                 var hasExecutor = executors.TryGetValue(node.Type, out var executor);
-                var start = await store.BeginNodeAsync(claim, checkpoint.Revision, node.NodeId, executor?.CanReplayAfterInterruption ?? false, ct);
+                var state = checkpoint.Nodes.Single(n => n.NodeId == node.NodeId);
+                var canReplay = executor?.CanReplayAfterInterruption == true && state.AttemptCount < ExecutionLimits.MaximumLocalAttempts;
+                if (node.Configuration is HttpRequestConfiguration retry)
+                    canReplay = retry.CanRepeat && state.AttemptCount < retry.MaxAttempts;
+                var start = await store.BeginNodeAsync(claim, checkpoint.Revision, node.NodeId, canReplay, ct);
                 if (start.Status == NodeStartStatus.Completed) return MessageDisposition.Completed;
                 if (start.Status == NodeStartStatus.Lost) return MessageDisposition.Busy;
                 NodeResult result;
-                if (checkpoint.Execution.ResumeAt.HasValue)
+                if (checkpoint.Execution.ResumeAt.HasValue && node.Type == NodeType.Delay)
                     result = node.Type == NodeType.Delay && checkpoint.Nodes.Single(n => n.NodeId == node.NodeId).Status == NodeExecutionStatus.Running
                         ? NodeResult.Success(checkpoint.Input) : NodeResult.Failure(ExecutionFailureCode.InvalidExecutorResult);
                 else if (!hasExecutor || executor is null)
                     result = NodeResult.Failure(ExecutionFailureCode.UnsupportedNode);
                 else if (checkpoint.Nodes.Single(n => n.NodeId == node.NodeId).Status == NodeExecutionStatus.Running &&
-                    !executor.CanReplayAfterInterruption)
-                    result = NodeResult.Failure(ExecutionFailureCode.InterruptedNode);
+                    !canReplay)
+                    result = NodeResult.Failure(executor.CanReplayAfterInterruption ? ExecutionFailureCode.AttemptLimitExceeded : ExecutionFailureCode.InterruptedNode);
                 else
                 {
                     using var timeout = CancellationTokenSource.CreateLinkedTokenSource(processing.Token);
-                    timeout.CancelAfter(options.NodeTimeout);
+                    timeout.CancelAfter(checkpoint.DeadlineRemaining is { } remaining && remaining < options.NodeTimeout
+                        ? (remaining > TimeSpan.Zero ? remaining : TimeSpan.FromTicks(1)) : options.NodeTimeout);
                     try
                     {
                         result = await executor.ExecuteAsync(new(checkpoint.Execution.Id, checkpoint.Execution.CorrelationId,
-                            node, checkpoint.Input.Clone(), checkpoint.Execution.OwnerUserId), timeout.Token).WaitAsync(timeout.Token);
+                            node, checkpoint.Input.Clone(), checkpoint.Execution.OwnerUserId, start.AttemptNumber,
+                            async (revision, token) => {
+                                var permission = await store.BeforeExternalCallAsync(claim, start.Revision, node.NodeId, revision, token);
+                                if (permission != LeaseStatus.Active) lease.Status = permission;
+                                return permission;
+                            }), timeout.Token).WaitAsync(timeout.Token);
                     }
                     catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
                     catch (OperationCanceledException) when (lease.Status == LeaseStatus.Lost) { return MessageDisposition.Busy; }
                     catch (OperationCanceledException) when (lease.Status == LeaseStatus.CancelRequested) { result = NodeResult.Cancelled(); }
                     catch (OperationCanceledException) when (timeout.IsCancellationRequested) { result = NodeResult.Failure(ExecutionFailureCode.NodeTimeout); }
+                    catch (ExecutionAuthorityLostException) { return MessageDisposition.Busy; }
+                    catch (OperationCanceledException) when (lease.Status == LeaseStatus.DeadlineExceeded) { result = NodeResult.Failure(ExecutionFailureCode.ExecutionDeadlineExceeded); }
                     catch (Exception) { result = NodeResult.Failure(ExecutionFailureCode.NodeFailed); }
                 }
                 Guid? next = null;
                 try
                 {
-                    if (result is null || (result.SuspendFor is { } duration &&
+                    if (result is null || (result.HttpStatusCode.HasValue && (node.Type != NodeType.HttpRequest || result.HttpStatusCode is < 100 or > 599)) ||
+                        (result.RetryAfter.HasValue && (node.Type != NodeType.HttpRequest || result.RetryAfter < TimeSpan.Zero)) ||
+                        (result.ExternalOutcome.HasValue && (node.Type != NodeType.HttpRequest || !Enum.IsDefined(result.ExternalOutcome.Value))) || (result.SuspendFor is { } duration &&
                         (node.Configuration is not DelayConfiguration delay || duration != delay.Duration ||
                          result.IsCancelled || result.ErrorCode.HasValue || result.LogMessage is not null || result.CredentialRevisionUsed.HasValue)) ||
                         (result.CredentialRevisionUsed is { } credentialRevision &&

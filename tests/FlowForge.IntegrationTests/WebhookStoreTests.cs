@@ -96,17 +96,38 @@ public sealed class WebhookStoreTests(DispatchFixture fixture)
         await using var db = await fixture.Factory.CreateDbContextAsync(); Assert.Equal(9, await db.OutboxMessages.CountAsync()); Assert.Equal(3, await db.WebhookIdempotency.CountAsync());
     }
     [Fact]
-    public async Task Expired_key_can_be_reused_but_previous_execution_remains_immutable()
+    public async Task Expired_completed_key_can_be_reused_but_previous_execution_remains_immutable()
     {
         await fixture.ResetAsync(); var workflow = await Workflow(); var issued = await Store.CreateAsync(workflow.Id, workflow.OwnerUserId);
         var first = await Store.AcceptAsync(issued.Endpoint.Id, issued.Secret, Payload(), "expires");
         await using var db = await fixture.Factory.CreateDbContextAsync();
         await db.Database.ExecuteSqlRawAsync("UPDATE webhook_idempotency SET created_at = clock_timestamp() - interval '2 days', expires_at = clock_timestamp() - interval '1 day'");
+        // Relógio controlado apenas neste banco descartável: uma execução terminal e sua janela já venceram.
+        await db.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE workflow_executions SET created_at = statement_timestamp() - interval '2 days',
+                status = 5, cancel_requested_at = statement_timestamp() - interval '1 day' - interval '1 hour',
+                finished_at = statement_timestamp() - interval '1 day' - interval '1 hour'
+            WHERE id = {first.ExecutionId}
+            """);
         var next = await Store.AcceptAsync(issued.Endpoint.Id, issued.Secret, Payload("[]"), "expires"); Assert.False(next.Replayed); Assert.NotEqual(first.ExecutionId, next.ExecutionId);
         Assert.Equal(2, await db.WorkflowExecutions.CountAsync()); Assert.Equal(2, await db.OutboxMessages.CountAsync());
         var reservation = await db.WebhookIdempotency.SingleAsync(); Assert.Equal(next.ExecutionId, reservation.ExecutionId);
         Assert.Equal(TimeSpan.FromHours(24), reservation.ExpiresAt - reservation.CreatedAt);
     }
+
+    [Fact]
+    public async Task Expired_reservation_still_deduplicates_active_execution_and_rejects_changed_content()
+    {
+        await fixture.ResetAsync(); var workflow = await Workflow(); var issued = await Store.CreateAsync(workflow.Id, workflow.OwnerUserId);
+        var first = await Store.AcceptAsync(issued.Endpoint.Id, issued.Secret, Payload(), "active");
+        await using var db = await fixture.Factory.CreateDbContextAsync();
+        await db.Database.ExecuteSqlRawAsync("UPDATE webhook_idempotency SET created_at = clock_timestamp() - interval '2 days', expires_at = clock_timestamp() - interval '1 day'");
+        var again = await Store.AcceptAsync(issued.Endpoint.Id, issued.Secret, Payload(), "active");
+        Assert.True(again.Replayed); Assert.Equal(first.ExecutionId, again.ExecutionId);
+        await Assert.ThrowsAsync<WebhookIdempotencyConflictException>(() => Store.AcceptAsync(issued.Endpoint.Id, issued.Secret, Payload("[]"), "active"));
+        Assert.Single(await db.WorkflowExecutions.ToArrayAsync()); Assert.Single(await db.OutboxMessages.ToArrayAsync());
+    }
+
     [Theory]
     [InlineData(true)][InlineData(false)]
     public async Task Accept_revalidates_secret_and_enabled_state_after_preflight(bool rotate)

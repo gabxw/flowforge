@@ -4,7 +4,7 @@ namespace FlowForge.Domain.Executions;
 public sealed record PayloadSummary(int ByteLength, string Kind);
 public sealed record NodeExecutionSnapshot(Guid Id, Guid ExecutionId, Guid WorkflowVersionId, Guid NodeId,
     NodeExecutionStatus Status, int AttemptCount, DateTimeOffset? StartedAt, DateTimeOffset? FinishedAt,
-    PayloadSummary? Input, PayloadSummary? Output, ExecutionFailureCode? ErrorCode, int? CredentialRevisionUsed = null);
+    PayloadSummary? Input, PayloadSummary? Output, ExecutionFailureCode? ErrorCode, int? CredentialRevisionUsed = null, DateTimeOffset? RetryAt = null);
 
 public sealed class NodeExecution
 {
@@ -32,10 +32,13 @@ public sealed class NodeExecution
             NodeExecutionStatus.Cancelled => finished && s.Output is null && s.ErrorCode is null,
             NodeExecutionStatus.Skipped => s.AttemptCount == 0 && s.StartedAt is null && s.FinishedAt.HasValue &&
                 s.Input is null && s.Output is null && s.ErrorCode is null,
-            _ => false // Retry e histórico de tentativas entram na Fase 10.
+            NodeExecutionStatus.Retrying => active && s.FinishedAt is null && s.Output is null && s.ErrorCode.HasValue &&
+                Enum.IsDefined(s.ErrorCode.Value) && s.RetryAt > s.StartedAt,
+            _ => false
         };
         Validate(s.Input); Validate(s.Output);
         if (s.CredentialRevisionUsed is { } revision && (revision < 1 || !active)) valid = false;
+        if (s.Status != NodeExecutionStatus.Retrying && s.RetryAt.HasValue) valid = false;
         if (!valid) throw new ArgumentException("Estado persistido do node inconsistente.");
         node.Snapshot = s;
         return node;
@@ -54,6 +57,22 @@ public sealed class NodeExecution
     {
         if (Snapshot.Status != NodeExecutionStatus.Running) throw new InvalidOperationException("O node não está interrompido em Running.");
         Snapshot = Snapshot with { AttemptCount = checked(Snapshot.AttemptCount + 1) };
+    }
+
+    public void Retry(ExecutionFailureCode error, DateTimeOffset retryAt)
+    {
+        ExecutionTransitions.EnsureTransition(Snapshot.Status, NodeExecutionStatus.Retrying);
+        if (!Enum.IsDefined(error)) throw new ArgumentOutOfRangeException(nameof(error));
+        if (retryAt <= Snapshot.StartedAt) throw new ArgumentOutOfRangeException(nameof(retryAt));
+        Snapshot = Snapshot with { Status = NodeExecutionStatus.Retrying, ErrorCode = error, RetryAt = retryAt.ToUniversalTime() };
+    }
+
+    public void StartRetry(DateTimeOffset now)
+    {
+        ExecutionTransitions.EnsureTransition(Snapshot.Status, NodeExecutionStatus.Running);
+        if (Snapshot.Status != NodeExecutionStatus.Retrying || now < Snapshot.RetryAt) throw new InvalidOperationException("Retry ainda não está disponível.");
+        Snapshot = Snapshot with { Status = NodeExecutionStatus.Running, AttemptCount = checked(Snapshot.AttemptCount + 1),
+            ErrorCode = null, RetryAt = null, CredentialRevisionUsed = null };
     }
 
     public void RecordCredentialRevision(int revision)
@@ -76,14 +95,17 @@ public sealed class NodeExecution
         Finish(NodeExecutionStatus.Failed, now); Snapshot = Snapshot with { ErrorCode = code };
     }
 
-    public void Cancel(DateTimeOffset now) => Finish(NodeExecutionStatus.Cancelled, now);
+    public void Cancel(DateTimeOffset now)
+    {
+        Finish(NodeExecutionStatus.Cancelled, now); Snapshot = Snapshot with { ErrorCode = null };
+    }
     public void Skip(DateTimeOffset now) => Finish(NodeExecutionStatus.Skipped, now);
 
     private void Finish(NodeExecutionStatus status, DateTimeOffset now)
     {
         ExecutionTransitions.EnsureTransition(Snapshot.Status, status);
         if (Snapshot.StartedAt.HasValue && now < Snapshot.StartedAt) throw new ArgumentOutOfRangeException(nameof(now));
-        Snapshot = Snapshot with { Status = status, FinishedAt = now.ToUniversalTime() };
+        Snapshot = Snapshot with { Status = status, FinishedAt = now.ToUniversalTime(), RetryAt = null };
     }
 
     private static void Validate(PayloadSummary? summary)

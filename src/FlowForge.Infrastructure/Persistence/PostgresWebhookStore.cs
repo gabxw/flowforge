@@ -90,20 +90,25 @@ public sealed class PostgresWebhookStore(IDbContextFactory<FlowForgeDbContext> f
         if (digest is not null)
         {
             reservation = await db.WebhookIdempotency.SingleOrDefaultAsync(e => e.EndpointId == endpointId && e.KeyDigest == digest, ct);
-            if (reservation is not null && reservation.ExpiresAt > now)
+            if (reservation is not null)
             {
-                if (reservation.RequestDigest != payload.RequestDigest) throw new WebhookIdempotencyConflictException();
                 var original = await db.WorkflowExecutions.AsNoTracking().SingleAsync(e => e.Id == reservation.ExecutionId, ct);
-                await tx.CommitAsync(ct);
-                return new(original.Id, original.WorkflowVersionId, original.CorrelationId, original.CreatedAt, true);
+                var held = original.Status is WorkflowExecutionStatus.Pending or WorkflowExecutionStatus.Running ||
+                    original.FinishedAt + options.IdempotencyLifetime > now || reservation.ExpiresAt > now;
+                if (held)
+                {
+                    if (reservation.RequestDigest != payload.RequestDigest) throw new WebhookIdempotencyConflictException();
+                    await tx.CommitAsync(ct);
+                    return new(original.Id, original.WorkflowVersionId, original.CorrelationId, original.CreatedAt, true);
+                }
             }
         }
         var version = await db.WorkflowVersions.AsNoTracking().SingleAsync(v => v.Id == root.CurrentPublishedVersionId
             && v.WorkflowId == root.Id && v.OwnerUserId == root.OwnerUserId, ct);
         if (version.Status != WorkflowVersionStatus.Published) throw new WebhookRejectedException();
-        var execution = new WorkflowExecution(Guid.NewGuid(), root.Id, version.Id, root.OwnerUserId, Guid.NewGuid(), now).Snapshot;
+        var execution = new WorkflowExecution(Guid.NewGuid(), root.Id, version.Id, root.OwnerUserId, Guid.NewGuid(), now).Snapshot with { DeadlineAt = now + ExecutionLimits.MaximumDuration };
         db.WorkflowExecutions.Add(new() { Id = execution.Id, WorkflowId = root.Id, WorkflowVersionId = version.Id,
-            OwnerUserId = root.OwnerUserId, CorrelationId = execution.CorrelationId, Status = execution.Status, CreatedAt = now,
+            OwnerUserId = root.OwnerUserId, CorrelationId = execution.CorrelationId, Status = execution.Status, CreatedAt = now, DeadlineAt = execution.DeadlineAt!.Value,
             WebhookEndpointId = endpointId, TriggerInputProtected = protection.ProtectTrigger(payload.Value, execution.Id) });
         db.OutboxMessages.Add(new() { Id = Guid.NewGuid(), ExecutionId = execution.Id, CorrelationId = execution.CorrelationId,
             ContractVersion = ExecutionRequestedMessage.CurrentVersion, CreatedAt = now, AvailableAt = now });

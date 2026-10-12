@@ -27,11 +27,11 @@ public sealed class PostgresExecutionStore(IDbContextFactory<FlowForgeDbContext>
         if (version.Status != WorkflowVersionStatus.Published)
             throw new WorkflowStateConflictException("A versão de execução precisa estar publicada.");
         var now = await ExecutionPersistence.NowAsync(db, ct);
-        var execution = new WorkflowExecution(request.ExecutionId, root.Id, version.Id, root.OwnerUserId, request.CorrelationId, now).Snapshot;
+        var execution = new WorkflowExecution(request.ExecutionId, root.Id, version.Id, root.OwnerUserId, request.CorrelationId, now).Snapshot with { DeadlineAt = now + ExecutionLimits.MaximumDuration };
         db.WorkflowExecutions.Add(new()
         {
             Id = execution.Id, WorkflowId = execution.WorkflowId, WorkflowVersionId = execution.WorkflowVersionId,
-            OwnerUserId = execution.OwnerUserId, CorrelationId = execution.CorrelationId, CreatedAt = now, Status = execution.Status
+            OwnerUserId = execution.OwnerUserId, CorrelationId = execution.CorrelationId, CreatedAt = now, DeadlineAt = execution.DeadlineAt!.Value, Status = execution.Status
         });
         db.OutboxMessages.Add(new()
         {
@@ -79,7 +79,8 @@ public sealed class PostgresExecutionStore(IDbContextFactory<FlowForgeDbContext>
         if (!await db.WorkflowExecutions.AnyAsync(e => e.Id == executionId && e.OwnerUserId == owner, ct)) return null;
         var nodes = await db.NodeExecutions.AsNoTracking().Where(n => n.ExecutionId == executionId).OrderBy(n => n.Ordinal).ToArrayAsync(ct);
         var logs = await db.ExecutionLogs.AsNoTracking().Where(l => l.ExecutionId == executionId).OrderBy(l => l.CreatedAt).ThenBy(l => l.Id).ToArrayAsync(ct);
+        var attempts = await db.NodeAttempts.AsNoTracking().Where(a => a.ExecutionId == executionId).OrderBy(a => a.StartedAt).ThenBy(a => a.Id).ToArrayAsync(ct);
         await tx.CommitAsync(ct);
-        return new(nodes.Select(NodeExecutionPersistence.Snapshot).ToArray(), logs.Select(NodeExecutionPersistence.Log).ToArray());
+        return new(nodes.Select(NodeExecutionPersistence.Snapshot).ToArray(), logs.Select(NodeExecutionPersistence.Log).ToArray(), attempts.Select(AttemptPersistence.Snapshot).ToArray());
     }
 }

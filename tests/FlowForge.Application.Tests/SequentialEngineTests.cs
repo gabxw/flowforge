@@ -92,6 +92,7 @@ public sealed class SequentialEngineTests
     // Stub do contrato de persistência; transações/leases reais são verificadas em IntegrationTests.
     private sealed class RecordingStore : IExecutionEngineStore
     {
+        public Task<LeaseStatus> BeforeExternalCallAsync(InboxClaim claim, int revision, Guid nodeId, int? credentialRevision, CancellationToken ct = default) => Task.FromResult(LeaseStatus.Active);
         public WorkflowVersionSnapshot Version { get; }
         private readonly WorkflowExecutionSnapshot execution;
         private Guid current;

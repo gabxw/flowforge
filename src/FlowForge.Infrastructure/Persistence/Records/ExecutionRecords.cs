@@ -20,6 +20,7 @@ internal sealed class WorkflowExecutionRecord
     public Guid? WebhookEndpointId { get; set; }
     public byte[]? TriggerInputProtected { get; set; }
     public int CheckpointRevision { get; set; }
+    public DateTimeOffset DeadlineAt { get; set; }
     public DateTimeOffset? ResumeAt { get; set; }
     public int DispatchSequence { get; set; }
 }
@@ -37,6 +38,7 @@ internal sealed class OutboxMessageRecord
     public Guid? ClaimToken { get; set; }
     public DateTimeOffset? ClaimUntil { get; set; }
     public int PublishAttempts { get; set; }
+    public DateTimeOffset? RecoveryNotBefore { get; set; }
 }
 
 internal sealed class InboxMessageRecord

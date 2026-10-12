@@ -21,6 +21,8 @@ internal static class NodeConfigurationJson
                 case HttpRequestConfiguration http:
                     writer.WriteString("url", http.Url.AbsoluteUri);
                     writer.WriteNumber("method", (int)http.Method);
+                    if (http.MaxAttempts != 1) writer.WriteNumber("maxAttempts", http.MaxAttempts);
+                    if (http.SupportsIdempotency) writer.WriteBoolean("supportsIdempotency", true);
                     break;
                 case DelayConfiguration delay:
                     writer.WriteNumber("durationTicks", delay.Duration.Ticks);
@@ -70,14 +72,16 @@ internal static class NodeConfigurationJson
                 NodeType.TransformJson => ["schemaVersion", "fields"],
                 _ => throw new ArgumentOutOfRangeException(nameof(type))
             };
-            ValidateShape(root, required, type == NodeType.Condition ? ["expectedValue"] : []);
+            ValidateShape(root, required, type == NodeType.Condition ? ["expectedValue"] : type == NodeType.HttpRequest ? ["maxAttempts", "supportsIdempotency"] : []);
             if (!root.GetProperty("schemaVersion").TryGetInt32(out var schema) || schema != 1)
                 throw new ArgumentException("Schema de configuração não suportado.", nameof(json));
             return type switch
             {
                 NodeType.WebhookTrigger => new WebhookTriggerConfiguration(),
                 NodeType.HttpRequest => new HttpRequestConfiguration(new Uri(String(root, "url"), UriKind.Absolute),
-                    (HttpRequestMethod)root.GetProperty("method").GetInt32()),
+                    (HttpRequestMethod)root.GetProperty("method").GetInt32(),
+                    root.TryGetProperty("maxAttempts", out var max) ? max.GetInt32() : 1,
+                    root.TryGetProperty("supportsIdempotency", out var support) && support.GetBoolean()),
                 NodeType.Delay => new DelayConfiguration(TimeSpan.FromTicks(root.GetProperty("durationTicks").GetInt64())),
                 NodeType.Log => new LogConfiguration(String(root, "message")),
                 NodeType.Condition => new ConditionConfiguration(new JsonPointer(String(root, "sourcePointer")),

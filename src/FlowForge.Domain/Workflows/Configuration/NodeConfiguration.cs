@@ -27,7 +27,7 @@ public enum HttpRequestMethod
 
 public sealed class HttpRequestConfiguration : NodeConfiguration
 {
-    public HttpRequestConfiguration(Uri url, HttpRequestMethod method)
+    public HttpRequestConfiguration(Uri url, HttpRequestMethod method, int maxAttempts = 1, bool supportsIdempotency = false)
     {
         ArgumentNullException.ThrowIfNull(url);
         // StrongAuthority preserva o delimitador @ mesmo quando userinfo está vazio.
@@ -37,13 +37,18 @@ public sealed class HttpRequestConfiguration : NodeConfiguration
         if (!Enum.IsDefined(method))
             throw new ArgumentOutOfRangeException(nameof(method), "Método HTTP desconhecido.");
 
-        Url = url;
-        Method = method;
+        if (maxAttempts is < 1 or > 5) throw new ArgumentOutOfRangeException(nameof(maxAttempts));
+        if (maxAttempts > 1 && method is not (HttpRequestMethod.Get or HttpRequestMethod.Head or HttpRequestMethod.Options) && !supportsIdempotency)
+            throw new ArgumentException("Retry de operação com efeito exige contrato de idempotência do destino.");
+        Url = url; Method = method; MaxAttempts = maxAttempts; SupportsIdempotency = supportsIdempotency;
     }
 
     public override NodeType Type => NodeType.HttpRequest;
     public Uri Url { get; }
     public HttpRequestMethod Method { get; }
+    public int MaxAttempts { get; }
+    public bool SupportsIdempotency { get; }
+    public bool CanRepeat => MaxAttempts > 1 && (SupportsIdempotency || Method is HttpRequestMethod.Get or HttpRequestMethod.Head or HttpRequestMethod.Options);
 }
 
 public sealed class DelayConfiguration : NodeConfiguration

@@ -46,7 +46,7 @@ app.MapHealthChecks("/api/health/live");
 app.MapGet("/", () => Results.Ok(new
 {
     service = "FlowForge.Api",
-    phase = 9,
+    phase = 10,
     status = "private-workflow-engine"
 })).WithName("ServiceInfo");
 
@@ -58,6 +58,7 @@ if (app.Environment.IsDevelopment())
 
 app.MapWorkflows();
 app.MapExecutions();
+app.MapExecutionRecovery();
 app.MapWebhooks();
 app.MapCredentials();
 

@@ -41,3 +41,18 @@ public sealed class ExecutionConsumerService(RabbitExecutionConsumer consumer, I
         }
     }
 }
+
+public sealed class ExecutionRecoveryHostedService(IExecutionRecoveryStore recovery, ILogger<ExecutionRecoveryHostedService> logger) : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try { for (var i = 0; i < 10 && await recovery.RecoverOneAsync(stoppingToken); i++) { } }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
+            catch (Exception e) { logger.LogWarning("Recuperação pendente. EventCode={EventCode} ErrorType={ErrorType}", "recovery_pending", e.GetType().Name); }
+            try { await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken); }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
+        }
+    }
+}

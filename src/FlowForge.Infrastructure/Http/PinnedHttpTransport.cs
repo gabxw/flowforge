@@ -6,7 +6,7 @@ using FlowForge.Domain.Credentials;
 
 namespace FlowForge.Infrastructure.Http;
 public sealed class HttpResponseLimitException : Exception;
-internal sealed record HttpWireResponse(int StatusCode, byte[] Body, string? MediaType, string? Charset, bool Encoded);
+internal sealed record HttpWireResponse(int StatusCode, byte[] Body, string? MediaType, string? Charset, bool Encoded, TimeSpan? RetryAfter = null);
 public sealed class PinnedHttpTransport
 {
     private readonly Func<IPEndPoint, CancellationToken, ValueTask<Stream>> connect;
@@ -47,7 +47,13 @@ public sealed class PinnedHttpTransport
         request.Version = HttpVersion.Version11; request.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
         using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
         var status = (int)response.StatusCode;
-        if (status is < 200 or >= 300) return new(status, [], null, null, false);
+        if (status is < 200 or >= 300)
+        {
+            var header = response.Headers.RetryAfter;
+            TimeSpan? advice = header?.Delta ?? (header?.Date is { } date ? date - DateTimeOffset.UtcNow : null);
+            if (advice < TimeSpan.Zero) advice = TimeSpan.Zero;
+            return new(status, [], null, null, false, advice);
+        }
         if (response.Content.Headers.ContentLength > maxBytes) throw new HttpResponseLimitException();
         var encoded = response.Content.Headers.ContentEncoding.Count != 0;
         if (encoded) return new(status, [], null, null, true);

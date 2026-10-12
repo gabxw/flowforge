@@ -14,6 +14,9 @@ public sealed class FlowForgeDbContext(DbContextOptions<FlowForgeDbContext> opti
     internal DbSet<WorkflowExecutionRecord> WorkflowExecutions => Set<WorkflowExecutionRecord>();
     internal DbSet<OutboxMessageRecord> OutboxMessages => Set<OutboxMessageRecord>();
     internal DbSet<InboxMessageRecord> InboxMessages => Set<InboxMessageRecord>();
+    internal DbSet<NodeAttemptRecord> NodeAttempts => Set<NodeAttemptRecord>();
+    internal DbSet<ExecutionReplayRecord> ExecutionReplays => Set<ExecutionReplayRecord>();
+    internal DbSet<ExecutionRedriveRecord> ExecutionRedrives => Set<ExecutionRedriveRecord>();
     internal DbSet<NodeExecutionRecord> NodeExecutions => Set<NodeExecutionRecord>();
     internal DbSet<ExecutionLogRecord> ExecutionLogs => Set<ExecutionLogRecord>();
     internal DbSet<WebhookEndpointRecord> WebhookEndpoints => Set<WebhookEndpointRecord>();
@@ -32,13 +35,14 @@ public sealed class FlowForgeDbContext(DbContextOptions<FlowForgeDbContext> opti
             foreach (var key in entity.GetKeys()) key.SetName((key.IsPrimaryKey() ? "pk_" : "ak_") + entity.GetTableName() +
                 (key.IsPrimaryKey() ? "" : "_" + string.Join("_", key.Properties.Select(p => Snake(p.Name)))));
             foreach (var index in entity.GetIndexes()) index.SetDatabaseName("ix_" + entity.GetTableName() + "_" +
-                string.Join("_", index.Properties.Select(p => Snake(p.Name).Replace("workflow_version_id", "version_id").Replace("webhook_endpoint_id", "hook_id"))));
+                string.Join("_", index.Properties.Select(p => Snake(p.Name).Replace("workflow_version_id", "version_id").Replace("webhook_endpoint_id", "hook_id").Replace("original_execution_id", "original_id"))));
             foreach (var foreignKey in entity.GetForeignKeys())
             {
                 var name = "fk_" + entity.GetTableName() + "_" + string.Join("_", foreignKey.Properties.Select(p => Snake(p.Name)));
                 // Identificadores PostgreSQL têm limite de 63 bytes.
                 if (name.Length > 63) name = name.Replace("workflow_version_id", "version_id");
                 if (name.Length > 63) name = name.Replace("webhook_endpoint_id", "hook_id");
+                if (name.Length > 63) name = name.Replace("original_execution_id", "original_id");
                 foreignKey.SetConstraintName(name);
             }
         }

@@ -142,7 +142,7 @@ public sealed class RabbitDispatchTests(DispatchFixture fixture)
         await fixture.ResetAsync();
         var request = await NewRequestAsync();
         await using var publisher = new RabbitExecutionPublisher(fixture.RabbitOptions);
-        await publisher.PublishAsync(Message(request));
+        Assert.True(await Dispatcher(publisher).DispatchOneAsync());
         var blocked = new InterruptedHandler(new PostgresExecutionInboxStore(fixture.Factory));
         using (var stop = new CancellationTokenSource())
         {
@@ -158,7 +158,11 @@ public sealed class RabbitDispatchTests(DispatchFixture fixture)
         var logger = new CaptureLogger();
         using var resumed = new CancellationTokenSource();
         var recovered = Consumer(Handler(), logger).RunSessionAsync(resumed.Token);
-        try { await UntilAsync(() => Task.FromResult(logger.Completed >= 1)); }
+        try { await UntilAsync(async () => {
+            await new PostgresExecutionRecoveryStore(fixture.Factory).RecoverOneAsync();
+            await Dispatcher(publisher).DispatchOneAsync();
+            return (await new PostgresExecutionStore(fixture.Factory).GetAsync(request.ExecutionId, request.OwnerUserId))?.Status == WorkflowExecutionStatus.Succeeded;
+        }); }
         finally { await StopAsync(resumed, recovered); }
         var failed = (await new PostgresExecutionStore(fixture.Factory).GetAsync(request.ExecutionId, request.OwnerUserId))!;
         Assert.Equal(running.StartedAt, failed.StartedAt);

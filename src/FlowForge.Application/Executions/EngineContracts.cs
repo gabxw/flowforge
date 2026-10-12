@@ -5,23 +5,25 @@ using FlowForge.Domain.Workflows;
 namespace FlowForge.Application.Executions;
 
 public sealed record ExecutionCheckpoint(WorkflowExecutionSnapshot Execution, WorkflowVersionSnapshot Version,
-    int Revision, Guid NextNodeId, JsonElement Input, IReadOnlyList<NodeExecutionSnapshot> Nodes);
-public enum LeaseStatus { Active, CancelRequested, Lost }
+    int Revision, Guid NextNodeId, JsonElement Input, IReadOnlyList<NodeExecutionSnapshot> Nodes, TimeSpan? DeadlineRemaining = null);
+public enum LeaseStatus { Active, CancelRequested, Lost, DeadlineExceeded }
 public enum NodeStartStatus { Started, Completed, Lost }
-public sealed record NodeStart(NodeStartStatus Status, int Revision);
+public sealed record NodeStart(NodeStartStatus Status, int Revision, int AttemptNumber = 1);
 public enum CheckpointWriteStatus { Saved, Completed, Lost, Suspended }
 public interface IExecutionEngineStore
 {
     Task<ExecutionCheckpoint?> LoadAsync(InboxClaim claim, CancellationToken ct = default);
+    Task<LeaseStatus> BeforeExternalCallAsync(InboxClaim claim, int revision, Guid nodeId, int? credentialRevision, CancellationToken ct = default);
     Task<LeaseStatus> RenewAsync(InboxClaim claim, TimeSpan lease, CancellationToken ct = default);
     Task<NodeStart> BeginNodeAsync(InboxClaim claim, int revision, Guid nodeId, bool allowReplay = false, CancellationToken ct = default);
     Task<CheckpointWriteStatus> SaveNodeAsync(InboxClaim claim, int revision, Guid nodeId,
         NodeResult result, Guid? nextNodeId, CancellationToken ct = default);
 }
 
-public sealed record NodeRunContext(Guid ExecutionId, Guid CorrelationId, WorkflowNode Node, JsonElement Input, Guid OwnerUserId = default);
+public sealed record NodeRunContext(Guid ExecutionId, Guid CorrelationId, WorkflowNode Node, JsonElement Input, Guid OwnerUserId = default, int AttemptNumber = 1,
+    Func<int?, CancellationToken, Task<LeaseStatus>>? BeforeExternalCall = null);
 public sealed record NodeResult(JsonElement? Output, string Port, ExecutionFailureCode? ErrorCode,
-    bool IsCancelled = false, string? LogMessage = null, int? CredentialRevisionUsed = null, TimeSpan? SuspendFor = null)
+    bool IsCancelled = false, string? LogMessage = null, int? CredentialRevisionUsed = null, TimeSpan? SuspendFor = null, int? HttpStatusCode = null, TimeSpan? RetryAfter = null, ExternalOutcome? ExternalOutcome = null)
 {
     public static NodeResult Success(JsonElement output, string port = "next", string? logMessage = null, int? credentialRevisionUsed = null) =>
         new(output.Clone(), port, null, LogMessage: logMessage, CredentialRevisionUsed: credentialRevisionUsed);
@@ -60,7 +62,16 @@ public static class ExecutionPayload
     }
 }
 public sealed class ExecutionPayloadLimitException : Exception;
+public sealed class ExecutionAuthorityLostException : Exception;
+public sealed class CredentialRevisionChangedException : Exception;
+public static class ExecutionLimits
+{
+    public static TimeSpan MaximumDuration => TimeSpan.FromHours(48);
+    public const int MaximumLocalAttempts = 5;
+    public const int MaximumDeliveryClaims = 5;
+}
+
 public enum ExecutionLogCode { LogRecorded = 1 }
 public sealed record ExecutionLogSummary(Guid Id, Guid ExecutionId, Guid NodeExecutionId, DateTimeOffset CreatedAt,
     ExecutionLogCode EventCode, int MessageByteLength);
-public sealed record ExecutionHistory(IReadOnlyList<NodeExecutionSnapshot> Nodes, IReadOnlyList<ExecutionLogSummary> Logs);
+public sealed record ExecutionHistory(IReadOnlyList<NodeExecutionSnapshot> Nodes, IReadOnlyList<ExecutionLogSummary> Logs, IReadOnlyList<NodeAttemptSnapshot>? Attempts = null);

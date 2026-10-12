@@ -113,6 +113,7 @@ public sealed class WorkflowContractTests(WorkflowApiFixture fixture)
         Assert.Equal(HttpStatusCode.OK, save.StatusCode);
         using var get = await client.GetAsync(path);
         var stored = (await Body(get))["versions"]![0]!["nodes"]!.AsArray();
+        configs[1]!["maxAttempts"] = 1; configs[1]!["supportsIdempotency"] = false;
         for (var i = 0; i < configs.Count; i++)
             Assert.True(JsonNode.DeepEquals(configs[i], stored[i]!["configuration"]));
         Assert.Equal(-10.25, stored[0]!["position"]!["x"]!.GetValue<double>());

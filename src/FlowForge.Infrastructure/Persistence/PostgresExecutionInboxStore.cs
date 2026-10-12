@@ -29,10 +29,22 @@ public sealed class PostgresExecutionInboxStore(IDbContextFactory<FlowForgeDbCon
         // Mensagem antiga ou adiantada não assume a continuação. A outbox permanece a fonte do agendamento.
         if (row.Status is not (WorkflowExecutionStatus.Pending or WorkflowExecutionStatus.Running) ||
             dispatch.DispatchSequence != row.DispatchSequence ||
-            (row.ResumeAt > now && row.CancelRequestedAt is null) ||
-            (dispatch.AvailableAt > now && row.CancelRequestedAt is null))
+            (row.ResumeAt > now && row.CancelRequestedAt is null && row.DeadlineAt > now) ||
+            (dispatch.AvailableAt > now && row.CancelRequestedAt is null && row.DeadlineAt > now))
             return Result(InboxClaimStatus.Completed);
         if (inbox?.ClaimUntil > now) return Result(InboxClaimStatus.Busy);
+        if (inbox is not null && inbox.ClaimAttempts >= ExecutionLimits.MaximumDeliveryClaims)
+        {
+            if (row.Status == WorkflowExecutionStatus.Pending && row.CancelRequestedAt is null) {
+                var pending = WorkflowExecution.Restore(ExecutionPersistence.Snapshot(row)); pending.Start(now);
+                row.Status = pending.Snapshot.Status; row.StartedAt = pending.Snapshot.StartedAt;
+            }
+            var nodes = await db.NodeExecutions.Where(n => n.ExecutionId == row.Id).ToArrayAsync(ct);
+            await PostgresExecutionEngineStore.CompleteAsync(db, new(row, inbox, now), nodes,
+                row.CancelRequestedAt.HasValue ? WorkflowExecutionStatus.Cancelled : WorkflowExecutionStatus.Failed,
+                row.CancelRequestedAt.HasValue ? null : ExecutionFailureCode.AttemptLimitExceeded, ct);
+            await tx.CommitAsync(ct); return Result(InboxClaimStatus.Invalid);
+        }
         var token = Guid.NewGuid();
         if (inbox is null)
         {

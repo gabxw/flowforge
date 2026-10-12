@@ -13,7 +13,7 @@ public sealed class RabbitExecutionConsumer(RabbitRuntimeOptions options, IExecu
     {
         using var session = CancellationTokenSource.CreateLinkedTokenSource(ct);
         await using var connection = await options.CreateFactory("flowforge:consumer").CreateConnectionAsync(ct);
-        await using var channel = await connection.CreateChannelAsync(cancellationToken: ct);
+        await using var channel = await connection.CreateChannelAsync(new CreateChannelOptions(publisherConfirmationsEnabled: true, publisherConfirmationTrackingEnabled: true), ct);
         var disconnected = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         channel.ChannelShutdownAsync += (_, _) => { disconnected.TrySetResult(); return Task.CompletedTask; };
         channel.CallbackExceptionAsync += (_, _) => { disconnected.TrySetResult(); return Task.CompletedTask; };
@@ -25,43 +25,46 @@ public sealed class RabbitExecutionConsumer(RabbitRuntimeOptions options, IExecu
         {
             // Deserializa antes de sair do callback; o buffer pertence ao cliente RabbitMQ.
             var message = ExecutionMessageJson.Deserialize(delivery.Body);
-            if (message is null || delivery.BasicProperties.Type != ExecutionRequestedMessage.MessageType ||
+            var counter = DeliveryTransfer.Counter(delivery.BasicProperties);
+            if (counter is null || message is null || delivery.BasicProperties.Type != ExecutionRequestedMessage.MessageType ||
                 delivery.BasicProperties.ContentType != "application/json" ||
                 delivery.BasicProperties.MessageId != message.MessageId.ToString() ||
                 delivery.BasicProperties.CorrelationId != message.CorrelationId.ToString())
             {
                 logger.LogWarning("Mensagem rejeitada: contrato inválido. EventCode={EventCode}", "invalid_message");
-                await channel.BasicRejectAsync(delivery.DeliveryTag, requeue: false, cancellationToken: session.Token);
+                await DeliveryTransfer.DeadLetterAsync(channel, message, DeliveryFailureCode.InvalidContract, counter ?? 0, session.Token);
+                await channel.BasicAckAsync(delivery.DeliveryTag, multiple: false, cancellationToken: session.Token);
                 return;
             }
-            while (!session.IsCancellationRequested && channel.IsOpen)
+            MessageDisposition result;
+            try { result = await handler.HandleAsync(message, session.Token); }
+            catch (OperationCanceledException) when (session.IsCancellationRequested) { return; }
+            catch (Exception e)
             {
-                try
+                logger.LogWarning("Recebimento pendente. ExecutionId={ExecutionId} ErrorType={ErrorType}", message.ExecutionId, e.GetType().Name);
+                var failures = counter.Value + 1;
+                if (failures >= 5)
+                    await DeliveryTransfer.DeadLetterAsync(channel, message, DeliveryFailureCode.ProcessingExhausted, failures, session.Token);
+                else
                 {
-                    var result = await handler.HandleAsync(message, session.Token);
-                    if (result == MessageDisposition.Completed)
-                    {
-                        await channel.BasicAckAsync(delivery.DeliveryTag, multiple: false, cancellationToken: session.Token);
-                        logger.LogInformation("Despacho concluído. ExecutionId={ExecutionId} CorrelationId={CorrelationId}",
-                            message.ExecutionId, message.CorrelationId);
-                        return;
-                    }
-                    if (result == MessageDisposition.Invalid)
-                    {
-                        logger.LogWarning("Mensagem rejeitada: identidade desconhecida. MessageId={MessageId}", message.MessageId);
-                        await channel.BasicRejectAsync(delivery.DeliveryTag, requeue: false, cancellationToken: session.Token);
-                        return;
-                    }
+                    var seconds = Math.Min(8, Math.Pow(2, failures - 1)) * (0.5 + Random.Shared.NextDouble() * 0.5);
+                    await Task.Delay(TimeSpan.FromSeconds(seconds), session.Token);
+                    await DeliveryTransfer.RetryAsync(channel, message, failures, session.Token);
                 }
-                catch (OperationCanceledException) when (session.IsCancellationRequested) { return; }
-                catch (Exception e)
-                {
-                    // Não registrar objeto/mensagem da exceção: providers podem incluir credenciais.
-                    logger.LogWarning("Recebimento pendente. ExecutionId={ExecutionId} ErrorType={ErrorType}", message.ExecutionId, e.GetType().Name);
-                }
-                // Retém a entrega sem ack; evita loop de nack/requeue enquanto banco/claim estão indisponíveis.
-                await Task.Delay(TimeSpan.FromSeconds(1), session.Token);
+                // Falha antes/depois do confirm pode duplicar, mas nunca confirma a entrega antes da cópia durável.
+                await channel.BasicAckAsync(delivery.DeliveryTag, multiple: false, cancellationToken: session.Token);
+                return;
             }
+            if (result == MessageDisposition.Invalid)
+            {
+                logger.LogWarning("Mensagem rejeitada: identidade desconhecida. MessageId={MessageId}", message.MessageId);
+                await DeliveryTransfer.DeadLetterAsync(channel, message, DeliveryFailureCode.UnknownIdentity, counter.Value, session.Token);
+            }
+            // Busy é duplicata. Lease vigente/scanner independente mantêm o trabalho durável.
+            await channel.BasicAckAsync(delivery.DeliveryTag, multiple: false, cancellationToken: session.Token);
+            if (result != MessageDisposition.Invalid)
+                logger.LogInformation("Despacho concluído. ExecutionId={ExecutionId} CorrelationId={CorrelationId} EventCode={EventCode}",
+                    message.ExecutionId, message.CorrelationId, result == MessageDisposition.Busy ? "busy_ack" : "completed");
         };
         await channel.BasicConsumeAsync(ExecutionRabbitTopology.Queue, autoAck: false, consumer, cancellationToken: ct);
         logger.LogInformation("Consumer conectado. Queue={Queue}", ExecutionRabbitTopology.Queue);

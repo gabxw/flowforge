@@ -17,6 +17,7 @@ builder.Services.AddDbContextFactory<FlowForgeDbContext>((sp, options) =>
 builder.Services.AddSingleton(sp => RabbitRuntimeOptions.FromConfiguration(sp.GetRequiredService<IConfiguration>()));
 builder.Services.AddSingleton<IExecutionOutboxStore, PostgresExecutionOutboxStore>();
 builder.Services.AddSingleton<IExecutionInboxStore, PostgresExecutionInboxStore>();
+builder.Services.AddSingleton<IExecutionRecoveryStore, PostgresExecutionRecoveryStore>();
 builder.Services.AddSingleton(sp => ExecutionProtectionRuntime.CreateProvider(sp.GetRequiredService<IConfiguration>(), builder.Environment.IsDevelopment()));
 builder.Services.AddSingleton(sp => new ExecutionContextProtection(sp.GetRequiredService<IDataProtectionProvider>()));
 builder.Services.AddSingleton(sp => new CredentialProtection(sp.GetRequiredService<IDataProtectionProvider>()));
@@ -39,5 +40,6 @@ builder.Services.AddSingleton<OutboxDispatcher>();
 builder.Services.AddSingleton<RabbitExecutionConsumer>();
 builder.Services.AddHostedService<OutboxDispatchService>();
 builder.Services.AddHostedService<ExecutionConsumerService>();
+builder.Services.AddHostedService<ExecutionRecoveryHostedService>();
 builder.Services.Configure<HostOptions>(o => o.ShutdownTimeout = TimeSpan.FromSeconds(15));
 await builder.Build().RunAsync();

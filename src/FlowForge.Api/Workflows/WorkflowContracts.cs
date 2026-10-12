@@ -62,6 +62,8 @@ public sealed record HttpConfigurationDto : ConfigurationDto
 {
     public required string Url { get; init; }
     public required HttpRequestMethod Method { get; init; }
+    public int MaxAttempts { get; init; } = 1;
+    public bool SupportsIdempotency { get; init; }
 }
 public sealed record DelayConfigurationDto : ConfigurationDto
 {

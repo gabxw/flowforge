@@ -29,6 +29,9 @@ internal static class WorkflowRuntime
         services.AddScoped<WorkflowService>();
         services.AddScoped<IExecutionStore, PostgresExecutionStore>();
         services.AddScoped<ExecutionService>();
+        services.AddScoped<IExecutionRecoveryStore, PostgresExecutionRecoveryStore>();
+        services.AddScoped<IExecutionReplayStore, PostgresExecutionReplayStore>();
+        services.AddScoped<ExecutionRecoveryService>();
     }
 
     private static string ConnectionString(IConfiguration configuration)

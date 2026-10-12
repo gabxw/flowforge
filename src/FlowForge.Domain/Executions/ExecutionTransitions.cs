@@ -24,6 +24,7 @@ public static class ExecutionTransitions
             (NodeExecutionStatus.Running, NodeExecutionStatus.Cancelled) => true,
             (NodeExecutionStatus.Retrying, NodeExecutionStatus.Running) => true,
             (NodeExecutionStatus.Retrying, NodeExecutionStatus.Cancelled) => true,
+            (NodeExecutionStatus.Retrying, NodeExecutionStatus.Failed) => true,
             _ => false
         };
 
