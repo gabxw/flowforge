@@ -15,6 +15,7 @@
     "test:backend": "playwright test --project=chromium --grep @backend"
   },
   "dependencies": {
+    "@fontsource-variable/archivo": "5.3.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },

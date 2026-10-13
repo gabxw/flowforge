@@ -36,17 +36,27 @@ export default function App() {
   else if (path.length === 2 && path[0] === 'workflows' && path[1] === 'new') page = <CreateWorkflowPage onDirtyChange={onDirtyChange} />
   else if (path.length === 2 && path[0] === 'workflows' && uuid.test(path[1])) page = <WorkflowPage id={path[1]} onDirtyChange={onDirtyChange} />
   else if (path.length === 2 && path[0] === 'executions' && uuid.test(path[1])) page = <ExecutionPage id={path[1]} />
-  else page = <section className="card empty"><h1>Página não encontrada</h1><p>Confira o endereço ou o ID informado.</p><a className="btn" href="#/workflows">Voltar aos workflows</a></section>
+  else page = <section className="panel empty"><h1>Página não encontrada</h1><p>Confira o endereço ou o ID informado.</p><a className="btn" href="#/workflows">Voltar aos workflows</a></section>
 
-  return <div className="app-layout">
+  return <>
     <a href="#main" className="skip-link" onClick={e => { e.preventDefault(); document.getElementById('main')?.focus() }}>Pular para o conteúdo</a>
-    <aside className="sidebar"><a href="#/workflows" className="brand"><span className="brand-mark" aria-hidden="true">F</span>FlowForge</a>
-      <p className="sidebar-caption">AUTOMAÇÃO DE WORKFLOWS</p>
-      <nav aria-label="Navegação principal"><a href="#/workflows" className={path[0] !== 'executions' ? 'nav-active' : ''}>Workflows <span aria-hidden="true">↗</span></a></nav>
-      <div className="sidebar-bottom"><span className="environment-dot" /> Ambiente privado</div>
-    </aside>
-    <div className="workspace"><div className="topbar"><span>Workspace / {path[0] === 'executions' ? 'Execuções' : 'Workflows'}</span><span className="topbar-note">Versões & histórico</span></div>
-      <main id="main" tabIndex={-1} key={hash}>{page}</main>
-    </div>
-  </div>
+    <header className="masthead">
+      <a href="#/workflows" className="brand" aria-label="FlowForge, início"><BrandMark />FlowForge</a>
+      <nav aria-label="Navegação principal"><a href="#/workflows" aria-current={path[0] !== 'executions' ? 'page' : undefined}>Workflows</a></nav>
+      <span className="environment">Ambiente privado</span>
+    </header>
+    <main id="main" tabIndex={-1} key={hash}>{page}</main>
+  </>
+}
+
+// A marca é um workflow mínimo: gatilho, condição e saída ligados por um fio.
+function BrandMark() {
+  return <svg width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden="true">
+    <rect x="1" y="1" width="28" height="28" rx="8" fill="#15304c" stroke="#24496d" />
+    <path d="M8 15h4.5M17.5 15H22" stroke="#3a6286" strokeWidth="1.5" />
+    <path d="M8 15h4.5M17.5 15H22" stroke="#ffb547" strokeWidth="1.5" strokeDasharray="1.5 4" />
+    <circle cx="7.5" cy="15" r="2.5" fill="#ffb547" />
+    <path d="M15 11.2 18.8 15 15 18.8 11.2 15z" stroke="#ffd27a" strokeWidth="1.4" strokeLinejoin="round" />
+    <rect x="20.5" y="12.5" width="5" height="5" rx="1.2" stroke="#6fe3b4" strokeWidth="1.4" />
+  </svg>
 }
