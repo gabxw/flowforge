@@ -1,6 +1,6 @@
 # ADR 0012 — Identidade visual, esquemático e trace de execução
 
-Status: proposta, implementada na branch `redesign-interface` em 13/10/2026; ainda não integrada à main. Não inicia a Fase 12.
+Status: aceita e integrada à main pelo [PR #9](https://github.com/gabxw/flowforge/pull/9) em 13/10/2026. Não inicia a Fase 12.
 
 ## Problema
 
@@ -34,7 +34,3 @@ A cor só aparece com significado: âmbar para fluxo e ação principal, menta p
 - Sem rolagem horizontal da página a 720 px (equivalente a 200% de zoom em 1440 px).
 - Esquemático e barras do trace têm nome acessível (`role="img"` com `aria-label`). A informação completa continua acessível no editor e nos cards de node.
 - `prefers-reduced-motion` desliga o sinal animado e a animação das barras.
-
-## Como explicar em entrevista
-
-"Tratei a interface como uma forma de tornar visíveis as garantias do backend. O esquemático mostra que a execução usa uma versão imutável do grafo; o trace mostra a separação entre aceitar o comando e processá-lo, porque a primeira faixa é literalmente a fila. Não adicionei biblioteca de UI nem endpoint: tudo vem de dados que a API já expunha. O único item novo é uma fonte empacotada, escolhida para não depender de CDN em produção."
