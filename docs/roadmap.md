@@ -164,6 +164,8 @@ Commit sugerido: Criar telas de workflows e execuções.
 
 ## Fase 12 — Editor visual
 
+Status: em validação; implementação/evidências na [revisão da Fase 12](phase-12-review.md). Preserva o redesign do PR #9. Fase 13 não iniciada.
+
 Entregas: React Flow, cards e conexões por porta, configuração de nodes e validação com mensagens compreensíveis. Layout visual persiste separado da semântica de execução.
 
 Critério de saída: editar/salvar/reabrir sem perder configuração; representar portas true/false; rejeitar conexões incompatíveis; executar workflow publicado criado pelo editor.

@@ -1,6 +1,6 @@
 # Operação do frontend — Fase 11
 
-A interface privada permite listar/criar workflows, editar detalhes e estrutura, publicar versões, abrir novo rascunho, executar a versão publicada, consultar histórico/etapas/tentativas/logs e solicitar cancelamento. React Flow entra somente na Fase 12; autenticação entra na Fase 13.
+A interface privada permite listar/criar workflows, editar detalhes e estrutura, publicar versões, abrir novo rascunho, executar a versão publicada, consultar histórico/etapas/tentativas/logs e solicitar cancelamento. A Fase 12 acrescenta o [editor visual](visual-editor.md) com posições/conexões persistentes; autenticação entra na Fase 13.
 
 ## Executar e navegar
 
@@ -68,7 +68,7 @@ npm run build
 npm test
 ~~~
 
-npm test usa Chromium e API interceptada para falhas, 409, cancelamento ainda ativo, corrida de respostas, validação JSON e fluxo funcional; inclui testes de preservação numérica. A configuração inicia Vite automaticamente, ou usa FLOWFORGE_E2E_BASE_URL quando fornecida.
+npm test usa Chromium e API interceptada para falhas, 409, cancelamento ainda ativo, corrida de respostas, validação JSON e fluxo funcional; inclui testes de preservação numérica. A configuração inicia Vite automaticamente em 5180, ou usa FLOWFORGE_E2E_BASE_URL quando fornecida.
 
 Com Compose já preparado, execute a jornada com serviços reais:
 

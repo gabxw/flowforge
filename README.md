@@ -8,7 +8,7 @@ O problema central é aceitar eventos rapidamente e processar etapas externas de
 
 **Fases 1 a 11 concluídas. MVP de backend e interface funcional entregues.**
 
-Disponível: API privada para criar/listar/editar/publicar/arquivar workflows, domínio tipado com validação de DAG, persistência EF Core/PostgreSQL, migrations explícitas, Problem Details e OpenAPI. Há testes HTTP com banco real, controle de revisão e isolamento por proprietário técnico do servidor. A Fase 5 acrescenta solicitações de execução, outbox transacional, RabbitMQ e Worker com inbox recuperável. A Fase 6 acrescenta engine sequencial, executores Trigger/Log, checkpoints protegidos, histórico e cancelamento cooperativo. A Fase 7 acrescenta webhook com secret em header/hash, input protegido, idempotência opcional, rate limit e administração do endpoint. A Fase 8 acrescenta HTTP Request com conexão aprovada/TLS, limites e Credential com rotação/revogação e ciphertext autenticado. A Fase 9 completa os seis executores iniciais com Condition tipada, Transform JSON limitada e Delay durável que libera a entrega/lease e retoma pela outbox existente. A Fase 10 acrescenta tentativas auditáveis, retry limitado, deadline, recuperação de leases, DLQ sanitizada e redrive/replay explícitos. A Fase 11 acrescenta interface de workflows, editor por formulário e acompanhamento de execuções/logs, com jornadas de navegador e Docker aprovados. Editor visual/autenticação seguem no roadmap.
+Disponível: API privada para criar/listar/editar/publicar/arquivar workflows, domínio tipado com validação de DAG, persistência EF Core/PostgreSQL, migrations explícitas, Problem Details e OpenAPI. Há testes HTTP com banco real, controle de revisão e isolamento por proprietário técnico do servidor. A Fase 5 acrescenta solicitações de execução, outbox transacional, RabbitMQ e Worker com inbox recuperável. A Fase 6 acrescenta engine sequencial, executores Trigger/Log, checkpoints protegidos, histórico e cancelamento cooperativo. A Fase 7 acrescenta webhook com secret em header/hash, input protegido, idempotência opcional, rate limit e administração do endpoint. A Fase 8 acrescenta HTTP Request com conexão aprovada/TLS, limites e Credential com rotação/revogação e ciphertext autenticado. A Fase 9 completa os seis executores iniciais com Condition tipada, Transform JSON limitada e Delay durável que libera a entrega/lease e retoma pela outbox existente. A Fase 10 acrescenta tentativas auditáveis, retry limitado, deadline, recuperação de leases, DLQ sanitizada e redrive/replay explícitos. A Fase 11 acrescenta interface de workflows, editor por formulário e acompanhamento de execuções/logs, com jornadas de navegador e Docker aprovados. A Fase 12 implementa editor visual com React Flow, posições persistidas e portas tipadas, em validação. Autenticação segue na Fase 13.
 
 A Fase 11 está integrada à main pelo [PR #8](https://github.com/gabxw/flowforge/pull/8), com [CI do PR](https://github.com/gabxw/flowforge/actions/runs/38393442034) e [CI completo na main](https://github.com/gabxw/flowforge/actions/runs/38394353322) aprovados. Passaram **1.247 testes xUnit** (787 Domain + 111 Application + 125 API + 224 Integration), **27 testes do frontend** e uma jornada de navegador com API/PostgreSQL/RabbitMQ/Worker reais, além de lint/build/audit e validação Docker. A [operação da interface](docs/frontend.md), a [ADR 0011](docs/decisions/0011-frontend-and-server-authority.md) e a [revisão da Fase 11](docs/phase-11-review.md) registram decisões e evidências. Garantias do backend continuam nos contratos de [confiabilidade](docs/execution-reliability.md), [Condition/Transform/Delay](docs/declarative-nodes-and-delay.md) e [HTTP/credenciais](docs/http-and-credentials.md).
 
@@ -166,9 +166,9 @@ A versão de portfólio termina na Fase 16, com interface/editor, autenticação
 
 A Fase 11 entrega lista/criação/edição, publicação e consulta de versões, execução, histórico, tentativas, logs e cancelamento. O editor por formulário cobre os seis tipos iniciais e preserva a edição em erro/409. A tela acompanha o estado confirmado do backend; cancelamento solicitado aguarda o Worker. [Operação e testes do frontend](docs/frontend.md).
 
-![Lista de workflows no ambiente local com dados fictícios](docs/screenshots/phase-11-workflows.png)
+![Workflow publicado com condição e posições persistidas, usando dados fictícios](docs/screenshots/phase-12-published.png)
 
-Capturas reais de [estrutura por formulário](docs/screenshots/phase-11-workflow.png) e [execução com histórico protegido](docs/screenshots/phase-11-execution.png). Foram obtidas no Compose de validação, sem dados reais ou secrets. Editor visual e autenticação permanecem nas Fases 12 e 13.
+Capturas reais do [editor visual](docs/screenshots/phase-12-editor.png), de [estrutura por formulário na Fase 11](docs/screenshots/phase-11-workflow.png) e de [execução com histórico protegido](docs/screenshots/phase-11-execution.png). Foram obtidas no Compose de validação, sem dados reais ou secrets. A Fase 12 acrescenta [edição visual](docs/visual-editor.md), preservando o redesign de azul-prussiano/Archivo e o trace integrado pelo usuário no PR #9. Autenticação permanece na Fase 13.
 
 ## Decisões técnicas
 
@@ -220,7 +220,10 @@ No domínio, um rascunho pode ficar incompleto enquanto é editado. Publicar exi
 - [Interface e jornadas de navegador](docs/frontend.md)
 - [Decisão de interface e autoridade do servidor](docs/decisions/0011-frontend-and-server-authority.md)
 - [Revisão e validações da Fase 11](docs/phase-11-review.md)
+- [Editor visual e layout](docs/visual-editor.md)
+- [Decisão de editor e layout versionado](docs/decisions/0013-visual-editor-and-layout.md)
+- [Revisão e validações da Fase 12](docs/phase-12-review.md)
 
 Novos commits usam mensagens curtas e descritivas em português, sem qualquer prefixo; o histórico existente é preservado. A preferência pela conta gabxw e as demais regras do projeto estão em [AGENTS.md](AGENTS.md).
 
-Screenshots atuais mostram o fluxo funcional da Fase 11. O roadmap distingue editor visual, autenticação e observabilidade ainda planejados.
+Screenshots atuais mostram o layout salvo e o editor visual da Fase 12. O roadmap distingue autenticação e observabilidade ainda planejadas.
