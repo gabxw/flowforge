@@ -1,9 +1,10 @@
 import { useEffect, useId, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 import { parseExactJson } from '../api/json'
 import type { NodeConfiguration, WorkflowConnection, WorkflowNode, WorkflowVersion } from '../api/contracts'
 import { createWorkflowTemplate, defaultConfiguration, nodeTypeLabels } from '../workflows/templates'
 import type { NodeType } from '../workflows/templates'
+import { NodeGlyph } from './Ui'
 
 interface WorkflowEditorProps {
   version: WorkflowVersion
@@ -11,6 +12,7 @@ interface WorkflowEditorProps {
   saving: boolean
   onSave: (nodes: WorkflowNode[], connections: WorkflowConnection[]) => Promise<void>
   onDirtyChange?: (dirty: boolean) => void
+  readOnly?: boolean
 }
 
 interface EditableNode {
@@ -149,7 +151,14 @@ function buildNodes(nodes: EditableNode[]): WorkflowNode[] {
   })
 }
 
-export default function WorkflowEditor({ version, disabled, saving, onSave, onDirtyChange }: WorkflowEditorProps) {
+// Versão publicada ou arquivada: o esquemático já resume a estrutura, então a
+// configuração completa fica recolhida em vez de ocupar a página desabilitada.
+function ReadOnlyFold({ readOnly, count, children }: { readOnly: boolean; count: number; children: ReactNode }) {
+  if (!readOnly) return <>{children}</>
+  return <details className="readonly-fold"><summary>Ver a configuração das {count} etapas e conexões (somente leitura)</summary>{children}</details>
+}
+
+export default function WorkflowEditor({ version, disabled, saving, onSave, onDirtyChange, readOnly = false }: WorkflowEditorProps) {
   const editorId = useId()
   const [draft, setDraft] = useState<LocalDraft>(() => fromVersion(version))
   const [newType, setNewType] = useState<NodeType>('log')
@@ -281,7 +290,7 @@ export default function WorkflowEditor({ version, disabled, saving, onSave, onDi
             {' '}As regras do grafo são verificadas pelo backend ao publicar.
           </p>
         </div>
-        <span role="status" className="muted">
+        <span role="status" className="editor-status">
           {submitting || saving ? 'Salvando…' : draft.dirty ? 'Alterações locais não salvas' : 'Estrutura carregada do backend'}
         </span>
       </div>
@@ -294,7 +303,7 @@ export default function WorkflowEditor({ version, disabled, saving, onSave, onDi
       {error && <p role="alert" className="notice notice-error">{error}</p>}
 
       {!disabled && empty && (
-        <div className="editor-toolbar">
+        <div className="template-choices">
           <button type="button" className="btn" disabled={locked} onClick={() => applyTemplate('simple')}>
             Usar exemplo Trigger → Log
           </button>
@@ -305,18 +314,20 @@ export default function WorkflowEditor({ version, disabled, saving, onSave, onDi
         </div>
       )}
 
+      <ReadOnlyFold readOnly={readOnly} count={draft.nodes.length}>
       <div className="editor-grid">
         {draft.nodes.map((entry, index) => {
           const nodeId = entry.node.nodeId
           const relatedConnections = draft.connections.filter(connection =>
             connection.sourceNodeId === nodeId || connection.targetNodeId === nodeId).length
           return (
-            <section key={nodeId} className="card editor-node" aria-labelledby={editorId + '-node-' + nodeId}>
-              <h4 id={editorId + '-node-' + nodeId}>{index + 1}. {nodeTypeLabels[entry.type]}</h4>
-              <p className="muted"><code>{nodeId}</code></p>
-              <label className="field" htmlFor={editorId + '-type-' + nodeId}>
-                Tipo do node {index + 1}
+            <section key={nodeId} className="editor-node" aria-labelledby={editorId + '-node-' + nodeId}>
+              <header><NodeGlyph type={entry.type} /><h4 id={editorId + '-node-' + nodeId}>{index + 1}. {nodeTypeLabels[entry.type]}</h4></header>
+              <code>{nodeId}</code>
+              <label className="select-label" htmlFor={editorId + '-type-' + nodeId}>
+                <span>Tipo do node {index + 1}</span>
                 <select
+                  className="field"
                   id={editorId + '-type-' + nodeId}
                   value={entry.type}
                   disabled={locked}
@@ -333,7 +344,7 @@ export default function WorkflowEditor({ version, disabled, saving, onSave, onDi
                   {Object.entries(nodeTypeLabels).map(([type, label]) => <option key={type} value={type}>{label}</option>)}
                 </select>
               </label>
-              {!disabled && <p className="muted">Trocar o tipo substitui a configuração deste node pelos valores iniciais.</p>}
+              {!disabled && <p className="hint">Trocar o tipo substitui a configuração deste node pelos valores iniciais.</p>}
               <label htmlFor={editorId + '-config-' + nodeId}>
                 Configuração JSON do node {index + 1}
               </label>
@@ -361,16 +372,16 @@ export default function WorkflowEditor({ version, disabled, saving, onSave, onDi
                     disabled={locked}
                     onChange={event => changeNode(nodeId, current => ({ ...current, credentialText: event.target.value }))}
                   />
-                  <p className="muted">
+                  <p className="hint">
                     Use somente a referência de Credential. Não coloque segredos na URL ou no JSON.
                     A URL inicial é fictícia; configure um destino HTTPS permitido antes de executar.
                     POST/PUT/PATCH usam o input como corpo.
                   </p>
                 </>
               )}
-              {entry.type === 'delay' && <p className="muted">10.000.000 ticks = 1 segundo; duração máxima de 24 horas.</p>}
-              {entry.type === 'condition' && <p className="muted">Use JSON Pointer e conecte as portas true e false. A comparação aceita dados JSON, sem executar código.</p>}
-              {entry.type === 'transformJson' && <p className="muted">Cada field usa exatamente um sourcePointer ou literal. O resultado substitui o input do próximo node.</p>}
+              {entry.type === 'delay' && <p className="hint">10.000.000 ticks = 1 segundo; duração máxima de 24 horas.</p>}
+              {entry.type === 'condition' && <p className="hint">Use JSON Pointer e conecte as portas true e false. A comparação aceita dados JSON, sem executar código.</p>}
+              {entry.type === 'transformJson' && <p className="hint">Cada field usa exatamente um sourcePointer ou literal. O resultado substitui o input do próximo node.</p>}
               {!disabled && (
                 <button type="button" className="btn" disabled={locked} onClick={() => removeNode(nodeId)}>
                   Remover node {index + 1}{relatedConnections > 0 ? ' e ' + relatedConnections + ' conexão(ões)' : ''}
@@ -382,10 +393,10 @@ export default function WorkflowEditor({ version, disabled, saving, onSave, onDi
       </div>
 
       {!disabled && (
-        <div className="editor-toolbar">
-          <label className="field" htmlFor={editorId + '-new-type'}>
-            Tipo do novo node
-            <select id={editorId + '-new-type'} value={newType} disabled={locked} onChange={event => setNewType(event.target.value as NodeType)}>
+        <div className="add-node">
+          <label className="select-label" htmlFor={editorId + '-new-type'}>
+            <span>Tipo do novo node</span>
+            <select className="field" id={editorId + '-new-type'} value={newType} disabled={locked} onChange={event => setNewType(event.target.value as NodeType)}>
               {Object.entries(nodeTypeLabels).map(([type, label]) => <option key={type} value={type}>{label}</option>)}
             </select>
           </label>
@@ -395,13 +406,15 @@ export default function WorkflowEditor({ version, disabled, saving, onSave, onDi
 
       <h3>Conexões</h3>
       {draft.connections.length === 0 && <p className="muted">Nenhuma conexão definida.</p>}
+      <div className="editor-connections">
       {draft.connections.map((connection, index) => (
-        <section key={connection.id} className="card editor-connection" aria-label={'Conexão ' + (index + 1)}>
+        <section key={connection.id} className="editor-connection" aria-label={'Conexão ' + (index + 1)}>
           <h4>Conexão {index + 1}</h4>
-          <div className="editor-toolbar">
-            <label className="field" htmlFor={editorId + '-source-' + connection.id}>
-              Origem da conexão {index + 1}
+          <div className="connection-fields">
+            <label className="select-label" htmlFor={editorId + '-source-' + connection.id}>
+              <span>Origem da conexão {index + 1}</span>
               <select
+                className="field"
                 id={editorId + '-source-' + connection.id}
                 value={connection.sourceNodeId}
                 disabled={locked}
@@ -411,9 +424,10 @@ export default function WorkflowEditor({ version, disabled, saving, onSave, onDi
                   <option key={entry.node.nodeId} value={entry.node.nodeId}>{nodeIndex + 1}. {nodeTypeLabels[entry.type]}</option>)}
               </select>
             </label>
-            <label className="field" htmlFor={editorId + '-port-' + connection.id}>
-              Porta da conexão {index + 1}
+            <label className="select-label" htmlFor={editorId + '-port-' + connection.id}>
+              <span>Porta da conexão {index + 1}</span>
               <select
+                className="field"
                 id={editorId + '-port-' + connection.id}
                 value={connection.sourcePort}
                 disabled={locked}
@@ -424,9 +438,10 @@ export default function WorkflowEditor({ version, disabled, saving, onSave, onDi
                 <option value="false">false</option>
               </select>
             </label>
-            <label className="field" htmlFor={editorId + '-target-' + connection.id}>
-              Destino da conexão {index + 1}
+            <label className="select-label" htmlFor={editorId + '-target-' + connection.id}>
+              <span>Destino da conexão {index + 1}</span>
               <select
+                className="field"
                 id={editorId + '-target-' + connection.id}
                 value={connection.targetNodeId}
                 disabled={locked}
@@ -444,9 +459,11 @@ export default function WorkflowEditor({ version, disabled, saving, onSave, onDi
           )}
         </section>
       ))}
+      </div>
+      </ReadOnlyFold>
 
       {!disabled && (
-        <div className="editor-toolbar">
+        <div className="editor-footer">
           <button type="button" className="btn" disabled={locked || draft.nodes.length < 2 || draft.connections.length >= 100} onClick={addConnection}>
             Adicionar conexão
           </button>
@@ -459,7 +476,7 @@ export default function WorkflowEditor({ version, disabled, saving, onSave, onDi
           )}
         </div>
       )}
-      <p className="muted">Configuração: até 64 KiB por node e grafo de até 1 MiB neste editor. Salvar não publica nem executa o workflow.</p>
+      <p className="hint muted small" style={{ marginTop: '1rem' }}>Configuração: até 64 KiB por node e grafo de até 1 MiB neste editor. Salvar não publica nem executa o workflow.</p>
     </form>
   )
 }
