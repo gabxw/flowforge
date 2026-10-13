@@ -188,7 +188,7 @@ Commit sugerido: Proteger acesso e rotacionar sessões de atualização.
 
 ## Fase 14 — Observabilidade
 
-Status: concluída localmente em 13/10/2026. 1.282 casos xUnit aprovados, SDK final e propagação HTTP testados, duas jornadas reais e painel com API/Worker conferidos. [Revisão](phase-14-review.md). Publicação e CI acompanhados na Fase 15 autorizada.
+Status: concluída localmente em 13/10/2026. 1.282 casos xUnit aprovados, SDK final e propagação HTTP testados, duas jornadas reais e painel com API/Worker conferidos. [Revisão](phase-14-review.md). Publicada no commit 5d61583, com [CI completo](https://github.com/gabxw/flowforge/actions/runs/38454995333) aprovado.
 
 Entregas: OpenTelemetry na API, Worker e HTTP; propagação de trace pelo RabbitMQ; spans de nodes; correlação de logs; métricas e painel mínimo para investigar uma execução. Sem payload em atributos de trace.
 
@@ -199,6 +199,8 @@ Revisão: ExecutionId e outros IDs únicos não são labels de métricas; logs e
 Commit sugerido: Rastrear execuções entre API e Worker.
 
 ## Fase 15 — Testes e CI/CD
+
+Status: implementação e validação local/CI aprovadas em 13/10/2026. [PR #12](https://github.com/gabxw/flowforge/pull/12), clone limpo e PR negativo bloqueado; evidências na [revisão](phase-15-review.md). Merge final depende dos três checks obrigatórios.
 
 Entregas: GitHub Actions com restore/build/test, serviços de integração/Testcontainers, lint/typecheck/build do frontend e validação/build dos containers. Consolidar a suíte já criada e política de dependências/segredos. Deploy só entra quando houver destino escolhido e autorizado.
 
