@@ -17,20 +17,11 @@ on:
       - .dockerignore
       - .github/workflows/**
   pull_request:
-    paths:
-      - src/**
-      - tests/**
-      - frontend/**
-      - scripts/**
-      - "*.slnx"
-      - global.json
-      - .config/dotnet-tools.json
-      - Directory.Build.props
-      - NuGet.Config
-      - compose.yaml
-      - .dockerignore
-      - .github/workflows/**
   workflow_dispatch:
+
+concurrency:
+  group: validacao-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -52,6 +43,12 @@ jobs:
         run: dotnet restore FlowForge.slnx --locked-mode
       - name: Compilar solução
         run: dotnet build FlowForge.slnx -c Release --no-restore
+      - name: Auditar dependências do backend
+        run: |
+          mkdir -p TestResults
+          dotnet list FlowForge.slnx package --vulnerable --include-transitive --no-restore --format json > TestResults/dependency-audit.json
+          count=$(jq '[.. | objects | .vulnerabilities? // empty | .[] | select(.severity == "High" or .severity == "Critical")] | length' TestResults/dependency-audit.json)
+          test "$count" -eq 0
       - name: Validar migrations
         env:
           FLOWFORGE_POSTGRES_CONNECTION_STRING: Host=127.0.0.1;Database=flowforge_design
@@ -61,7 +58,7 @@ jobs:
           mkdir -p TestResults
           dotnet ef migrations script --idempotent --project src/FlowForge.Infrastructure --startup-project src/FlowForge.Infrastructure --configuration Release --no-build --output TestResults/migrations.sql
       - name: Executar testes
-        run: dotnet test FlowForge.slnx -c Release --no-build --logger trx --results-directory TestResults
+        run: dotnet test FlowForge.slnx -c Release --no-build -m:1 --logger trx --results-directory TestResults
       - name: Guardar lockfiles e resultados
         if: ${{ !cancelled() && steps.restaurar.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -72,6 +69,7 @@ jobs:
             tests/**/packages.lock.json
             TestResults/*.trx
             TestResults/migrations.sql
+            TestResults/dependency-audit.json
           retention-days: 7
 
   frontend:
@@ -115,7 +113,6 @@ jobs:
 
   containers:
     name: Ambiente Docker e encerramento do Worker
-    needs: [backend, frontend]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
