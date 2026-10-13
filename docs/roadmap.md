@@ -152,6 +152,8 @@ Commits sugeridos: Implementar tentativas limitadas e recuperação de entregas;
 
 ## Fase 11 — Frontend funcional
 
+Status: em validação. Interface, consulta de histórico e jornadas de navegador na [revisão da Fase 11](phase-11-review.md). Não iniciar a Fase 12 antes do encerramento.
+
 Entregas: listagem, formulário de criação/edição, publicação, execução, detalhe dos nodes, logs e cancelamento. Primeiro editor baseado em formulário/estrutura, com tratamento de loading, erro e conflito.
 
 Critério de saída: lint/typecheck/build; teste de uma jornada de criação e consulta de execução, incluindo falha de API e autorização quando disponível. Usar dados fictícios.

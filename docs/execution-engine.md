@@ -6,6 +6,7 @@ A API privada aceita um comando sem corpo e fixa a versão publicada. O Worker e
 
 | Método | Caminho | Resultado |
 | --- | --- | --- |
+| GET | /api/workflows/{id}/executions?offset=0&limit=20 | Histórico paginado por proprietário/workflow, inclusive arquivado; items/offset/limit, createdAt/id decrescentes |
 | POST | /api/workflows/{id}/executions | Sem corpo; 202 Pending e Location |
 | GET | /api/executions/{id} | Estado, versão fixa, CorrelationId, horários, ErrorCode, CancelRequestedAt, ResumeAt e DeadlineAt |
 | GET | /api/executions/{id}/nodes | Até 50 nodes, ordenados pelo ordinal do grafo; horário determina a execução efetiva |

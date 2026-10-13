@@ -8,7 +8,7 @@ O problema central é aceitar eventos rapidamente e processar etapas externas de
 
 **Fases 1 a 10 concluídas. MVP de backend entregue.**
 
-Disponível: API privada para criar/listar/editar/publicar/arquivar workflows, domínio tipado com validação de DAG, persistência EF Core/PostgreSQL, migrations explícitas, Problem Details e OpenAPI. Há testes HTTP com banco real, controle de revisão e isolamento por proprietário técnico do servidor. A Fase 5 acrescenta solicitações de execução, outbox transacional, RabbitMQ e Worker com inbox recuperável. A Fase 6 acrescenta engine sequencial, executores Trigger/Log, checkpoints protegidos, histórico e cancelamento cooperativo. A Fase 7 acrescenta webhook com secret em header/hash, input protegido, idempotência opcional, rate limit e administração do endpoint. A Fase 8 acrescenta HTTP Request com conexão aprovada/TLS, limites e Credential com rotação/revogação e ciphertext autenticado. A Fase 9 completa os seis executores iniciais com Condition tipada, Transform JSON limitada e Delay durável que libera a entrega/lease e retoma pela outbox existente. A Fase 10 acrescenta tentativas auditáveis, retry limitado, deadline, recuperação de leases, DLQ sanitizada e redrive/replay explícitos. O frontend continua como shell; autenticação/editor seguem no roadmap.
+Disponível: API privada para criar/listar/editar/publicar/arquivar workflows, domínio tipado com validação de DAG, persistência EF Core/PostgreSQL, migrations explícitas, Problem Details e OpenAPI. Há testes HTTP com banco real, controle de revisão e isolamento por proprietário técnico do servidor. A Fase 5 acrescenta solicitações de execução, outbox transacional, RabbitMQ e Worker com inbox recuperável. A Fase 6 acrescenta engine sequencial, executores Trigger/Log, checkpoints protegidos, histórico e cancelamento cooperativo. A Fase 7 acrescenta webhook com secret em header/hash, input protegido, idempotência opcional, rate limit e administração do endpoint. A Fase 8 acrescenta HTTP Request com conexão aprovada/TLS, limites e Credential com rotação/revogação e ciphertext autenticado. A Fase 9 completa os seis executores iniciais com Condition tipada, Transform JSON limitada e Delay durável que libera a entrega/lease e retoma pela outbox existente. A Fase 10 acrescenta tentativas auditáveis, retry limitado, deadline, recuperação de leases, DLQ sanitizada e redrive/replay explícitos. A Fase 11 acrescenta interface de workflows, editor por formulário e acompanhamento de execuções/logs, com validação local aprovada e publicação em andamento. Editor visual/autenticação seguem no roadmap.
 
 A Fase 10 está integrada à main pelo [PR #7](https://github.com/gabxw/flowforge/pull/7), com [CI do PR](https://github.com/gabxw/flowforge/actions/runs/38303437391) e [CI completo na main](https://github.com/gabxw/flowforge/actions/runs/38304241134) aprovados. Passaram **1.240 testes xUnit** (787 Domain + 111 Application + 118 API + 224 Integration), além de lint/build do frontend e validação Docker com redrive/replay, cancelamento e retomada após broker/API/Worker recriados. O [contrato de confiabilidade](docs/execution-reliability.md), a [ADR 0010](docs/decisions/0010-bounded-retries-and-explicit-recovery.md) e a [revisão da Fase 10](docs/phase-10-review.md) registram garantias e limites. Os contratos de [Condition/Transform/Delay](docs/declarative-nodes-and-delay.md) e [HTTP/credenciais](docs/http-and-credentials.md) descrevem os seis executores atuais.
 
@@ -67,6 +67,7 @@ Domain não referencia outros projetos ou pacotes externos. Application referenc
 | Data Protection | Contexto/Log na Fase 6, input original na Fase 7 e Credential na Fase 8; keyring persistente compartilhado API/Worker |
 | Testcontainers | Primeiros testes de adaptadores com serviços reais |
 | OpenAPI | Documento nativo em Development na Fase 1; interface Swagger avaliada junto da API funcional |
+| Playwright | Jornadas de navegador e contrato JSON na Fase 11; serviços reais no Compose |
 | React Flow | Editor visual na Fase 12 |
 | JWT / refresh tokens / RBAC | Fase 13 |
 | OpenTelemetry | Instrumentação consolidada na Fase 14 |
@@ -96,7 +97,7 @@ As variáveis fornecem Compose secrets: PostgreSQL em API/Worker/banco e RabbitM
 
 | Endereço | Finalidade |
 | --- | --- |
-| http://127.0.0.1:5173 | Shell frontend e consulta de liveness via proxy |
+| http://127.0.0.1:5173 | Interface de workflows, execuções e logs pelo proxy |
 | http://127.0.0.1:5080/health/live | API liveness |
 | http://127.0.0.1:5080/api/workflows | API privada de workflows |
 | POST http://127.0.0.1:5080/hooks/{id} | Ingresso com secret no header; também acessível pelo proxy 5173 |
@@ -161,6 +162,14 @@ O MVP de backend foi concluído na Fase 10: criar/publicar via API privada, rece
 
 A versão de portfólio termina na Fase 16, com interface/editor, autenticação, observabilidade, testes/CI consolidados e documentação. Até autenticação, a aplicação permanece local ou privada.
 
+## Interface
+
+A Fase 11 entrega lista/criação/edição, publicação e consulta de versões, execução, histórico, tentativas, logs e cancelamento. O editor por formulário cobre os seis tipos iniciais e preserva a edição em erro/409. A tela acompanha o estado confirmado do backend; cancelamento solicitado aguarda o Worker. [Operação e testes do frontend](docs/frontend.md).
+
+![Lista de workflows no ambiente local com dados fictícios](docs/screenshots/phase-11-workflows.png)
+
+Capturas reais de [estrutura por formulário](docs/screenshots/phase-11-workflow.png) e [execução com histórico protegido](docs/screenshots/phase-11-execution.png). Foram obtidas no Compose de validação, sem dados reais ou secrets. Editor visual e autenticação permanecem nas Fases 12 e 13.
+
 ## Decisões técnicas
 
 - Execuções fixam versões publicadas imutáveis: uma edição não altera trabalho em andamento.
@@ -208,7 +217,10 @@ No domínio, um rascunho pode ficar incompleto enquanto é editado. Publicar exi
 - [Confiabilidade, tentativas e recuperação](docs/execution-reliability.md)
 - [Decisão de retry e recuperação explícita](docs/decisions/0010-bounded-retries-and-explicit-recovery.md)
 - [Revisão e validações da Fase 10](docs/phase-10-review.md)
+- [Interface e jornadas de navegador](docs/frontend.md)
+- [Decisão de interface e autoridade do servidor](docs/decisions/0011-frontend-and-server-authority.md)
+- [Revisão e validações da Fase 11](docs/phase-11-review.md)
 
 Novos commits usam mensagens curtas e descritivas em português, sem qualquer prefixo; o histórico existente é preservado. A preferência pela conta gabxw e as demais regras do projeto estão em [AGENTS.md](AGENTS.md).
 
-Screenshots reais serão adicionados depois que o fluxo funcional estiver disponível. O material atual não apresenta funcionalidades futuras como concluídas.
+Screenshots atuais mostram o fluxo funcional da Fase 11. O roadmap distingue editor visual, autenticação e observabilidade ainda planejados.

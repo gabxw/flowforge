@@ -1,0 +1,45 @@
+# Revisão técnica — Fase 11
+
+Data: 13/10/2026.
+Status: implementação e revisão em validação; publicação/CI pendentes. Não iniciar a Fase 12.
+
+## Entrega
+
+Interface funcional para lista/criação/edição/publicação/versionamento/arquivamento e execução, com histórico remoto, nodes, tentativas, logs e cancelamento. Editor por formulário/estrutura dos seis tipos, sem React Flow ou autenticação antecipados.
+
+- Navegação por URL com hash; links recarregáveis e IDs validados.
+- Cliente fetch same-origin com timeout/abort e Problem Details sanitizado.
+- Revisão do workflow em cada mutação; erro/409 preserva rascunho e descarte é explícito.
+- Estado confirmado do backend, sem publicação ou cancelamento otimista.
+- Polling sequencial ativo/visível, resposta antiga invalidada na navegação/mutação.
+- Proteção de precisão JSON na leitura/edição; nenhuma condição decimal é arredondada silenciosamente.
+- GET paginado de execuções por workflow, owner-scoped e sem dados protegidos.
+- Playwright como única dependência nova de desenvolvimento; CI com mocks e serviços reais.
+
+[ADR 0011](decisions/0011-frontend-and-server-authority.md) registra alternativas/trade-offs/entrevista; [operação](frontend.md) explica execução e limites.
+
+## Validação
+
+Build Release do backend: zero warnings/erros. Suíte completa: **1.247 aprovados**, zero falhas/ignorados (787 Domain + 111 Application + 125 API + 224 Integration). Os sete cenários novos cobrem paginação, workflow sem execuções, histórico arquivado, isolamento e parâmetros inválidos.
+
+Lint/typecheck/build finais e npm audit aprovados, zero vulnerabilidades. **27 testes do frontend aprovados**: 13 jornadas Chromium com API controlada e 14 verificações de JSON exato; zero falhas/ignorados/retries.
+
+Docker isolado flowforge-phase11-validation-20261013: build de todas as imagens, nginx -t, migrations aplicadas duas vezes, smoke/proxy e jornada real no navegador aprovados. A jornada cria/publica/executa/consulta histórico e arquiva apenas seu workflow fictício. Uma segunda demonstração percorre o formulário de Condition/Transform/Delay e uma execução concluída, com inspeção de lista/editor/execução em 1440px e 390px; sem pageerrors ou overflow horizontal da página. Screenshots reais foram inspecionados e salvos em docs/screenshots. Worker encerrou exited:0:false. Apenas o projeto descartável e seus volumes foram removidos.
+
+CI remoto/publicação continuam pendentes; registrar links reais após aprovação.
+
+## Revisão técnica e riscos
+
+Domain permanece independente de ASP/EF e não foi alterado. A consulta nova utiliza a porta de armazenamento existente; nenhuma migration ou dependência backend foi acrescentada. Identidades, revisões, versão fixa e criptografia permanecem sob autoridade do servidor.
+
+Revisão encontrou arredondamento de decimal longo em JSON.parse; a correção valida tokens antes do parse e recusa números incompatíveis com o roundtrip do navegador, com texto/dados preservados. Revisão também protegeu callbacks após desmontagem e invalidou leituras anteriores ao aceite de mutações.
+
+Logs/input/output mantêm a política de metadados protegidos. Erros não reproduzem corpo técnico recebido. Sem eval, HTML injetado, localStorage de dados operacionais ou secrets no bundle.
+
+O editor depende de JSON por configuração e não faz merge concorrente. Alguns números válidos na API ficam inacessíveis na interface por precisão; não são modificados. Histórico usa paginação por offset, sem snapshot entre páginas; versões do workflow continuam conforme contrato existente. Cache compartilhado, filtros adicionais e editor visual permanecem fora desta fase.
+
+Uso local/privado sem JWT/RBAC. Autorização real continua pendente da Fase 13; a resposta 401 é exercitada como contrato de falha, sem simular login. Retenção/quotas/HA/keyring Production são os riscos já documentados na Fase 10. Banco e volumes operacionais não foram migrados/removidos.
+
+## Publicação
+
+Pendentes: commits em português, PR, CI do PR, integração à main e CI da main. Registrar hashes/links reais depois da aprovação.
