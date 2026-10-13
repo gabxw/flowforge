@@ -176,6 +176,8 @@ Commit sugerido: Implementar editor visual de workflows.
 
 ## Fase 13 — Autenticação e RBAC
 
+Status: implementada e validada em 13/10/2026; 1.275 testes backend, 43 frontend, duas jornadas autenticadas reais e QA aprovados. [Revisão](phase-13-review.md). Publicação e CI acompanhados durante as próximas etapas autorizadas.
+
 Entregas: autenticação do User já introduzido para ownership, JWT, RefreshSession, rotação, detecção de reuse, revogação, password hashing, roles Owner/Admin e autorização por objeto. Cookie de refresh e proteção CSRF/CORS conforme a implantação.
 
 Critério de saída: login, expiração, rotação concorrente definida, logout, revogação de família, reutilização de token e tentativas de acessar recursos/credenciais de outro dono. Testes de isolamento e limites por usuário.
