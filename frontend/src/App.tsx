@@ -3,10 +3,14 @@ import { WorkflowListPage } from './pages/WorkflowListPage'
 import { CreateWorkflowPage } from './pages/CreateWorkflowPage'
 import { WorkflowPage } from './pages/WorkflowPage'
 import { ExecutionPage } from './pages/ExecutionPage'
+import { LoginPage } from './pages/LoginPage'
+import { useAuth } from './auth/context'
 
 const uuid = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i
 
 export default function App() {
+  const auth = useAuth()
+  const [signOutError, setSignOutError] = useState<string | null>(null)
   const [hash, setHash] = useState(() => window.location.hash || '#/workflows')
   const current = useRef(hash)
   const dirty = useRef(false)
@@ -30,6 +34,11 @@ export default function App() {
     return () => { window.removeEventListener('hashchange', change); window.removeEventListener('beforeunload', unload) }
   }, [])
 
+  async function signOut() {
+    if (dirty.current && !window.confirm("Há alterações não salvas. Deseja sair e descartá-las?")) return
+    try { await auth.signOut(); dirty.current = false; setSignOutError(null) }
+    catch { setSignOutError("Não foi possível confirmar a saída. Tente novamente.") }
+  }
   const path = hash.replace(/^#/, '').split('/').filter(Boolean)
   let page
   if (!path.length || (path.length === 1 && path[0] === 'workflows')) page = <WorkflowListPage />
@@ -43,9 +52,13 @@ export default function App() {
     <header className="masthead">
       <a href="#/workflows" className="brand" aria-label="FlowForge, início"><BrandMark />FlowForge</a>
       <nav aria-label="Navegação principal"><a href="#/workflows" aria-current={path[0] !== 'executions' ? 'page' : undefined}>Workflows</a></nav>
-      <span className="environment">Ambiente privado</span>
+      {auth.user ? <div className="session-actions"><span className="environment">{auth.user.email}</span><button className="btn" onClick={()=>void signOut()}>Sair</button></div> : <span className="environment">Ambiente privado</span>}
     </header>
-    <main id="main" tabIndex={-1} key={hash}>{page}</main>
+    <main id="main" tabIndex={-1}>
+      {signOutError && <p role="alert" className="notice notice-error">{signOutError}</p>}
+      {auth.required && <LoginPage key={auth.loading ? "loading" : "login"} />}
+      {auth.user && <div hidden={auth.required} key={auth.user.id + hash}>{page}</div>}
+    </main>
   </>
 }
 

@@ -55,6 +55,10 @@ export async function mockApi(page: Page, options: {exists?: boolean; status?: s
     const body = request.postData() ? request.postDataJSON() : null
     const ok = (value: unknown, status = 200) => route.fulfill({status, contentType: 'application/json', body: JSON.stringify(value)})
     const problem = (status: number, detail: string) => route.fulfill({status, contentType: 'application/problem+json', body: JSON.stringify({status, title: 'Operação recusada', detail})})
+    if (path === '/api/auth/csrf') return ok({csrfToken: 'mock-antiforgery-token'})
+    if (path === '/api/auth/status') return ok({canRegister: true, setupRequired: false, hasSession: true})
+    if (path === '/api/auth/refresh' || path === '/api/auth/login' || path === '/api/auth/register') return ok({accessToken: 'mock-access-token', expiresAt: '2099-01-01T00:00:00Z', user: {id: '10000000-0000-4000-8000-000000000010', email: 'owner@flowforge.local', role: 'owner'}})
+    if (path === '/api/auth/logout') return ok({signedOut: true})
     if (method !== 'GET') commands.push({method, path, body})
     if (path === '/api/workflows' && method === 'GET') {
       return ok({items: exists ? [workflow] : [], offset: 0, limit: 20})

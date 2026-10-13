@@ -4,6 +4,7 @@ import type {
   UpdateWorkflowRequest, WorkflowDetail, WorkflowExecution, WorkflowList,
 } from './contracts'
 import { JsonPrecisionError, parseExactJson } from './json'
+import { authentication, AuthError } from './auth'
 
 const API_BASE = '/api'
 const REQUEST_TIMEOUT_MS = 10_000
@@ -63,6 +64,8 @@ function graphErrors(body: unknown): GraphValidationError[] {
 
 function problem(status: number, body?: unknown): ApiProblem {
   const messages: Record<number, [string, string]> = {
+    401: ['Sessão expirada', 'Entre novamente para continuar. A edição local foi preservada.'],
+    403: ['Acesso negado', 'Sua conta não tem permissão para esta operação.'],
     400: ['Requisição inválida', 'Revise os campos, configurações e limites do formulário.'],
     404: ['Recurso não encontrado', 'Este recurso não está disponível para o proprietário atual.'],
     409: ['Conflito ao salvar', 'O recurso foi alterado ou seu estado não permite esta operação. Recarregue antes de tentar novamente.'],
@@ -89,10 +92,11 @@ async function request<T>(path: string, method = 'GET', body?: unknown, signal?:
   }, REQUEST_TIMEOUT_MS)
 
   try {
-    const response = await fetch(API_BASE + path, {
+    const send = () => fetch(API_BASE + path, {
       method,
       headers: {
         Accept: 'application/json, application/problem+json',
+        ...(authentication.token() ? { Authorization: 'Bearer ' + authentication.token() } : {}),
         ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -100,6 +104,12 @@ async function request<T>(path: string, method = 'GET', body?: unknown, signal?:
       credentials: 'same-origin',
       cache: 'no-store',
     })
+    if (!authentication.token()) { try { await authentication.refresh() } catch (e) { throw new ApiError(problem(e instanceof AuthError ? e.status : 503)) } }
+    let response = await send()
+    if (response.status === 401) {
+      try { await authentication.refresh() } catch (e) { throw new ApiError(problem(e instanceof AuthError ? e.status : 503)) }
+      response = await send()
+    }
 
     let result: unknown
     const mediaType = response.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase()

@@ -403,3 +403,17 @@ summary:hover { color: var(--paper); }
 .visual-actions { display: flex; gap: .8rem; align-items: center; flex-wrap: wrap; margin-top: .8rem; }
 .visual-actions .hint { margin: 0; }
 @media (max-width: 720px) { .workflow-canvas { height: 420px; } .flow-card { width: 222px; } .visual-caption { align-items: flex-start; } }
+
+/* Acesso da Fase 13: mesmos tokens e tipografia do workflow. */
+.access-layout { display: grid; grid-template-columns: minmax(0, 480px) minmax(0, 1fr); gap: 3rem; align-items: start; max-width: 960px; margin: 3rem auto; }
+.access-form { display: grid; gap: 1rem; }
+.access-form h1 { font-size: clamp(1.7rem, 5vw, 2.6rem); }
+.access-form label { font-weight: 650; margin-bottom: -.5rem; }
+.access-context { padding: 1.5rem 0; color: var(--paper-2); }
+.access-context h2 { color: var(--paper); margin-bottom: 1rem; }
+.access-context p + p { margin-top: 1rem; }
+.session-actions { display: flex; align-items: center; gap: 1rem; margin-left: auto; min-width: 0; }
+.session-actions .environment { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 240px; }
+@media (max-width: 720px) { .access-layout { grid-template-columns: 1fr; margin: 1rem auto; gap: 1rem; } .access-context { padding: .5rem; } .session-actions .environment { display: none; } }
+
+.access-form input { width: 100%; min-height: 44px; border: 1px solid var(--edge); border-radius: 8px; padding: .8rem 1rem; background: var(--ink-0); color: var(--paper); font-size: .9rem; }

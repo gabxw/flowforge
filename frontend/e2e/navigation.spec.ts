@@ -1,3 +1,4 @@
+import { mockSession } from './session-mock'
 import { expect, test } from '@playwright/test'
 import { executionDetail, ids } from './mock-api'
 
@@ -8,7 +9,7 @@ test('resposta atrasada de outra execução não sobrescreve a tela atual', asyn
   const firstStarted = new Promise<void>(resolve => {markStarted = resolve})
   let markFinished!: () => void
   const firstFinished = new Promise<void>(resolve => {markFinished = resolve})
-  await page.route(url => url.pathname.startsWith('/api/'), async route => {
+  await page.route(url => url.pathname.startsWith('/api/') && !url.pathname.startsWith('/api/auth/'), async route => {
     const path = new URL(route.request().url()).pathname
     if (path === '/api/executions/' + ids.execution) {
       markStarted()
@@ -36,3 +37,5 @@ test('resposta atrasada de outra execução não sobrescreve a tela atual', asyn
   await expect(page.getByText('Concluída', {exact: true})).toBeVisible()
   await expect(page.getByText('Falhou', {exact: true})).toHaveCount(0)
 })
+
+test.beforeEach(async ({page}) => { await mockSession(page) })

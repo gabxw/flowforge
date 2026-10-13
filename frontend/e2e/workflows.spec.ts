@@ -1,3 +1,4 @@
+import { mockSession } from './session-mock'
 import { expect, test } from '@playwright/test'
 import { ids, mockApi } from './mock-api'
 
@@ -61,7 +62,7 @@ for (const status of [503, 401]) {
 }
 
 test('recurso ausente mostra erro recuperável e mantém navegação', async ({ page }) => {
-  await page.route(url => url.pathname.startsWith('/api/'), route => route.fulfill({
+  await page.route(url => url.pathname.startsWith('/api/') && !url.pathname.startsWith('/api/auth/'), route => route.fulfill({
     status: 404, contentType: 'application/problem+json', body: JSON.stringify({status: 404, title: 'Não encontrado'}),
   }))
   await page.goto('/#/workflows/' + ids.workflow)
@@ -179,3 +180,5 @@ test('editor recusa decimal que perderia precisão antes de solicitar gravação
   await expect(config).toHaveValue(raw)
   expect(api.commands).toHaveLength(0)
 })
+
+test.beforeEach(async ({page}) => { await mockSession(page) })
