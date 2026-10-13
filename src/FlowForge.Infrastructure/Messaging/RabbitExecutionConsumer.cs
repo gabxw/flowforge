@@ -36,6 +36,11 @@ public sealed class RabbitExecutionConsumer(RabbitRuntimeOptions options, IExecu
                 await channel.BasicAckAsync(delivery.DeliveryTag, multiple: false, cancellationToken: session.Token);
                 return;
             }
+            using var processSpan = ExecutionTelemetry.Start("workflow.process", System.Diagnostics.ActivityKind.Consumer, RabbitTraceContext.Read(delivery.BasicProperties));
+            processSpan?.SetTag("messaging.system", "rabbitmq"); processSpan?.SetTag("messaging.destination.name", ExecutionRabbitTopology.Queue);
+            processSpan?.SetTag("flowforge.execution.id", message.ExecutionId.ToString()); processSpan?.SetTag("flowforge.correlation.id", message.CorrelationId.ToString());
+            using var correlationScope = logger.BeginScope(new Dictionary<string, object> { ["ExecutionId"] = message.ExecutionId, ["CorrelationId"] = message.CorrelationId });
+            ExecutionTelemetry.Deliveries.Add(1);
             MessageDisposition result;
             try { result = await handler.HandleAsync(message, session.Token); }
             catch (OperationCanceledException) when (session.IsCancellationRequested) { return; }

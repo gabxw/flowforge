@@ -11,7 +11,10 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Logging.ClearProviders();
-builder.Logging.AddJsonConsole();
+builder.Logging.AddJsonConsole(o => o.IncludeScopes = true);
+builder.Logging.AddFlowForgeTelemetryLogs(builder.Configuration, "flowforge-worker");
+builder.Services.AddFlowForgeTelemetry(builder.Configuration, "flowforge-worker");
+builder.Services.AddHostedService<ExecutionMetricsSampler>();
 builder.Services.AddDbContextFactory<FlowForgeDbContext>((sp, options) =>
     options.UseNpgsql(PostgresRuntimeConfiguration.ConnectionString(sp.GetRequiredService<IConfiguration>())));
 builder.Services.AddSingleton(sp => RabbitRuntimeOptions.FromConfiguration(sp.GetRequiredService<IConfiguration>()));

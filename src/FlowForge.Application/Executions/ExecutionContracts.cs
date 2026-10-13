@@ -25,7 +25,7 @@ public interface IExecutionStore
     Task<ExecutionHistory?> HistoryAsync(Guid executionId, Guid owner, CancellationToken ct = default);
 }
 
-public sealed record OutboxClaim(ExecutionRequestedMessage Message, Guid Token);
+public sealed record OutboxClaim(ExecutionRequestedMessage Message, Guid Token, string? TraceParent = null, DateTimeOffset? AvailableAt = null);
 public interface IExecutionOutboxStore
 {
     Task<OutboxClaim?> TryClaimAsync(TimeSpan lease, CancellationToken ct = default);

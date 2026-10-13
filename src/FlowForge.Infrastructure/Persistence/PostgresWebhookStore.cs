@@ -108,7 +108,7 @@ public sealed class PostgresWebhookStore(IDbContextFactory<FlowForgeDbContext> f
         if (version.Status != WorkflowVersionStatus.Published) throw new WebhookRejectedException();
         var execution = new WorkflowExecution(Guid.NewGuid(), root.Id, version.Id, root.OwnerUserId, Guid.NewGuid(), now).Snapshot with { DeadlineAt = now + ExecutionLimits.MaximumDuration };
         db.WorkflowExecutions.Add(new() { Id = execution.Id, WorkflowId = root.Id, WorkflowVersionId = version.Id,
-            OwnerUserId = root.OwnerUserId, CorrelationId = execution.CorrelationId, Status = execution.Status, CreatedAt = now, DeadlineAt = execution.DeadlineAt!.Value,
+            OwnerUserId = root.OwnerUserId, CorrelationId = execution.CorrelationId, Status = execution.Status, TraceParent = ExecutionTelemetry.CaptureParent(), CreatedAt = now, DeadlineAt = execution.DeadlineAt!.Value,
             WebhookEndpointId = endpointId, TriggerInputProtected = protection.ProtectTrigger(payload.Value, execution.Id) });
         db.OutboxMessages.Add(new() { Id = Guid.NewGuid(), ExecutionId = execution.Id, CorrelationId = execution.CorrelationId,
             ContractVersion = ExecutionRequestedMessage.CurrentVersion, CreatedAt = now, AvailableAt = now });
@@ -119,6 +119,7 @@ public sealed class PostgresWebhookStore(IDbContextFactory<FlowForgeDbContext> f
             reservation.CreatedAt = now; reservation.ExpiresAt = now + options.IdempotencyLifetime;
         }
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+        ExecutionTelemetry.Accepted.Add(1, new KeyValuePair<string, object?>("ingress", "webhook"));
         return new(execution.Id, execution.WorkflowVersionId, execution.CorrelationId, execution.CreatedAt, false);
     }
     private static async Task<WorkflowRecord> LockWorkflow(FlowForgeDbContext db, Guid id, Guid owner, CancellationToken ct) =>

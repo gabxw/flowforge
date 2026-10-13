@@ -62,6 +62,11 @@ public sealed class OutboxDispatcher(IExecutionOutboxStore outbox, IExecutionPub
     {
         var claim = await outbox.TryClaimAsync(TimeSpan.FromSeconds(30), ct);
         if (claim is null) return false;
+        using var dispatchSpan = ExecutionTelemetry.Start("outbox.dispatch", System.Diagnostics.ActivityKind.Producer, claim.TraceParent);
+        dispatchSpan?.SetTag("flowforge.execution.id", claim.Message.ExecutionId.ToString());
+        dispatchSpan?.SetTag("flowforge.correlation.id", claim.Message.CorrelationId.ToString());
+        dispatchSpan?.SetTag("flowforge.message.id", claim.Message.MessageId.ToString());
+        if (claim.AvailableAt.HasValue) ExecutionTelemetry.OutboxLag.Record(Math.Max(0, (DateTimeOffset.UtcNow - claim.AvailableAt.Value).TotalSeconds));
         try
         {
             await publisher.PublishAsync(claim.Message, ct);

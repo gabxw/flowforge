@@ -10,6 +10,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_HTTP_PORTS: 8080
       FlowForge__DataProtection__KeyRingPath: /var/lib/flowforge/keys
+      FlowForge__Telemetry__OtlpEndpoint: ${FLOWFORGE_OTLP_ENDPOINT:-}
       FlowForge__Authentication__AccountPermitLimit: ${FLOWFORGE_ACCOUNT_PERMIT_LIMIT:-120}
       FlowForge__TechnicalOwnerId: ${FLOWFORGE_TECHNICAL_OWNER_ID:-843ca847-7868-4d1c-bd21-fc1db0d224a7}
       FlowForge__Postgres__Host: postgres
@@ -34,6 +35,7 @@ services:
       dockerfile: src/FlowForge.Worker/Dockerfile
     environment:
       DOTNET_ENVIRONMENT: Development
+      FlowForge__Telemetry__OtlpEndpoint: ${FLOWFORGE_OTLP_ENDPOINT:-}
       # Lista de origens HTTPS exatas separadas por vírgula; vazio bloqueia todo HTTP externo.
       FlowForge__Http__AllowedOrigins: ${FLOWFORGE_HTTP_ALLOWED_ORIGINS:-}
       FlowForge__DataProtection__KeyRingPath: /var/lib/flowforge/keys
@@ -98,6 +100,15 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+
+  dashboard:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:13.6.1
+    profiles: ["observability"]
+    environment:
+      ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: "true"
+      ASPIRE_DASHBOARD_OTLP_AUTH_MODE: Unsecured
+    ports:
+      - "127.0.0.1:${FLOWFORGE_DASHBOARD_PORT:-18888}:18888"
 
   frontend:
     build:

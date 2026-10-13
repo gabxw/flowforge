@@ -8,6 +8,7 @@ internal sealed class WorkflowExecutionRecord
     public Guid WorkflowId { get; set; }
     public Guid WorkflowVersionId { get; set; }
     public Guid OwnerUserId { get; set; }
+    public string? TraceParent { get; set; }
     public Guid CorrelationId { get; set; }
     public WorkflowExecutionStatus Status { get; set; }
     public DateTimeOffset CreatedAt { get; set; }

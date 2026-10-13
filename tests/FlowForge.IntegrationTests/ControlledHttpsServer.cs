@@ -36,6 +36,7 @@ public sealed class ControlledHttpsServer : IAsyncLifetime
     public string Origin => "https://flowforge-http.test:" + Port.ToString(System.Globalization.CultureInfo.InvariantCulture);
     public ConcurrentDictionary<string, int> Counts { get; } = new();
     public ConcurrentQueue<(string Host, string? Sni, string? Authorization, string? ApiKey, byte[] Body)> Observations { get; } = new();
+    public ConcurrentQueue<(string Path, bool HasTrace, bool HasBaggage)> TraceHeaders { get; } = new();
     public ConcurrentQueue<IPEndPoint> ApprovedConnections { get; } = new();
     internal X509Certificate2 CertificateForRawServer => certificate;
     public X509ChainPolicy Trust()
@@ -82,6 +83,7 @@ public sealed class ControlledHttpsServer : IAsyncLifetime
             using var input = new MemoryStream(); await context.Request.Body.CopyToAsync(input, context.RequestAborted);
             Observations.Enqueue((context.Request.Host.Value ?? "", serverNames.GetValueOrDefault(context.Connection.Id),
                 context.Request.Headers.Authorization.SingleOrDefault(), context.Request.Headers["X-Api-Key"].SingleOrDefault(), input.ToArray()));
+            TraceHeaders.Enqueue((path, context.Request.Headers.ContainsKey("traceparent"), context.Request.Headers.ContainsKey("baggage")));
             var effectKey = context.Request.Headers["Idempotency-Key"].SingleOrDefault(); IdempotencyKeys.Enqueue(effectKey);
             if (IdempotentPaths.ContainsKey(path) && effectKeys.TryAdd(path + ":" + (effectKey ?? Guid.NewGuid().ToString()), true))
                 Effects.AddOrUpdate(path, 1, (_, count) => count + 1);

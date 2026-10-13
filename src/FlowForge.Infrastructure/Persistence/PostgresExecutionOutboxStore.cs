@@ -22,7 +22,9 @@ public sealed class PostgresExecutionOutboxStore(IDbContextFactory<FlowForgeDbCo
             FROM candidate c WHERE o.id = c.id RETURNING o.*
             """).AsNoTracking().ToArrayAsync(ct);
         var row = rows.SingleOrDefault();
-        return row is null ? null : new(new(row.ContractVersion, row.Id, row.ExecutionId, row.CorrelationId), token);
+        if (row is null) return null;
+        var parent = await db.WorkflowExecutions.Where(e => e.Id == row.ExecutionId).Select(e => e.TraceParent).SingleAsync(ct);
+        return new(new(row.ContractVersion, row.Id, row.ExecutionId, row.CorrelationId), token, ExecutionTelemetry.ValidParent(parent), row.AvailableAt);
     }
 
     public async Task<bool> MarkPublishedAsync(OutboxClaim claim, CancellationToken ct = default)

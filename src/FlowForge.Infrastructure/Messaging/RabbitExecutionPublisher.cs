@@ -11,6 +11,9 @@ public sealed class RabbitExecutionPublisher(RabbitRuntimeOptions options) : IEx
 
     public async Task PublishAsync(ExecutionRequestedMessage message, CancellationToken ct = default)
     {
+        using var span = ExecutionTelemetry.Start("rabbitmq.publish", System.Diagnostics.ActivityKind.Producer);
+        span?.SetTag("messaging.system", "rabbitmq"); span?.SetTag("messaging.destination.name", ExecutionRabbitTopology.Queue);
+        span?.SetTag("flowforge.execution.id", message.ExecutionId.ToString());
         var body = ExecutionMessageJson.Serialize(message);
         await gate.WaitAsync(ct); // Um canal AMQP não pode receber publicações concorrentes.
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -29,8 +32,9 @@ public sealed class RabbitExecutionPublisher(RabbitRuntimeOptions options) : IEx
                 mandatory: true, basicProperties: new BasicProperties
                 {
                     Persistent = true, ContentType = "application/json", Type = ExecutionRequestedMessage.MessageType,
-                    MessageId = message.MessageId.ToString(), CorrelationId = message.CorrelationId.ToString()
+                    MessageId = message.MessageId.ToString(), CorrelationId = message.CorrelationId.ToString(), Headers = RabbitTraceContext.Headers()
                 }, body: body, cancellationToken: timeout.Token);
+            ExecutionTelemetry.Published.Add(1);
         }
         catch
         {

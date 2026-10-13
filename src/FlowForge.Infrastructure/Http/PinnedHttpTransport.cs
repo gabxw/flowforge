@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
@@ -25,7 +26,7 @@ public sealed class PinnedHttpTransport
         using var handler = new SocketsHttpHandler {
             AllowAutoRedirect = false, UseProxy = false, UseCookies = false,
             AutomaticDecompression = DecompressionMethods.None, MaxResponseHeadersLength = 8,
-            ConnectTimeout = Timeout.InfiniteTimeSpan, ActivityHeadersPropagator = null,
+            ConnectTimeout = Timeout.InfiniteTimeSpan, ActivityHeadersPropagator = DistributedContextPropagator.CreateNoOutputPropagator(),
             SslOptions = new SslClientAuthenticationOptions { CertificateChainPolicy = testTrust },
             ConnectCallback = async (context, token) => {
                 // O handler pode tentar reconectar após EOF em métodos sem body. Uma tentativa de node só abre uma sessão.

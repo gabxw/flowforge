@@ -75,13 +75,15 @@ public sealed partial class PostgresExecutionEngineStore(IDbContextFactory<FlowF
         {
             await CompleteAsync(db, held, nodes, WorkflowExecutionStatus.Cancelled, null, ct);
             await tx.CommitAsync(ct);
+            ExecutionTelemetry.Finished.Add(1, new KeyValuePair<string, object?>("outcome", held.Row.Status.ToString()));
             return new(NodeStartStatus.Completed, held.Row.CheckpointRevision);
         }
         if (held.Row.DeadlineAt <= held.Now || claim.Generation > ExecutionLimits.MaximumDeliveryClaims)
         {
             await CompleteAsync(db, held, nodes, WorkflowExecutionStatus.Failed,
                 held.Row.DeadlineAt <= held.Now ? ExecutionFailureCode.ExecutionDeadlineExceeded : ExecutionFailureCode.AttemptLimitExceeded, ct);
-            await tx.CommitAsync(ct); return new(NodeStartStatus.Completed, held.Row.CheckpointRevision);
+            await tx.CommitAsync(ct);
+            ExecutionTelemetry.Finished.Add(1, new KeyValuePair<string, object?>("outcome", held.Row.Status.ToString())); return new(NodeStartStatus.Completed, held.Row.CheckpointRevision);
         }
         var record = nodes.Single(n => n.NodeId == nodeId);
         var node = NodeExecution.Restore(NodeExecutionPersistence.Snapshot(record));
@@ -154,6 +156,7 @@ public sealed partial class PostgresExecutionEngineStore(IDbContextFactory<FlowF
                 if (remainder != 0) deadline = deadline.AddTicks(10 - remainder); // PostgreSQL: microssegundos, nunca acordar antes.
                 Suspend(db, held, deadline, now);
                 await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+                ExecutionTelemetry.ScheduledWait.Record(duration.TotalSeconds, new KeyValuePair<string, object?>("kind", "delay"));
                 return CheckpointWriteStatus.Suspended;
             }
             if (held.Row.ResumeAt.HasValue)
@@ -187,7 +190,10 @@ public sealed partial class PostgresExecutionEngineStore(IDbContextFactory<FlowF
             node.Retry(result.ErrorCode!.Value, retryAt); NodeExecutionPersistence.Apply(record, node.Snapshot);
             EndAttempt(attempt, now, NodeAttemptStatus.Failed, result.ErrorCode, result.ExternalOutcome, result.HttpStatusCode, result.CredentialRevisionUsed, retryAt);
             Suspend(db, held, retryAt, now);
-            await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return CheckpointWriteStatus.Suspended;
+            await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+            ExecutionTelemetry.Retries.Add(1);
+            ExecutionTelemetry.ScheduledWait.Record(wait.TotalSeconds, new KeyValuePair<string, object?>("kind", "retry"));
+            return CheckpointWriteStatus.Suspended;
         }
         else
         {
@@ -213,6 +219,7 @@ public sealed partial class PostgresExecutionEngineStore(IDbContextFactory<FlowF
             await db.SaveChangesAsync(ct);
         }
         await tx.CommitAsync(ct);
+        if (held.Inbox.CompletedAt.HasValue) ExecutionTelemetry.Finished.Add(1, new KeyValuePair<string, object?>("outcome", held.Row.Status.ToString()));
         return held.Inbox.CompletedAt.HasValue ? CheckpointWriteStatus.Completed : CheckpointWriteStatus.Saved;
     }
 

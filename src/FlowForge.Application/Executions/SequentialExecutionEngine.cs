@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using FlowForge.Domain.Executions;
 using FlowForge.Domain.Workflows;
 using FlowForge.Domain.Workflows.Configuration;
@@ -41,6 +42,8 @@ public sealed class SequentialExecutionEngine
                 var start = await store.BeginNodeAsync(claim, checkpoint.Revision, node.NodeId, canReplay, ct);
                 if (start.Status == NodeStartStatus.Completed) return MessageDisposition.Completed;
                 if (start.Status == NodeStartStatus.Lost) return MessageDisposition.Busy;
+                using var nodeSpan = ExecutionTelemetry.Node(checkpoint.Execution.Id, checkpoint.Execution.CorrelationId, node.NodeId, node.Type, start.AttemptNumber);
+                var activeStarted = Stopwatch.GetTimestamp();
                 NodeResult result;
                 if (checkpoint.Execution.ResumeAt.HasValue && node.Type == NodeType.Delay)
                     result = node.Type == NodeType.Delay && checkpoint.Nodes.Single(n => n.NodeId == node.NodeId).Status == NodeExecutionStatus.Running
@@ -98,6 +101,12 @@ public sealed class SequentialExecutionEngine
                 catch (ExecutionPayloadLimitException) { result = NodeResult.Failure(ExecutionFailureCode.ContextLimitExceeded); }
                 catch (ArgumentException) { result = NodeResult.Failure(ExecutionFailureCode.InvalidExecutorResult); }
                 var saved = await store.SaveNodeAsync(claim, start.Revision, node.NodeId, result, next, ct);
+                var outcome = saved == CheckpointWriteStatus.Lost ? "authority_lost" : result.IsCancelled ? "cancelled" : result.ErrorCode.HasValue ? "failed" : saved == CheckpointWriteStatus.Suspended ? "suspended" : "succeeded";
+                ExecutionTelemetry.RecordNode(node.Type, outcome, Stopwatch.GetElapsedTime(activeStarted));
+                nodeSpan?.SetTag("flowforge.outcome", outcome);
+                if (result.ErrorCode.HasValue) { nodeSpan?.SetTag("error.type", result.ErrorCode.Value.ToString()); nodeSpan?.SetStatus(ActivityStatusCode.Error, "node_failed"); }
+                if (checkpoint.Execution.ResumeAt.HasValue && node.Type == NodeType.Delay && state.StartedAt.HasValue)
+                    ExecutionTelemetry.WaitDuration.Record(Math.Max(0, (DateTimeOffset.UtcNow - state.StartedAt.Value).TotalSeconds), new KeyValuePair<string, object?>("kind", "delay"));
                 if (saved is CheckpointWriteStatus.Completed or CheckpointWriteStatus.Suspended) return MessageDisposition.Completed;
                 if (saved == CheckpointWriteStatus.Lost) return MessageDisposition.Busy;
             }

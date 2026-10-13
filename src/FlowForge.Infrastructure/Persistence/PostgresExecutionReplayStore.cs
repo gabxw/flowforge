@@ -34,13 +34,14 @@ public sealed class PostgresExecutionReplayStore(IDbContextFactory<FlowForgeDbCo
         var trigger = original.TriggerInputProtected is null ? null :
             protection.ProtectTrigger(protection.UnprotectTrigger(original.TriggerInputProtected, original.Id), snapshot.Id);
         db.WorkflowExecutions.Add(new() { Id = snapshot.Id, WorkflowId = snapshot.WorkflowId, WorkflowVersionId = snapshot.WorkflowVersionId,
-            OwnerUserId = owner, CorrelationId = snapshot.CorrelationId, Status = snapshot.Status, CreatedAt = now, DeadlineAt = snapshot.DeadlineAt!.Value,
+            OwnerUserId = owner, CorrelationId = snapshot.CorrelationId, Status = snapshot.Status, TraceParent = ExecutionTelemetry.CaptureParent(), CreatedAt = now, DeadlineAt = snapshot.DeadlineAt!.Value,
             WebhookEndpointId = original.WebhookEndpointId, TriggerInputProtected = trigger });
         db.OutboxMessages.Add(new() { Id = Guid.NewGuid(), ExecutionId = snapshot.Id, CorrelationId = snapshot.CorrelationId,
             ContractVersion = ExecutionRequestedMessage.CurrentVersion, CreatedAt = now, AvailableAt = now });
         db.ExecutionReplays.Add(new() { Id = Guid.NewGuid(), OriginalExecutionId = original.Id, NewExecutionId = snapshot.Id,
             WorkflowId = original.WorkflowId, OwnerUserId = owner, KeyDigest = digest, CreatedAt = now });
-        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return snapshot;
+        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+        ExecutionTelemetry.Accepted.Add(1, new KeyValuePair<string, object?>("ingress", "replay")); return snapshot;
     }
     public async Task<IReadOnlyList<ReplaySummary>?> ReplaysAsync(Guid executionId, Guid owner, CancellationToken ct = default)
     {

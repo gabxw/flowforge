@@ -13,6 +13,7 @@ internal sealed class WorkflowExecutionConfiguration : IEntityTypeConfiguration<
             t.HasCheckConstraint("ck_execution_id", "id <> '00000000-0000-0000-0000-000000000000'::uuid AND correlation_id <> '00000000-0000-0000-0000-000000000000'::uuid");
             t.HasCheckConstraint("ck_execution_state", "(status = 1 AND started_at IS NULL AND finished_at IS NULL AND error_code IS NULL) OR (status = 2 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NULL AND error_code IS NULL) OR (status = 4 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NOT NULL AND finished_at >= started_at AND error_code IS NOT NULL AND error_code BETWEEN 1 AND 20) OR (status = 3 AND started_at IS NOT NULL AND started_at >= created_at AND finished_at IS NOT NULL AND finished_at >= started_at AND error_code IS NULL) OR (status = 5 AND cancel_requested_at IS NOT NULL AND finished_at IS NOT NULL AND finished_at >= cancel_requested_at AND finished_at >= COALESCE(started_at, created_at) AND (started_at IS NULL OR started_at >= created_at) AND error_code IS NULL)");
         });
+        builder.Property(e => e.TraceParent).HasMaxLength(55);
         builder.HasKey(e => e.Id);
         builder.HasAlternateKey(e => new { e.Id, e.WorkflowId, e.OwnerUserId });
         builder.HasOne<WebhookEndpointRecord>().WithMany().HasForeignKey(e => new { e.WebhookEndpointId, e.WorkflowId, e.OwnerUserId })

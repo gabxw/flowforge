@@ -911,6 +911,11 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("status");
 
+                    b.Property<string>("TraceParent")
+                        .HasMaxLength(55)
+                        .HasColumnType("character varying(55)")
+                        .HasColumnName("trace_parent");
+
                     b.Property<byte[]>("TriggerInputProtected")
                         .HasColumnType("bytea")
                         .HasColumnName("trigger_input_protected");

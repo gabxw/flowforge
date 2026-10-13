@@ -1,3 +1,6 @@
+using OpenTelemetry.Trace;
+using OpenTelemetry.Metrics;
+using FlowForge.Infrastructure.Runtime;
 using FlowForge.Api.Authentication;
 using FlowForge.Api.Credentials;
 using FlowForge.Api.Webhooks;
@@ -11,7 +14,11 @@ using Microsoft.AspNetCore.Routing;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Logging.ClearProviders();
-builder.Logging.AddJsonConsole();
+builder.Logging.AddJsonConsole(o => o.IncludeScopes = true);
+builder.Logging.AddFlowForgeTelemetryLogs(builder.Configuration, "flowforge-api");
+builder.Services.AddFlowForgeTelemetry(builder.Configuration, "flowforge-api")
+    .WithTracing(t => t.AddAspNetCoreInstrumentation(o => o.RecordException = false))
+    .WithMetrics(m => m.AddAspNetCoreInstrumentation());
 builder.Services.AddHealthChecks();
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
@@ -54,7 +61,7 @@ app.MapHealthChecks("/api/health/live").AllowAnonymous();
 app.MapGet("/", () => Results.Ok(new
 {
     service = "FlowForge.Api",
-    phase = 13,
+    phase = 14,
     status = "private-workflow-engine"
 })).WithName("ServiceInfo").AllowAnonymous();
 

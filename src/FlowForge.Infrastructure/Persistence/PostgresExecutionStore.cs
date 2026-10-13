@@ -31,7 +31,7 @@ public sealed class PostgresExecutionStore(IDbContextFactory<FlowForgeDbContext>
         db.WorkflowExecutions.Add(new()
         {
             Id = execution.Id, WorkflowId = execution.WorkflowId, WorkflowVersionId = execution.WorkflowVersionId,
-            OwnerUserId = execution.OwnerUserId, CorrelationId = execution.CorrelationId, CreatedAt = now, DeadlineAt = execution.DeadlineAt!.Value, Status = execution.Status
+            OwnerUserId = execution.OwnerUserId, CorrelationId = execution.CorrelationId, CreatedAt = now, DeadlineAt = execution.DeadlineAt!.Value, Status = execution.Status, TraceParent = ExecutionTelemetry.CaptureParent()
         });
         db.OutboxMessages.Add(new()
         {
@@ -40,6 +40,7 @@ public sealed class PostgresExecutionStore(IDbContextFactory<FlowForgeDbContext>
         });
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
+        ExecutionTelemetry.Accepted.Add(1, new KeyValuePair<string, object?>("ingress", "manual"));
         return execution;
     }
 
