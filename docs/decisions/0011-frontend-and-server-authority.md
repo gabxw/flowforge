@@ -1,6 +1,6 @@
 # ADR 0011 — Interface incremental e autoridade do servidor
 
-Status: implementada na Fase 11; validação/publicação em andamento em 13/10/2026.
+Status: aceita, implementada e validada na Fase 11 em 13/10/2026; publicação/evidências na [revisão da fase](../phase-11-review.md).
 
 ## Problema
 
@@ -25,7 +25,7 @@ Frontend usa somente React, fetch e a estrutura existente. A API continua separa
 
 Somente respostas bem-sucedidas de mutações atualizam revisão, publicação e arquivamento. POST de execução navega para a execução aceita; cancelamento mostra CancelRequestedAt e aguarda estado terminal do Worker.
 
-expectedRevision vem do workflow retornado. Erro/409 preserva JSON local. Recarregar ou trocar de versão com alterações exige decisão explícita de descarte; publicação/execução ficam bloqueadas até salvar. Reload de uma publicação mantém os IDs de node e novas conexões fornecidos pelo backend. Não existe merge automático de grafos concorrentes.
+expectedRevision vem do workflow retornado. Erro/409 preserva JSON local. Recarregar ou trocar de versão com alterações exige decisão explícita de descarte; publicação/execução ficam bloqueadas até salvar. Abrir novo rascunho copia a publicação, preservando IDs dos nodes e recebendo novos IDs de conexões do backend. Não existe merge automático de grafos concorrentes.
 
 Leituras são canceladas ao navegar e protegidas contra respostas obsoletas. Uma mutação aceita invalida leituras anteriores. Polling sequencial de 3s acompanha somente Pending/Running, pausa em aba oculta e para em estado terminal ou erro. Cada request tem timeout de 10s. Não há retry automático de comandos: a interface avisa sobre resultado incerto e orienta consultar o servidor.
 

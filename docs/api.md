@@ -1,6 +1,6 @@
 # API privada de workflows
 
-A Fase 4 disponibiliza definição, edição e publicação com PostgreSQL. A Fase 5 acrescenta [solicitação e consulta de execuções](execution-dispatch.md); o Worker ainda não executa nodes. A Fase 11 acrescenta a [interface funcional](frontend.md) e listagem de execuções por workflow; os seis executores e a confiabilidade estão implementados. A API não tem autenticação: use somente ambiente local/privado. O proprietário vem de FlowForge:TechnicalOwnerId no servidor; headers, query ou corpo não escolhem o dono.
+A Fase 4 disponibiliza definição, edição e publicação com PostgreSQL. A Fase 5 acrescenta [solicitação e consulta de execuções](execution-dispatch.md); execução dos nodes e confiabilidade foram implementadas nas Fases 6 a 10. A Fase 11 acrescenta a [interface funcional](frontend.md) e listagem de execuções por workflow; os seis executores e a confiabilidade estão implementados. A API não tem autenticação: use somente ambiente local/privado. O proprietário vem de FlowForge:TechnicalOwnerId no servidor; headers, query ou corpo não escolhem o dono.
 
 ## Subir e preparar o banco
 

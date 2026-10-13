@@ -41,7 +41,7 @@ Publicação é imutável. Para editar depois, clique em Abrir novo rascunho. O 
 
 ## Conflitos e resultados incertos
 
-Cada mutação envia expectedRevision do workflow. Em 409, a estrutura local permanece disponível para revisão/cópia; Recarregar versão do servidor exige descarte explícito. Não há merge automático.
+Editar detalhes/estrutura, publicar, abrir novo rascunho e arquivar um workflow existente enviam expectedRevision. Criação, solicitação de execução e cancelamento seguem seus próprios contratos sem esse campo. Em 409, a estrutura local permanece disponível para revisão/cópia; Recarregar versão do servidor exige descarte explícito. Não há merge automático.
 
 Salvar/publicar/arquivar só atualiza a interface depois da resposta confirmada. Uma perda de resposta pode ocorrer depois do commit: comandos não são repetidos automaticamente. Consulte o servidor antes de emitir outro comando, especialmente uma nova execução.
 

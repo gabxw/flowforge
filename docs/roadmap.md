@@ -1,6 +1,6 @@
 # Roadmap técnico
 
-O trabalho é incremental. Cada fase entrega um comportamento executável, documentação atualizada e revisão técnica antes da próxima. As Fases 1 a 10 estão concluídas, com evidências atuais em [phase-10-review.md](phase-10-review.md). O MVP de backend está entregue; as Fases 11 a 16 permanecem planejadas.
+O trabalho é incremental. Cada fase entrega um comportamento executável, documentação atualizada e revisão técnica antes da próxima. As Fases 1 a 11 estão concluídas, com evidências atuais em [phase-11-review.md](phase-11-review.md). O MVP de backend e a interface funcional estão entregues; as Fases 12 a 16 permanecem planejadas.
 
 Não se avança só porque uma pasta ou endpoint existe. O critério de saída inclui build, testes pertinentes e verificação do comportamento anunciado. Uma verificação impedida pelo ambiente permanece pendente e deve ser informada; ela não equivale a um resultado aprovado.
 
@@ -152,7 +152,7 @@ Commits sugeridos: Implementar tentativas limitadas e recuperação de entregas;
 
 ## Fase 11 — Frontend funcional
 
-Status: em validação. Interface, consulta de histórico e jornadas de navegador na [revisão da Fase 11](phase-11-review.md). Não iniciar a Fase 12 antes do encerramento.
+Status: concluída em 13/10/2026. [PR #8](https://github.com/gabxw/flowforge/pull/8) integrado à main; [CI do PR](https://github.com/gabxw/flowforge/actions/runs/38393442034) e [CI da main](https://github.com/gabxw/flowforge/actions/runs/38394353322) aprovados. 1.247 testes backend, 27 frontend e jornada real com Docker, além de lint/typecheck/build/audit. Evidências e limites na [revisão da Fase 11](phase-11-review.md). Fase 12 não iniciada.
 
 Entregas: listagem, formulário de criação/edição, publicação, execução, detalhe dos nodes, logs e cancelamento. Primeiro editor baseado em formulário/estrutura, com tratamento de loading, erro e conflito.
 
