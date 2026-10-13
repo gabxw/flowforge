@@ -1,7 +1,7 @@
 # Revisão técnica — Fase 12
 
 Data: 13/10/2026.
-Status: implementação e revisão em validação; publicação/CI pendentes. Fase 13 não iniciada.
+Status: concluída; implementação, revisão, publicação e CI do PR/main aprovados. Fase 13 não iniciada.
 
 ## Entrega
 
@@ -45,4 +45,10 @@ Limites anteriores de precisão JSON, API privada sem JWT/RBAC, retenção/HA/ke
 
 ## Publicação
 
-Pendentes: commits em português/autoria gabxw, PR, CI do PR/main e encerramento documental.
+[PR #10](https://github.com/gabxw/flowforge/pull/10) integrado à main por fast-forward, preservando os três commits em português e o redesign anterior. Autoria/committer vinculados a gabxw com noreply verificado.
+
+[CI do PR](https://github.com/gabxw/flowforge/actions/runs/38417814048) e [CI da main](https://github.com/gabxw/flowforge/actions/runs/38429179254) aprovados nos três jobs: backend, frontend e ambiente Docker. Ambos confirmaram 1.247 testes xUnit, 40 testes frontend e duas jornadas reais, sem falhas ou ignorados.
+
+Commit de código validado: [ce183510](https://github.com/gabxw/flowforge/commit/ce183510c863e0026d29f58ec6a355ef140ebbc9). O encerramento posterior altera apenas documentação, sem mudanças no código validado. Demonstração local em 5173 atualizada e verificada, mantendo API/Worker/banco/fila anteriores.
+
+Nenhum critério de saída da Fase 12 permanece pendente. Próxima fase: autenticação/RBAC, somente mediante solicitação.

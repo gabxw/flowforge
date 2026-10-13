@@ -152,7 +152,7 @@ Commits sugeridos: Implementar tentativas limitadas e recuperação de entregas;
 
 ## Fase 11 — Frontend funcional
 
-Status: concluída em 13/10/2026. [PR #8](https://github.com/gabxw/flowforge/pull/8) integrado à main; [CI do PR](https://github.com/gabxw/flowforge/actions/runs/38393442034) e [CI da main](https://github.com/gabxw/flowforge/actions/runs/38394353322) aprovados. 1.247 testes backend, 27 frontend e jornada real com Docker, além de lint/typecheck/build/audit. Evidências e limites na [revisão da Fase 11](phase-11-review.md). Fase 12 não iniciada.
+Status: concluída em 13/10/2026. [PR #8](https://github.com/gabxw/flowforge/pull/8) integrado à main; [CI do PR](https://github.com/gabxw/flowforge/actions/runs/38393442034) e [CI da main](https://github.com/gabxw/flowforge/actions/runs/38394353322) aprovados. 1.247 testes backend, 27 frontend e jornada real com Docker, além de lint/typecheck/build/audit. Evidências e limites na [revisão da Fase 11](phase-11-review.md).
 
 Entregas: listagem, formulário de criação/edição, publicação, execução, detalhe dos nodes, logs e cancelamento. Primeiro editor baseado em formulário/estrutura, com tratamento de loading, erro e conflito.
 
@@ -164,7 +164,7 @@ Commit sugerido: Criar telas de workflows e execuções.
 
 ## Fase 12 — Editor visual
 
-Status: em validação; implementação/evidências na [revisão da Fase 12](phase-12-review.md). Preserva o redesign do PR #9. Fase 13 não iniciada.
+Status: concluída em 13/10/2026. [PR #10](https://github.com/gabxw/flowforge/pull/10) integrado à main; [CI do PR](https://github.com/gabxw/flowforge/actions/runs/38417814048) e [CI da main](https://github.com/gabxw/flowforge/actions/runs/38429179254) aprovados. 1.247 testes backend, 40 frontend e duas jornadas reais com Docker. Layout/configuração reabertos, portas true/false executadas e QA visual/teclado conferidos na [revisão da Fase 12](phase-12-review.md). Redesign do usuário preservado; Fase 13 não iniciada.
 
 Entregas: React Flow, cards e conexões por porta, configuração de nodes e validação com mensagens compreensíveis. Layout visual persiste separado da semântica de execução.
 

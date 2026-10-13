@@ -1,6 +1,6 @@
 # ADR 0013 — Editor visual e layout versionado
 
-Status: implementada na Fase 12; validação/publicação em andamento em 13/10/2026.
+Status: aceita e implementada na Fase 12 em 13/10/2026; CI do PR e da main aprovados. Evidências na [revisão da Fase 12](../phase-12-review.md).
 
 ## Problema
 
