@@ -28,6 +28,13 @@ public sealed class ExecutionService(IExecutionStore store)
         return await store.HistoryAsync(id, owner, ct) ?? throw new KeyNotFoundException("Execução não encontrada.");
     }
 
+    public async Task<ExecutionPage> ListAsync(Guid owner, Guid workflowId, int offset = 0, int limit = 20, CancellationToken ct = default)
+    {
+        Validate(owner); Validate(workflowId);
+        if (offset < 0 || limit is < 1 or > 100) throw new ArgumentException("Paginação exige offset não negativo e limit entre 1 e 100.");
+        return await store.ListAsync(workflowId, owner, offset, limit, ct) ?? throw new KeyNotFoundException("Workflow não encontrado.");
+    }
+
     private static void Validate(Guid id)
     {
         if (id == Guid.Empty) throw new ArgumentException("A identidade não pode ser vazia.");

@@ -14,11 +14,14 @@ public sealed record ExecutionRequestedMessage(int ContractVersion, Guid Message
         ExecutionId != Guid.Empty && CorrelationId != Guid.Empty;
 }
 
+public sealed record ExecutionPage(IReadOnlyList<WorkflowExecutionSnapshot> Items, int Offset, int Limit);
+
 public interface IExecutionStore
 {
     Task<WorkflowExecutionSnapshot> RequestAsync(ExecutionRequest request, CancellationToken ct = default);
     Task<WorkflowExecutionSnapshot?> GetAsync(Guid executionId, Guid owner, CancellationToken ct = default);
     Task<WorkflowExecutionSnapshot?> RequestCancellationAsync(Guid executionId, Guid owner, CancellationToken ct = default);
+    Task<ExecutionPage?> ListAsync(Guid workflowId, Guid owner, int offset, int limit, CancellationToken ct = default);
     Task<ExecutionHistory?> HistoryAsync(Guid executionId, Guid owner, CancellationToken ct = default);
 }
 

@@ -11,10 +11,20 @@ internal sealed record ExecutionDto(Guid Id, Guid WorkflowId, Guid WorkflowVersi
         new(s.Id, s.WorkflowId, s.WorkflowVersionId, s.CorrelationId, s.Status, s.CreatedAt, s.StartedAt, s.FinishedAt, s.ErrorCode, s.CancelRequestedAt, s.ResumeAt, s.DeadlineAt);
 }
 
+internal sealed record ExecutionPageDto(IReadOnlyList<ExecutionDto> Items, int Offset, int Limit);
+
 internal static class ExecutionEndpoints
 {
     public static void MapExecutions(this WebApplication app)
     {
+        app.MapGet("/api/workflows/{id:guid}/executions", async (Guid id, int? offset, int? limit,
+            ExecutionService service, TechnicalOwner owner, CancellationToken ct) =>
+        {
+            var page = await service.ListAsync(owner.Id, id, offset ?? 0, limit ?? 20, ct);
+            return Results.Ok(new ExecutionPageDto(page.Items.Select(ExecutionDto.From).ToArray(), page.Offset, page.Limit));
+        }).WithTags("Execuções").WithName("ListWorkflowExecutions").Produces<ExecutionPageDto>()
+            .ProducesProblem(400).ProducesProblem(404).ProducesProblem(503).ProducesProblem(500);
+
         app.MapPost("/api/workflows/{id:guid}/executions", async (Guid id, HttpRequest request,
             ExecutionService service, TechnicalOwner owner, CancellationToken ct) =>
         {

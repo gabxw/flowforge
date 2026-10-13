@@ -72,6 +72,18 @@ public sealed class PostgresExecutionStore(IDbContextFactory<FlowForgeDbContext>
         return execution.Snapshot;
     }
 
+    public async Task<ExecutionPage?> ListAsync(Guid workflowId, Guid owner, int offset, int limit, CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        if (!await db.Workflows.AnyAsync(w => w.Id == workflowId && w.OwnerUserId == owner, ct)) return null;
+        // Consulta de metadados; nunca projeta input/contexto protegido para a API.
+        var rows = await db.WorkflowExecutions.AsNoTracking()
+            .Where(e => e.WorkflowId == workflowId && e.OwnerUserId == owner)
+            .OrderByDescending(e => e.CreatedAt).ThenByDescending(e => e.Id)
+            .Skip(offset).Take(limit).ToArrayAsync(ct);
+        return new(rows.Select(ExecutionPersistence.Snapshot).ToArray(), offset, limit);
+    }
+
     public async Task<ExecutionHistory?> HistoryAsync(Guid executionId, Guid owner, CancellationToken ct = default)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
