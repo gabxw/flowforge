@@ -6,7 +6,7 @@ O problema central é aceitar eventos rapidamente e processar etapas externas de
 
 ## Estado atual
 
-**Fases 1 a 13 implementadas e validadas. Backend, editor visual e autenticação entregues.**
+**Fases 1 a 14 implementadas. Backend, editor visual, autenticação e observabilidade entregues.**
 
 Disponível: API privada para criar/listar/editar/publicar/arquivar workflows, domínio tipado com validação de DAG, persistência EF Core/PostgreSQL, migrations explícitas, Problem Details e OpenAPI. Há testes HTTP com banco real, controle de revisão e isolamento por proprietário técnico do servidor. A Fase 5 acrescenta solicitações de execução, outbox transacional, RabbitMQ e Worker com inbox recuperável. A Fase 6 acrescenta engine sequencial, executores Trigger/Log, checkpoints protegidos, histórico e cancelamento cooperativo. A Fase 7 acrescenta webhook com secret em header/hash, input protegido, idempotência opcional, rate limit e administração do endpoint. A Fase 8 acrescenta HTTP Request com conexão aprovada/TLS, limites e Credential com rotação/revogação e ciphertext autenticado. A Fase 9 completa os seis executores iniciais com Condition tipada, Transform JSON limitada e Delay durável que libera a entrega/lease e retoma pela outbox existente. A Fase 10 acrescenta tentativas auditáveis, retry limitado, deadline, recuperação de leases, DLQ sanitizada e redrive/replay explícitos. A Fase 11 acrescenta interface de workflows, editor por formulário e acompanhamento de execuções/logs, com jornadas de navegador e Docker aprovados. A Fase 12 acrescenta editor visual com React Flow, posições persistidas e portas tipadas, com roundtrip e execução real aprovados. A Fase 13 acrescenta contas Owner/Admin, JWT curto, refresh rotativo em cookie, CSRF e revogação imediata por família.
 
@@ -15,6 +15,8 @@ A Fase 12 está integrada à main pelo [PR #10](https://github.com/gabxw/flowfor
 Os lockfiles NuGet e npm são versionados. As revisões das [Fases 1](docs/phase-1-review.md), [2](docs/phase-2-review.md) e [3](docs/phase-3-review.md) preservam o histórico; a [operação da API](docs/api.md) descreve o contrato e o exemplo executável atual.
 
 Autenticação: [operação e sessões](docs/authentication.md), [ADR 0014](docs/decisions/0014-authentication-and-session-families.md) e [revisão da Fase 13](docs/phase-13-review.md). Validação local: **1.275 testes backend**, **43 frontend**, duas jornadas autenticadas com serviços reais e QA em 1440/390/720px.
+
+Observabilidade: [operação e métricas](docs/observability.md), [ADR 0015](docs/decisions/0015-opentelemetry-and-durable-context.md) e [revisão da Fase 14](docs/phase-14-review.md). Painel OTLP opcional em loopback; contexto de trace sobrevive a Delay/retry.
 
 ## Arquitetura
 
@@ -229,4 +231,4 @@ No domínio, um rascunho pode ficar incompleto enquanto é editado. Publicar exi
 
 Novos commits usam mensagens curtas e descritivas em português, sem qualquer prefixo; o histórico existente é preservado. A preferência pela conta gabxw e as demais regras do projeto estão em [AGENTS.md](AGENTS.md).
 
-Screenshots atuais mostram o layout salvo e o editor visual da Fase 12. O roadmap distingue autenticação e observabilidade ainda planejadas.
+Screenshots atuais mostram o layout salvo e o editor visual da Fase 12. Autenticação e observabilidade foram entregues nas Fases 13 e 14.

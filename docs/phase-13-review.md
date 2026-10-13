@@ -1,6 +1,6 @@
 # Revisão técnica — Fase 13
 
-Status: implementação, build, testes e revisão aprovados em 13/10/2026; publicação na main e CI registrados ao final do ciclo. Etapas 14 a 16 autorizadas pelo usuário.
+Status: implementação, build, testes e revisão aprovados em 13/10/2026; publicada na main em [6f24d2d](https://github.com/gabxw/flowforge/commit/6f24d2dc434415f77a2636bbbac2ca8cc2c59931). [CI aprovado](https://github.com/gabxw/flowforge/actions/runs/38446945971) nos três jobs. Etapas 14 a 16 autorizadas pelo usuário.
 
 ## Implementação
 

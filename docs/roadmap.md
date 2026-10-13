@@ -176,7 +176,7 @@ Commit sugerido: Implementar editor visual de workflows.
 
 ## Fase 13 — Autenticação e RBAC
 
-Status: implementada e validada em 13/10/2026; 1.275 testes backend, 43 frontend, duas jornadas autenticadas reais e QA aprovados. [Revisão](phase-13-review.md). Publicação e CI acompanhados durante as próximas etapas autorizadas.
+Status: concluída e publicada em 13/10/2026; 1.275 testes backend, 43 frontend, duas jornadas autenticadas reais e QA aprovados. [CI](https://github.com/gabxw/flowforge/actions/runs/38446945971) aprovado no commit 6f24d2d. [Revisão](phase-13-review.md).
 
 Entregas: autenticação do User já introduzido para ownership, JWT, RefreshSession, rotação, detecção de reuse, revogação, password hashing, roles Owner/Admin e autorização por objeto. Cookie de refresh e proteção CSRF/CORS conforme a implantação.
 
@@ -187,6 +187,8 @@ Revisão: endpoints não confiam em OwnerUserId fornecido pelo cliente; tokens e
 Commit sugerido: Proteger acesso e rotacionar sessões de atualização.
 
 ## Fase 14 — Observabilidade
+
+Status: concluída localmente em 13/10/2026. 1.282 casos xUnit aprovados, SDK final e propagação HTTP testados, duas jornadas reais e painel com API/Worker conferidos. [Revisão](phase-14-review.md). Publicação e CI acompanhados na Fase 15 autorizada.
 
 Entregas: OpenTelemetry na API, Worker e HTTP; propagação de trace pelo RabbitMQ; spans de nodes; correlação de logs; métricas e painel mínimo para investigar uma execução. Sem payload em atributos de trace.
 
