@@ -16,3 +16,6 @@
 *.log
 .node_repl_cell_*.mjs
 .serena/
+
+frontend/test-results/
+frontend/playwright-report/

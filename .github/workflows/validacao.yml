@@ -75,7 +75,7 @@ jobs:
           retention-days: 7
 
   frontend:
-    name: Lint e build do frontend
+    name: Lint build e jornadas do frontend
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     defaults:
@@ -98,12 +98,19 @@ jobs:
         run: npm run build
       - name: Auditar dependências
         run: npm audit --audit-level=high
+      - name: Instalar Chromium para testes
+        run: npx playwright install --with-deps chromium
+      - name: Testar jornadas do frontend
+        run: npm test
       - name: Guardar lockfile
         if: ${{ !cancelled() && steps.instalar.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: validacao-frontend
-          path: frontend/package-lock.json
+          path: |
+            frontend/package-lock.json
+            frontend/playwright-report/
+            frontend/test-results/
           retention-days: 7
 
   containers:
@@ -115,6 +122,15 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Preparar jornada de navegador real
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
       - uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2 # v5.3.0
         with:
           dotnet-version: 10.0.x
@@ -149,6 +165,9 @@ jobs:
             ./scripts/smoke-declarative.ps1 -BaseUri 'http://127.0.0.1:5173'
             ./scripts/smoke-reliability.ps1
             ./scripts/smoke-reliability.ps1 -BaseUri 'http://127.0.0.1:5173'
+            $env:FLOWFORGE_E2E_BASE_URL = 'http://127.0.0.1:5173'
+            npm --prefix frontend run test:backend
+            if ($LASTEXITCODE -ne 0) { throw 'Jornada de navegador com API e Worker falhou.' }
             # O volume de keyring deve sobreviver à recriação do Worker sem expor seu conteúdo.
             $pausedDelay = ./scripts/smoke-declarative.ps1 -PausedOnly -DelaySeconds 45
             ./scripts/smoke-executions.ps1 # Consumer permanece disponível durante o Delay.
@@ -201,3 +220,13 @@ jobs:
           } finally {
             Invoke-Check @('compose', '--profile', 'redis', 'down', '--remove-orphans', '--volumes')
           }
+      - name: Guardar resultados da jornada real
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: validacao-navegador-backend
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          if-no-files-found: ignore
+          retention-days: 7

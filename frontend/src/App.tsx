@@ -1,71 +1,52 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { WorkflowListPage } from './pages/WorkflowListPage'
+import { CreateWorkflowPage } from './pages/CreateWorkflowPage'
+import { WorkflowPage } from './pages/WorkflowPage'
+import { ExecutionPage } from './pages/ExecutionPage'
 
-type ApiStatus = 'verificando' | 'online' | 'indisponível'
+const uuid = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i
 
 export default function App() {
-  const [apiStatus, setApiStatus] = useState<ApiStatus>('verificando')
-
+  const [hash, setHash] = useState(() => window.location.hash || '#/workflows')
+  const current = useRef(hash)
+  const dirty = useRef(false)
+  const onDirtyChange = useCallback((value: boolean) => { dirty.current = value }, [])
   useEffect(() => {
-    const deadline = Date.now() + 30_000
-    let disposed = false
-    let requestController: AbortController | undefined
-    let retryTimer: ReturnType<typeof setTimeout> | undefined
-
-    async function checkApi() {
-      requestController = new AbortController()
-      const timeout = setTimeout(() => requestController?.abort(), 5000)
-      let healthy = false
-
-      try {
-        const response = await fetch('/api/health/live', {
-          signal: requestController.signal,
-        })
-        healthy = response.ok && (await response.text()) === 'Healthy'
-      } catch {
-        // Containers may start before the API starts listening. Retry within the deadline.
-      } finally {
-        clearTimeout(timeout)
+    function change() {
+      if (dirty.current && !window.confirm('Há alterações não salvas. Deseja sair e descartá-las?')) {
+        window.history.replaceState(null, '', current.current)
+        return
       }
-
-      if (disposed) return
-
-      if (healthy) {
-        setApiStatus('online')
-      } else if (Date.now() < deadline) {
-        retryTimer = setTimeout(() => void checkApi(), 1000)
-      } else {
-        setApiStatus('indisponível')
-      }
+      dirty.current = false
+      current.current = window.location.hash || '#/workflows'
+      setHash(current.current)
+      window.scrollTo(0, 0)
     }
-
-    void checkApi()
-    return () => {
-      disposed = true
-      clearTimeout(retryTimer)
-      requestController?.abort()
+    function unload(event: BeforeUnloadEvent) {
+      if (dirty.current) { event.preventDefault(); event.returnValue = '' }
     }
+    window.addEventListener('hashchange', change)
+    window.addEventListener('beforeunload', unload)
+    return () => { window.removeEventListener('hashchange', change); window.removeEventListener('beforeunload', unload) }
   }, [])
 
-  return (
-    <main className="mx-auto max-w-3xl px-6 py-16">
-      <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-indigo-700">
-        Plataforma de automação
-      </p>
-      <h1 className="text-4xl font-semibold tracking-tight text-slate-900">FlowForge</h1>
-      <p className="mt-4 text-lg leading-relaxed text-slate-600">
-        Workflows com execução assíncrona, histórico e tratamento de falhas.
-      </p>
+  const path = hash.replace(/^#/, '').split('/').filter(Boolean)
+  let page
+  if (!path.length || (path.length === 1 && path[0] === 'workflows')) page = <WorkflowListPage />
+  else if (path.length === 2 && path[0] === 'workflows' && path[1] === 'new') page = <CreateWorkflowPage onDirtyChange={onDirtyChange} />
+  else if (path.length === 2 && path[0] === 'workflows' && uuid.test(path[1])) page = <WorkflowPage id={path[1]} onDirtyChange={onDirtyChange} />
+  else if (path.length === 2 && path[0] === 'executions' && uuid.test(path[1])) page = <ExecutionPage id={path[1]} />
+  else page = <section className="card empty"><h1>Página não encontrada</h1><p>Confira o endereço ou o ID informado.</p><a className="btn" href="#/workflows">Voltar aos workflows</a></section>
 
-      <section className="mt-10 rounded-xl border border-slate-200 bg-white p-6">
-        <h2 className="text-lg font-semibold text-slate-900">Fase 1 · Estrutura e ambiente</h2>
-        <p className="mt-3 text-slate-600">
-          Esta versão verifica a inicialização do ambiente. A criação e a execução
-          de workflows serão implementadas nas próximas fases.
-        </p>
-        <p role="status" className="mt-5 text-sm font-medium text-slate-700">
-          API: {apiStatus}
-        </p>
-      </section>
-    </main>
-  )
+  return <div className="app-layout">
+    <a href="#main" className="skip-link" onClick={e => { e.preventDefault(); document.getElementById('main')?.focus() }}>Pular para o conteúdo</a>
+    <aside className="sidebar"><a href="#/workflows" className="brand"><span className="brand-mark" aria-hidden="true">F</span>FlowForge</a>
+      <p className="sidebar-caption">AUTOMAÇÃO DE WORKFLOWS</p>
+      <nav aria-label="Navegação principal"><a href="#/workflows" className={path[0] !== 'executions' ? 'nav-active' : ''}>Workflows <span aria-hidden="true">↗</span></a></nav>
+      <div className="sidebar-bottom"><span className="environment-dot" /> Ambiente privado</div>
+    </aside>
+    <div className="workspace"><div className="topbar"><span>Workspace / {path[0] === 'executions' ? 'Execuções' : 'Workflows'}</span><span className="topbar-note">Versões & histórico</span></div>
+      <main id="main" tabIndex={-1} key={hash}>{page}</main>
+    </div>
+  </div>
 }
