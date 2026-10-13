@@ -27,7 +27,7 @@ test('jornada real cria publica executa e arquiva workflow @backend', async ({ p
     await test.info().attach('workflow-publicado', {body: await page.screenshot({fullPage: true}), contentType: 'image/png'})
     await page.getByRole('button', {name: 'Executar workflow', exact: true}).click()
     await expect(page.getByRole('heading', {name: 'Detalhes da execução', exact: true})).toBeVisible()
-    await expect(page.getByText('Concluída', {exact: true}).first()).toBeVisible({timeout: 30_000})
+    await expect(page.locator('.page-head').getByText('Concluída', {exact: true})).toBeVisible({timeout: 30_000})
     await expect(page.getByRole('heading', {name: 'Nodes', exact: true})).toBeVisible()
     await expect(page.getByText('Log registrado', {exact: true})).toBeVisible()
     await expect(page.getByText('Mensagem fictícia de navegador', {exact: true})).toHaveCount(0)

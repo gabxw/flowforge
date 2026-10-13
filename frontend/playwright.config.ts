@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
 const externalBaseUrl = process.env.FLOWFORGE_E2E_BASE_URL
-const baseURL = externalBaseUrl ?? 'http://127.0.0.1:5173'
+const baseURL = externalBaseUrl ?? 'http://127.0.0.1:5180'
 
 export default defineConfig({
   testDir: './e2e',
@@ -20,7 +20,7 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: externalBaseUrl ? undefined : {
-    command: 'npm run dev',
+    command: 'npm run dev -- --port 5180',
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
