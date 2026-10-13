@@ -1,12 +1,10 @@
-import type { NodeConfiguration, WorkflowConnection, WorkflowNode, WorkflowVersion } from '../api/contracts'
+import type { NodeConfiguration, WorkflowNode, WorkflowVersion } from '../api/contracts'
 import { nodeTypeLabels } from '../workflows/templates'
 import { formatDuration, nodeTone } from './format'
 import { NodeGlyph } from './Ui'
 
 const W = 184
 const H = 74
-const GAP_X = 78
-const GAP_Y = 54
 const PAD = 30
 
 interface Placed { node: WorkflowNode; index: number; x: number; y: number }
@@ -36,38 +34,13 @@ function describe(configuration: NodeConfiguration) {
   }
 }
 
-// Até o editor visual (Fase 12), as posições salvas são apenas índice × 240 numa
-// linha, sem intenção de layout. Por isso o desenho deriva da topologia: coluna
-// pela maior profundidade a partir dos gatilhos; o ramo false desce uma linha.
-function place(nodes: WorkflowNode[], connections: WorkflowConnection[]): Placed[] {
+// A Fase 12 usa posições persistidas. A translação abaixo apenas enquadra
+// coordenadas negativas no SVG; ela não modifica o grafo salvo.
+function place(nodes: WorkflowNode[]): Placed[] {
   if (!nodes.length) return []
-  const ids = new Set(nodes.map(n => n.nodeId))
-  const edges = connections.filter(c => ids.has(c.sourceNodeId) && ids.has(c.targetNodeId))
-  const column = new Map(nodes.map(n => [n.nodeId, 0]))
-  for (let pass = 0; pass < nodes.length; pass++) {
-    let changed = false
-    for (const c of edges) {
-      const next = (column.get(c.sourceNodeId) ?? 0) + 1
-      if (next > (column.get(c.targetNodeId) ?? 0) && next < nodes.length) { column.set(c.targetNodeId, next); changed = true }
-    }
-    if (!changed) break
-  }
-
-  const row = new Map<string, number>()
-  const taken = new Set<string>()
-  const claim = (id: string, wanted: number) => {
-    let r = Math.max(0, wanted)
-    while (taken.has(column.get(id) + ':' + r)) r++
-    taken.add(column.get(id) + ':' + r)
-    row.set(id, r)
-  }
-  const order = [...nodes].sort((a, b) => (column.get(a.nodeId) ?? 0) - (column.get(b.nodeId) ?? 0))
-  for (const node of order) {
-    if (row.has(node.nodeId)) continue
-    const incoming = edges.find(c => c.targetNodeId === node.nodeId && row.has(c.sourceNodeId))
-    claim(node.nodeId, incoming ? (row.get(incoming.sourceNodeId) ?? 0) + (incoming.sourcePort === 'false' ? 1 : 0) : 0)
-  }
-  return nodes.map((node, index) => ({ node, index, x: (column.get(node.nodeId) ?? 0) * (W + GAP_X), y: (row.get(node.nodeId) ?? 0) * (H + GAP_Y) }))
+  const minX = Math.min(...nodes.map(n => n.position.x))
+  const minY = Math.min(...nodes.map(n => n.position.y))
+  return nodes.map((node, index) => ({ node, index, x: node.position.x - minX, y: node.position.y - minY }))
 }
 
 function sourcePort(p: Placed, port: string) {
@@ -86,7 +59,7 @@ function wire(sx: number, sy: number, tx: number, ty: number) {
 }
 
 export function WorkflowSchematic({ version }: { version: WorkflowVersion }) {
-  const placed = place(version.nodes, version.connections)
+  const placed = place(version.nodes)
   const byId = new Map(placed.map(p => [p.node.nodeId, p]))
   const live = version.status === 'published'
   const hasBranches = version.connections.some(c => c.sourcePort !== 'next')

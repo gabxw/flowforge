@@ -374,3 +374,32 @@ summary:hover { color: var(--paper); }
   .lookup .field { width: 100%; }
   .pager > span { width: 100%; }
 }
+
+/* Canvas da Fase 12: reutiliza os tokens do redesign, sem mudar o tema. */
+.visual-editor { margin: 1.25rem 0; }
+.visual-caption { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: .85rem; flex-wrap: wrap; }
+.visual-caption p { font-size: .8rem; color: var(--paper-2); margin-top: .35rem; }
+.workflow-canvas { height: 460px; width: 100%; min-width: 0; border: 1px solid var(--trace); border-radius: 12px; overflow: hidden; background: var(--ink-0); }
+.workflow-canvas .react-flow { --xy-background-color: var(--ink-0); --xy-controls-button-background-color: var(--ink-2); --xy-controls-button-color: var(--paper); --xy-controls-button-border-color: var(--trace); }
+.workflow-canvas .react-flow__node { border-radius: 10px; }
+.workflow-canvas .react-flow__node:focus-visible { outline: 2px solid var(--run); }
+.flow-card { position: relative; width: 222px; min-height: 114px; border: 1px solid var(--trace); border-radius: 10px; padding: 22px 30px 20px 16px; background: var(--ink-2); color: var(--paper); }
+.flow-card.is-selected { border-color: var(--sodium); }
+.flow-card header { display: flex; align-items: center; gap: 8px; margin: 12px 0 8px; font-size: 14px; white-space: nowrap; }
+.flow-card code { font-size: 10px; color: var(--paper-3); }
+.flow-card-index { position: absolute; top: 9px; left: 16px; font: 10px var(--mono); color: var(--paper-3); }
+.flow-port-label { position: absolute; right: 9px; top: 48%; font: 9px var(--mono); color: var(--sodium); transform: translateY(-50%); }
+.flow-port-true { top: 24%; color: var(--ok); }
+.flow-port-false { top: 67%; color: var(--fail); }
+.workflow-canvas .react-flow__handle { width: 12px; height: 12px; border: 2px solid var(--trace); background: var(--ink-0); }
+.workflow-canvas .react-flow__handle.connectable { cursor: crosshair; }
+.workflow-canvas .react-flow__handle.connectionindicator { border-color: var(--sodium); }
+.workflow-canvas .react-flow__edge-text { font-family: var(--mono); }
+.workflow-canvas .react-flow__attribution { background: var(--ink-2); }
+.workflow-canvas .react-flow__attribution a { color: var(--paper-2); }
+.workflow-canvas .react-flow__controls-button { min-width: 32px; min-height: 32px; padding: 7px; border-color: var(--trace); color: var(--paper); background: var(--ink-2); }
+.workflow-canvas .react-flow__controls-button:hover { background: var(--ink-3); }
+.workflow-canvas .react-flow__controls-button svg { fill: currentColor; }
+.visual-actions { display: flex; gap: .8rem; align-items: center; flex-wrap: wrap; margin-top: .8rem; }
+.visual-actions .hint { margin: 0; }
+@media (max-width: 720px) { .workflow-canvas { height: 420px; } .flow-card { width: 222px; } .visual-caption { align-items: flex-start; } }

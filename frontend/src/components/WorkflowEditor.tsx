@@ -5,6 +5,9 @@ import type { NodeConfiguration, WorkflowConnection, WorkflowNode, WorkflowVersi
 import { createWorkflowTemplate, defaultConfiguration, nodeTypeLabels } from '../workflows/templates'
 import type { NodeType } from '../workflows/templates'
 import { NodeGlyph } from './Ui'
+import { WorkflowCanvas } from './WorkflowCanvas'
+import { arrangePositions, connectionIssue, outputPorts } from '../workflows/graph'
+import type { ConnectionCandidate } from '../workflows/graph'
 
 interface WorkflowEditorProps {
   version: WorkflowVersion
@@ -144,7 +147,7 @@ function buildNodes(nodes: EditableNode[]): WorkflowNode[] {
         throw new Error('A referência de credencial deve ser um UUID não vazio em um HTTP Request.')
       }
       const configuration = parseConfiguration(entry.configurationText, entry.type)
-      return { ...entry.node, configuration, credentialId: credentialId || null }
+      return { nodeId: entry.node.nodeId, position: { x: entry.node.position.x, y: entry.node.position.y }, configuration, credentialId: credentialId || null }
     } catch (error) {
       throw new Error('Node ' + (index + 1) + ': ' + (error instanceof Error ? error.message : 'configuração inválida.'))
     }
@@ -216,23 +219,55 @@ export default function WorkflowEditor({ version, disabled, saving, onSave, onDi
     }))
   }
 
+  const graphNodes = draft.nodes.map(entry => ({ nodeId: entry.node.nodeId, type: entry.type }))
+
+  function connect(candidate: ConnectionCandidate) {
+    if (locked) return
+    const issue = connectionIssue(graphNodes, draft.connections, candidate)
+    if (issue) { setError(issue); return }
+    edit(current => ({ ...current, connections: [...current.connections, { id: crypto.randomUUID(), ...candidate }] }))
+  }
+
   function addConnection() {
-    if (draft.connections.length >= 100 || draft.nodes.length < 2) return
-    const source = draft.nodes[0]
-    const connection: WorkflowConnection = {
-      id: crypto.randomUUID(),
-      sourceNodeId: source.node.nodeId,
-      targetNodeId: draft.nodes[1].node.nodeId,
-      sourcePort: source.type === 'condition' ? 'true' : 'next',
+    if (locked) return
+    for (const source of graphNodes) {
+      for (const port of outputPorts(source.type)) {
+        for (const target of graphNodes) {
+          const candidate = { sourceNodeId: source.nodeId, targetNodeId: target.nodeId, sourcePort: port }
+          if (!connectionIssue(graphNodes, draft.connections, candidate)) { connect(candidate); return }
+        }
+      }
     }
-    edit(current => ({ ...current, connections: [...current.connections, connection] }))
+    setError('Nenhuma saída livre pode ser conectada. Adicione um node ou remova uma conexão existente.')
   }
 
   function changeConnection(id: string, update: Partial<WorkflowConnection>) {
-    edit(current => ({
-      ...current,
-      connections: current.connections.map(connection => connection.id === id ? { ...connection, ...update } : connection),
-    }))
+    const existing = draft.connections.find(c => c.id === id)
+    if (!existing || locked) return
+    const candidate = { ...existing, ...update }
+    const source = graphNodes.find(n => n.nodeId === candidate.sourceNodeId)
+    if (update.sourceNodeId && source && !outputPorts(source.type).includes(candidate.sourcePort)) {
+      candidate.sourcePort = outputPorts(source.type).find(port => !draft.connections.some(c =>
+        c.id !== id && c.sourceNodeId === source.nodeId && c.sourcePort === port)) ?? outputPorts(source.type)[0]
+    }
+    const issue = connectionIssue(graphNodes, draft.connections, candidate, id)
+    if (issue) { setError(issue); return }
+    edit(current => ({ ...current, connections: current.connections.map(c => c.id === id ? candidate : c) }))
+  }
+
+  function moveNodes(positions: { nodeId: string; position: { x: number; y: number } }[]) {
+    if (locked) return
+    setDraft(current => {
+      let changed = false
+      const nodes = current.nodes.map(entry => {
+        const moved = positions.find(p => p.nodeId === entry.node.nodeId)
+        if (!moved || !Number.isFinite(moved.position.x) || !Number.isFinite(moved.position.y) ||
+          (moved.position.x === entry.node.position.x && moved.position.y === entry.node.position.y)) return entry
+        changed = true
+        return { ...entry, node: { ...entry.node, position: { x: moved.position.x, y: moved.position.y } } }
+      })
+      return changed ? { ...current, nodes, dirty: true } : current
+    })
   }
 
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -313,6 +348,14 @@ export default function WorkflowEditor({ version, disabled, saving, onSave, onDi
           <p className="muted">Os exemplos preenchem o rascunho e não iniciam uma execução.</p>
         </div>
       )}
+
+      <WorkflowCanvas nodes={draft.nodes.map(entry => ({ nodeId: entry.node.nodeId, type: entry.type, position: entry.node.position }))}
+        connections={draft.connections} locked={locked} onPositions={moveNodes} onConnect={connect}
+        onRemoveConnection={id => edit(current => ({ ...current, connections: current.connections.filter(c => c.id !== id) }))}
+        onConfigure={id => document.getElementById(editorId + '-config-' + id)?.focus({ preventScroll: false })} />
+      {!disabled && <div className="form-actions"><button type="button" className="btn" disabled={locked || !draft.nodes.length}
+        onClick={() => moveNodes(arrangePositions(graphNodes, draft.connections))}>Organizar nodes</button>
+        <span className="hint">Arranjo visual não muda IDs, configurações nem o caminho de execução.</span></div>}
 
       <ReadOnlyFold readOnly={readOnly} count={draft.nodes.length}>
       <div className="editor-grid">
@@ -433,9 +476,9 @@ export default function WorkflowEditor({ version, disabled, saving, onSave, onDi
                 disabled={locked}
                 onChange={event => changeConnection(connection.id, { sourcePort: event.target.value as WorkflowConnection['sourcePort'] })}
               >
-                <option value="next">next</option>
-                <option value="true">true</option>
-                <option value="false">false</option>
+                {outputPorts(graphNodes.find(n => n.nodeId === connection.sourceNodeId)?.type ?? 'log').map(port => <option key={port} value={port}>{port}</option>)}
+                {!outputPorts(graphNodes.find(n => n.nodeId === connection.sourceNodeId)?.type ?? 'log').includes(connection.sourcePort) &&
+                  <option value={connection.sourcePort}>{connection.sourcePort} (porta incompatível; revise)</option>}
               </select>
             </label>
             <label className="select-label" htmlFor={editorId + '-target-' + connection.id}>
