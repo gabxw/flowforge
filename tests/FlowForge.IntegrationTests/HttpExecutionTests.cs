@@ -82,7 +82,7 @@ public sealed class HttpExecutionTests(DispatchFixture fixture, ControlledHttpsS
     public async Task Failure_and_timeout_persist_safe_codes_known_revision_and_skip_the_tail(string path, ExecutionFailureCode code)
     {
         await fixture.ResetAsync(); var (workflow, credential, secret) = await WorkflowAsync(path); var message = await RequestAsync(workflow);
-        Assert.Equal(MessageDisposition.Completed, await Handler(TimeSpan.FromMilliseconds(200)).HandleAsync(message));
+        Assert.Equal(MessageDisposition.Completed, await Handler(path == "/slow" ? TimeSpan.FromMilliseconds(200) : TimeSpan.FromSeconds(5)).HandleAsync(message));
         var result = (await Reader.GetAsync(message.ExecutionId, workflow.OwnerUserId))!; var history = (await Reader.HistoryAsync(message.ExecutionId, workflow.OwnerUserId))!;
         Assert.Equal(WorkflowExecutionStatus.Failed, result.Status); Assert.Equal(code, result.ErrorCode);
         Assert.Equal(credential.Revision, history.Nodes[1].CredentialRevisionUsed); Assert.Empty(history.Logs);

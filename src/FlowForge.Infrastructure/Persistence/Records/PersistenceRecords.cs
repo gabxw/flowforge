@@ -1,6 +1,17 @@
 using FlowForge.Domain.Workflows;
 namespace FlowForge.Infrastructure.Persistence.Records;
-internal sealed class TechnicalUserRecord { public Guid Id { get; set; } public DateTimeOffset CreatedAt { get; set; } }
+internal sealed class TechnicalUserRecord
+{
+    public Guid Id { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public string? Email { get; set; }
+    public string? NormalizedEmail { get; set; }
+    public string? PasswordHash { get; set; }
+    public FlowForge.Domain.Users.UserRole Role { get; set; }
+    public bool Disabled { get; set; }
+    public int FailedSignIns { get; set; }
+    public DateTimeOffset? LockedUntil { get; set; }
+}
 internal sealed class WorkflowRecord
 {
     public Guid Id { get; set; }

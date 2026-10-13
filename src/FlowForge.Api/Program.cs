@@ -1,3 +1,4 @@
+using FlowForge.Api.Authentication;
 using FlowForge.Api.Credentials;
 using FlowForge.Api.Webhooks;
 using FlowForge.Api.Executions;
@@ -29,10 +30,17 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddWorkflowRuntime();
 builder.Services.AddWebhookRuntime();
 builder.Services.AddCredentialRuntime();
+builder.Services.AddAuthenticationRuntime();
 
 var app = builder.Build();
 app.UseExceptionHandler();
 app.UseRouting();
+app.Use(async (context, next) => {
+    if (context.GetEndpoint() is null) { await Results.Problem(statusCode: 404, title: "Recurso não encontrado.", detail: "Verifique o caminho e o método HTTP.").ExecuteAsync(context); return; }
+    await next(context);
+});
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseRateLimiter();
 app.UseStatusCodePages(async status => await Results.Problem(
     statusCode: status.HttpContext.Response.StatusCode,
@@ -40,22 +48,23 @@ app.UseStatusCodePages(async status => await Results.Problem(
     detail: "Verifique o caminho e o método HTTP.").ExecuteAsync(status.HttpContext));
 
 // Liveness não depende de configuração, conectividade ou migrations do banco.
-app.MapHealthChecks("/health/live");
-app.MapHealthChecks("/api/health/live");
+app.MapHealthChecks("/health/live").AllowAnonymous();
+app.MapHealthChecks("/api/health/live").AllowAnonymous();
 
 app.MapGet("/", () => Results.Ok(new
 {
     service = "FlowForge.Api",
-    phase = 10,
+    phase = 13,
     status = "private-workflow-engine"
-})).WithName("ServiceInfo");
+})).WithName("ServiceInfo").AllowAnonymous();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
-    app.MapOpenApi("/api/openapi/{documentName}.json");
+    app.MapOpenApi().AllowAnonymous();
+    app.MapOpenApi("/api/openapi/{documentName}.json").AllowAnonymous();
 }
 
+app.MapAuthentication();
 app.MapWorkflows();
 app.MapExecutions();
 app.MapExecutionRecovery();

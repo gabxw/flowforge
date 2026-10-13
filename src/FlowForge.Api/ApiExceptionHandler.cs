@@ -1,3 +1,4 @@
+using FlowForge.Application.Users;
 using FlowForge.Application.Credentials;
 using FlowForge.Application.Webhooks;
 using FlowForge.Infrastructure.Runtime;
@@ -20,6 +21,8 @@ internal sealed class ApiExceptionHandler : IExceptionHandler
             exception = exception.InnerException;
         var (status, title, detail) = exception switch
         {
+            AuthenticationRejectedException => (401, "Sessão inválida.", "Verifique suas credenciais ou entre novamente."),
+            AccountConflictException => (409, "Cadastro não concluído.", "Use uma conta existente ou solicite suporte ao administrador."),
             CredentialConcurrencyException => (409, "Conflito de revisão.", "Recarregue a credencial antes de repetir a alteração."),
             CredentialUnavailableException => (404, "Credencial indisponível.", "Verifique proprietário, origem e revogação."),
             WebhookRejectedException => (404, "Webhook indisponível.", "Verifique o endpoint e o segredo do header."),
@@ -39,6 +42,7 @@ internal sealed class ApiExceptionHandler : IExceptionHandler
             _ => (500, "Erro interno.", "Não foi possível concluir a operação.")
         };
         context.Response.StatusCode = status;
+        if (status == 401) context.Response.Headers.WWWAuthenticate = "Bearer";
         var problem = new ProblemDetails { Status = status, Title = title, Detail = detail };
         if (exception is WorkflowValidationException validation) problem.Extensions["errors"] = validation.Errors;
         // Results.Problem fornece fallback JSON mesmo quando Accept recusa o writer padrão.

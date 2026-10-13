@@ -141,6 +141,9 @@ jobs:
           $env:FLOWFORGE_POSTGRES_PASSWORD = [Guid]::NewGuid().ToString('N')
           $env:FLOWFORGE_RABBITMQ_PASSWORD = [Guid]::NewGuid().ToString('N')
           $env:FLOWFORGE_HTTP_ALLOWED_ORIGINS = ''
+          $env:FLOWFORGE_SMOKE_EMAIL = 'smoke@flowforge.local'
+          $env:FLOWFORGE_SMOKE_PASSWORD = [Guid]::NewGuid().ToString('N')
+          $env:FLOWFORGE_ACCOUNT_PERMIT_LIMIT = '10000'
           function Invoke-Check([string[]] $Arguments) {
             & docker @Arguments
             if ($LASTEXITCODE -ne 0) { throw "Falha no comando Docker (código $LASTEXITCODE)." }

@@ -539,6 +539,82 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("FlowForge.Infrastructure.Persistence.Records.RefreshSessionRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_refresh_sessions");
+
+                    b.HasIndex("ExpiresAt")
+                        .HasDatabaseName("ix_refresh_sessions_expires_at");
+
+                    b.HasIndex("UserId", "CreatedAt")
+                        .HasDatabaseName("ix_refresh_sessions_user_id_created_at");
+
+                    b.ToTable("refresh_sessions", "public", t =>
+                        {
+                            t.HasCheckConstraint("ck_refresh_session_expiry", "expires_at > created_at");
+                        });
+                });
+
+            modelBuilder.Entity("FlowForge.Infrastructure.Persistence.Records.RefreshTokenRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("ConsumedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("consumed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<byte[]>("Hash")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("hash");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("session_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_refresh_tokens");
+
+                    b.HasIndex("Hash")
+                        .IsUnique()
+                        .HasDatabaseName("ix_refresh_tokens_hash");
+
+                    b.HasIndex("SessionId")
+                        .HasDatabaseName("ix_refresh_tokens_session_id");
+
+                    b.ToTable("refresh_tokens", "public", t =>
+                        {
+                            t.HasCheckConstraint("ck_refresh_token_hash", "octet_length(hash) = 32");
+                        });
+                });
+
             modelBuilder.Entity("FlowForge.Infrastructure.Persistence.Records.TechnicalUserRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -549,12 +625,62 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<bool>("Disabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("disabled");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)")
+                        .HasColumnName("email");
+
+                    b.Property<int>("FailedSignIns")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("failed_sign_ins");
+
+                    b.Property<DateTimeOffset?>("LockedUntil")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("locked_until");
+
+                    b.Property<string>("NormalizedEmail")
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)")
+                        .HasColumnName("normalized_email");
+
+                    b.Property<string>("PasswordHash")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("password_hash");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("Owner")
+                        .HasColumnName("role");
+
                     b.HasKey("Id")
                         .HasName("pk_users");
 
+                    b.HasIndex("NormalizedEmail")
+                        .IsUnique()
+                        .HasDatabaseName("ix_users_normalized_email")
+                        .HasFilter("normalized_email IS NOT NULL");
+
                     b.ToTable("users", "public", t =>
                         {
+                            t.HasCheckConstraint("ck_users_auth_pair", "(email IS NULL AND normalized_email IS NULL AND password_hash IS NULL) OR (email IS NOT NULL AND normalized_email IS NOT NULL AND password_hash IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_users_failed_sign_ins", "failed_sign_ins BETWEEN 0 AND 5");
+
                             t.HasCheckConstraint("ck_users_id", "id <> '00000000-0000-0000-0000-000000000000'::uuid");
+
+                            t.HasCheckConstraint("ck_users_role", "role IN ('Owner', 'Admin')");
                         });
                 });
 
@@ -1140,6 +1266,26 @@ namespace FlowForge.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired()
                         .HasConstraintName("fk_outbox_messages_execution_id");
+                });
+
+            modelBuilder.Entity("FlowForge.Infrastructure.Persistence.Records.RefreshSessionRecord", b =>
+                {
+                    b.HasOne("FlowForge.Infrastructure.Persistence.Records.TechnicalUserRecord", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_refresh_sessions_user_id");
+                });
+
+            modelBuilder.Entity("FlowForge.Infrastructure.Persistence.Records.RefreshTokenRecord", b =>
+                {
+                    b.HasOne("FlowForge.Infrastructure.Persistence.Records.RefreshSessionRecord", null)
+                        .WithMany()
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_refresh_tokens_session_id");
                 });
 
             modelBuilder.Entity("FlowForge.Infrastructure.Persistence.Records.WebhookEndpointRecord", b =>

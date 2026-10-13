@@ -7,7 +7,7 @@ using FlowForge.Application.Executions;
 
 namespace FlowForge.Api;
 
-internal sealed record TechnicalOwner(Guid Id);
+internal sealed record CurrentOwner(Guid Id);
 internal sealed class WorkflowUnavailableException : Exception;
 
 internal static class WorkflowRuntime
@@ -15,11 +15,9 @@ internal static class WorkflowRuntime
     public static void AddWorkflowRuntime(this IServiceCollection services)
     {
         services.AddSingleton(TimeProvider.System);
-        services.AddSingleton(sp =>
-        {
-            var value = sp.GetRequiredService<IConfiguration>()["FlowForge:TechnicalOwnerId"];
-            return Guid.TryParse(value, out var id) && id != Guid.Empty
-                ? new TechnicalOwner(id) : throw new WorkflowUnavailableException();
+        services.AddScoped(sp => {
+            var subject = sp.GetRequiredService<IHttpContextAccessor>().HttpContext?.User.FindFirst("sub")?.Value;
+            return Guid.TryParse(subject, out var id) && id != Guid.Empty ? new CurrentOwner(id) : throw new UnauthorizedAccessException();
         });
         // Opções são resolvidas somente quando um caso de uso pede o store.
         services.AddDbContextFactory<FlowForgeDbContext>((sp, options) =>

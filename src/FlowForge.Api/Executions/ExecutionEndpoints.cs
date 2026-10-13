@@ -18,7 +18,7 @@ internal static class ExecutionEndpoints
     public static void MapExecutions(this WebApplication app)
     {
         app.MapGet("/api/workflows/{id:guid}/executions", async (Guid id, int? offset, int? limit,
-            ExecutionService service, TechnicalOwner owner, CancellationToken ct) =>
+            ExecutionService service, CurrentOwner owner, CancellationToken ct) =>
         {
             var page = await service.ListAsync(owner.Id, id, offset ?? 0, limit ?? 20, ct);
             return Results.Ok(new ExecutionPageDto(page.Items.Select(ExecutionDto.From).ToArray(), page.Offset, page.Limit));
@@ -26,7 +26,7 @@ internal static class ExecutionEndpoints
             .ProducesProblem(400).ProducesProblem(404).ProducesProblem(503).ProducesProblem(500);
 
         app.MapPost("/api/workflows/{id:guid}/executions", async (Guid id, HttpRequest request,
-            ExecutionService service, TechnicalOwner owner, CancellationToken ct) =>
+            ExecutionService service, CurrentOwner owner, CancellationToken ct) =>
         {
             if (request.ContentLength is > 0 || request.Headers.ContainsKey("Transfer-Encoding"))
                 throw new BadHttpRequestException("Este comando não aceita corpo.");
@@ -36,12 +36,12 @@ internal static class ExecutionEndpoints
             .ProducesProblem(400).ProducesProblem(404).ProducesProblem(409).ProducesProblem(503).ProducesProblem(500);
 
         app.MapGet("/api/executions/{id:guid}", async (Guid id, ExecutionService service,
-            TechnicalOwner owner, CancellationToken ct) => Results.Ok(ExecutionDto.From(await service.GetAsync(owner.Id, id, ct))))
+            CurrentOwner owner, CancellationToken ct) => Results.Ok(ExecutionDto.From(await service.GetAsync(owner.Id, id, ct))))
             .WithTags("Execuções").WithName("GetExecution").Produces<ExecutionDto>()
             .ProducesProblem(400).ProducesProblem(404).ProducesProblem(503).ProducesProblem(500);
 
         app.MapPost("/api/executions/{id:guid}/cancel", async (Guid id, HttpRequest request,
-            ExecutionService service, TechnicalOwner owner, CancellationToken ct) =>
+            ExecutionService service, CurrentOwner owner, CancellationToken ct) =>
         {
             if (request.ContentLength is > 0 || request.Headers.ContainsKey("Transfer-Encoding"))
                 throw new BadHttpRequestException("Este comando não aceita corpo.");
@@ -53,11 +53,11 @@ internal static class ExecutionEndpoints
             .ProducesProblem(400).ProducesProblem(404).ProducesProblem(503).ProducesProblem(500);
 
         app.MapGet("/api/executions/{id:guid}/nodes", async (Guid id, ExecutionService service,
-            TechnicalOwner owner, CancellationToken ct) => Results.Ok((await service.HistoryAsync(owner.Id, id, ct)).Nodes))
+            CurrentOwner owner, CancellationToken ct) => Results.Ok((await service.HistoryAsync(owner.Id, id, ct)).Nodes))
             .WithTags("Execuções").WithName("GetExecutionNodes").Produces<IReadOnlyList<NodeExecutionSnapshot>>()
             .ProducesProblem(400).ProducesProblem(404).ProducesProblem(503).ProducesProblem(500);
         app.MapGet("/api/executions/{id:guid}/logs", async (Guid id, ExecutionService service,
-            TechnicalOwner owner, CancellationToken ct) => Results.Ok((await service.HistoryAsync(owner.Id, id, ct)).Logs))
+            CurrentOwner owner, CancellationToken ct) => Results.Ok((await service.HistoryAsync(owner.Id, id, ct)).Logs))
             .WithTags("Execuções").WithName("GetExecutionLogs").Produces<IReadOnlyList<ExecutionLogSummary>>()
             .ProducesProblem(400).ProducesProblem(404).ProducesProblem(503).ProducesProblem(500);
     }

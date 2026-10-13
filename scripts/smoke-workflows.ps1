@@ -3,6 +3,8 @@ param([uri] $BaseUri = 'http://127.0.0.1:5080')
 
 $ErrorActionPreference = 'Stop'
 $base = $BaseUri.AbsoluteUri.TrimEnd('/')
+. (Join-Path $PSScriptRoot 'auth-session.ps1')
+$authHeaders = Get-FlowForgeSmokeHeaders $base
 
 function Invoke-Api([string] $Method, [string] $Path, [object] $Body, [int] $Expected = 200) {
     $arguments = @{
@@ -10,6 +12,7 @@ function Invoke-Api([string] $Method, [string] $Path, [object] $Body, [int] $Exp
         Method = $Method
         TimeoutSec = 20
         SkipHttpErrorCheck = $true
+        Headers = $authHeaders
     }
     if ($null -ne $Body) {
         $arguments.ContentType = 'application/json; charset=utf-8'

@@ -32,22 +32,22 @@ internal static class CredentialEndpoints
             context.HttpContext.Response.Headers.CacheControl = "no-store";
             return await next(context);
         });
-        group.MapPost("/", async (HttpRequest http, CredentialService service, TechnicalOwner owner, CancellationToken ct) => {
+        group.MapPost("/", async (HttpRequest http, CredentialService service, CurrentOwner owner, CancellationToken ct) => {
             var request = await ReadAsync<CreateCredentialRequest>(http, ct);
             var metadata = await service.CreateAsync(owner.Id, request.Name, request.Type, request.Origin,
                 request.HeaderName, new CredentialSecret(request.Secret), ct);
             return Results.Created($"/api/credentials/{metadata.Id}", metadata);
         }).WithName("CreateCredential").Accepts<CreateCredentialRequest>("application/json").Produces<CredentialSnapshot>(201).Errors(400, 408, 413, 415, 503);
-        group.MapGet("/", async (CredentialService service, TechnicalOwner owner, CancellationToken ct, int offset = 0, int limit = 20) =>
+        group.MapGet("/", async (CredentialService service, CurrentOwner owner, CancellationToken ct, int offset = 0, int limit = 20) =>
             Results.Ok(new { items = await service.ListAsync(owner.Id, offset, limit, ct), offset, limit }))
             .WithName("ListCredentials").Errors(400, 503);
-        group.MapGet("/{id:guid}", async (Guid id, CredentialService service, TechnicalOwner owner, CancellationToken ct) =>
+        group.MapGet("/{id:guid}", async (Guid id, CredentialService service, CurrentOwner owner, CancellationToken ct) =>
             Results.Ok(await service.GetAsync(owner.Id, id, ct))).WithName("GetCredential").Produces<CredentialSnapshot>().Errors(400, 404, 503);
-        group.MapPost("/{id:guid}/rotate-secret", async (Guid id, HttpRequest http, CredentialService service, TechnicalOwner owner, CancellationToken ct) => {
+        group.MapPost("/{id:guid}/rotate-secret", async (Guid id, HttpRequest http, CredentialService service, CurrentOwner owner, CancellationToken ct) => {
             var request = await ReadAsync<RotateCredentialRequest>(http, ct);
             return Results.Ok(await service.RotateAsync(owner.Id, id, request.ExpectedRevision, new CredentialSecret(request.Secret), ct));
         }).WithName("RotateCredential").Accepts<RotateCredentialRequest>("application/json").Produces<CredentialSnapshot>().Errors(400, 404, 408, 409, 413, 415, 503);
-        group.MapPost("/{id:guid}/revoke", async (Guid id, HttpRequest http, CredentialService service, TechnicalOwner owner, CancellationToken ct) => {
+        group.MapPost("/{id:guid}/revoke", async (Guid id, HttpRequest http, CredentialService service, CurrentOwner owner, CancellationToken ct) => {
             var request = await ReadAsync<RevokeCredentialRequest>(http, ct);
             return Results.Ok(await service.RevokeAsync(owner.Id, id, request.ExpectedRevision, ct));
         }).WithName("RevokeCredential").Accepts<RevokeCredentialRequest>("application/json").Produces<CredentialSnapshot>().Errors(400, 404, 408, 409, 413, 415, 503);

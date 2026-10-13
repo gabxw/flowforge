@@ -34,7 +34,7 @@ internal static class WebhookRuntime
                 context.HttpContext.Response.Headers.CacheControl = "no-store";
                 if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retry))
                     context.HttpContext.Response.Headers.RetryAfter = Math.Ceiling(retry.TotalSeconds).ToString(System.Globalization.CultureInfo.InvariantCulture);
-                await Results.Problem(statusCode: 429, title: "Limite de webhooks atingido.", detail: "Aguarde antes de tentar novamente.").ExecuteAsync(context.HttpContext);
+                await Results.Problem(statusCode: 429, title: "Limite de requisições atingido.", detail: "Aguarde antes de tentar novamente.").ExecuteAsync(context.HttpContext);
             };
         });
     }

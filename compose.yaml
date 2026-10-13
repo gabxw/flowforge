@@ -10,6 +10,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_HTTP_PORTS: 8080
       FlowForge__DataProtection__KeyRingPath: /var/lib/flowforge/keys
+      FlowForge__Authentication__AccountPermitLimit: ${FLOWFORGE_ACCOUNT_PERMIT_LIMIT:-120}
       FlowForge__TechnicalOwnerId: ${FLOWFORGE_TECHNICAL_OWNER_ID:-843ca847-7868-4d1c-bd21-fc1db0d224a7}
       FlowForge__Postgres__Host: postgres
       FlowForge__Postgres__Database: flowforge

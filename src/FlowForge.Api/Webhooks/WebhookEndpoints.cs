@@ -24,25 +24,25 @@ internal static class WebhookEndpoints
     public static void MapWebhooks(this WebApplication app)
     {
         var group = app.MapGroup("/api/workflows/{id:guid}/webhook").WithTags("Webhooks");
-        group.MapPost("", async (Guid id, HttpContext context, WebhookService service, TechnicalOwner owner, CancellationToken ct) => {
+        group.MapPost("", async (Guid id, HttpContext context, WebhookService service, CurrentOwner owner, CancellationToken ct) => {
             NoBody(context.Request); context.Response.Headers.CacheControl = "no-store";
             var issued = await service.CreateAsync(owner.Id, id, ct);
             return Results.Created($"/api/workflows/{id}/webhook", new IssuedWebhookDto(issued));
         }).WithName("CreateWebhook").Produces<IssuedWebhookDto>(201).ProducesProblem(400).ProducesProblem(404).ProducesProblem(409).ProducesProblem(503);
-        group.MapGet("", async (Guid id, HttpContext context, WebhookService service, TechnicalOwner owner, CancellationToken ct) => {
+        group.MapGet("", async (Guid id, HttpContext context, WebhookService service, CurrentOwner owner, CancellationToken ct) => {
             context.Response.Headers.CacheControl = "no-store";
             return Results.Ok(WebhookDto.From(await service.GetAsync(owner.Id, id, ct)));
         }).WithName("GetWebhook").Produces<WebhookDto>().ProducesProblem(404).ProducesProblem(503);
-        group.MapPut("", async (Guid id, SetWebhookEnabledRequest body, WebhookService service, TechnicalOwner owner, CancellationToken ct) =>
+        group.MapPut("", async (Guid id, SetWebhookEnabledRequest body, WebhookService service, CurrentOwner owner, CancellationToken ct) =>
             Results.Ok(WebhookDto.From(await service.SetEnabledAsync(owner.Id, id, body.Enabled ?? throw new ArgumentException("Enabled é obrigatório."), ct))))
             .WithName("SetWebhookEnabled").Produces<WebhookDto>().ProducesProblem(400).ProducesProblem(404).ProducesProblem(409).ProducesProblem(503);
-        group.MapPost("/rotate-secret", async (Guid id, HttpContext context, WebhookService service, TechnicalOwner owner, CancellationToken ct) => {
+        group.MapPost("/rotate-secret", async (Guid id, HttpContext context, WebhookService service, CurrentOwner owner, CancellationToken ct) => {
             NoBody(context.Request); context.Response.Headers.CacheControl = "no-store";
             return Results.Ok(new IssuedWebhookDto(await service.RotateAsync(owner.Id, id, ct)));
         }).WithName("RotateWebhookSecret").Produces<IssuedWebhookDto>().ProducesProblem(400).ProducesProblem(404).ProducesProblem(503);
 
         app.MapPost("/hooks/{id:guid}", Accept).WithTags("Webhooks").WithName("AcceptWebhook")
-            .RequireRateLimiting("webhooks").Accepts<JsonElement>("application/json").Produces<WebhookReceipt>(202)
+            .AllowAnonymous().RequireRateLimiting("webhooks").Accepts<JsonElement>("application/json").Produces<WebhookReceipt>(202)
             .ProducesProblem(400).ProducesProblem(404).ProducesProblem(408).ProducesProblem(409)
             .ProducesProblem(413).ProducesProblem(415).ProducesProblem(429).ProducesProblem(503);
     }

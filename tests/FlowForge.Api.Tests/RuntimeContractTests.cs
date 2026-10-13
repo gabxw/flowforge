@@ -19,6 +19,7 @@ public sealed class RuntimeContractTests
         await using var api = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Development");
+            builder.ConfigureServices(services => services.AddContractIdentity());
             builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["FlowForge:TechnicalOwnerId"] = Guid.NewGuid().ToString(),
@@ -47,6 +48,7 @@ public sealed class RuntimeContractTests
         await using var api = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Production");
+            builder.ConfigureServices(services => services.AddContractIdentity());
             builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["FlowForge:TechnicalOwnerId"] = owner,
