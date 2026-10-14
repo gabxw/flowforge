@@ -12,6 +12,10 @@ services:
       FlowForge__DataProtection__KeyRingPath: /var/lib/flowforge/keys
       FlowForge__Telemetry__OtlpEndpoint: ${FLOWFORGE_OTLP_ENDPOINT:-}
       FlowForge__Authentication__AccountPermitLimit: ${FLOWFORGE_ACCOUNT_PERMIT_LIMIT:-120}
+      # O nginx do frontend chega pela rede interna do Compose; só dele o X-Forwarded-For é aceito.
+      FlowForge__Network__TrustedProxies__0: 172.16.0.0/12
+      FlowForge__Network__TrustedProxies__1: 10.0.0.0/8
+      FlowForge__Network__TrustedProxies__2: 192.168.0.0/16
       FlowForge__TechnicalOwnerId: ${FLOWFORGE_TECHNICAL_OWNER_ID:-843ca847-7868-4d1c-bd21-fc1db0d224a7}
       FlowForge__Postgres__Host: postgres
       FlowForge__Postgres__Database: flowforge

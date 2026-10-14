@@ -38,8 +38,10 @@ builder.Services.AddWorkflowRuntime();
 builder.Services.AddWebhookRuntime();
 builder.Services.AddCredentialRuntime();
 builder.Services.AddAuthenticationRuntime();
+builder.Services.AddTrustedProxies(builder.Configuration);
 
 var app = builder.Build();
+app.UseForwardedHeaders();
 app.UseExceptionHandler();
 app.UseRouting();
 app.Use(async (context, next) => {
