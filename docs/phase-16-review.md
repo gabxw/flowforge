@@ -4,13 +4,17 @@ README concentra problema, produto implementado, diagrama, stack justificada, qu
 
 ## Validação
 
-- Fonte backend/frontend inalterada em relação à Fase 15. [CI final do PR #12](https://github.com/gabxw/flowforge/actions/runs/38457048103) aprovou 1.282 casos xUnit, 43 frontend e ambiente real; main integrada em 8c84658.
+- Regras e interfaces backend/frontend inalteradas em relação à Fase 15; duas referências de infraestrutura receberam o patch de segurança 10.0.13 após o gate detectar advisories novos. [CI final do PR #12](https://github.com/gabxw/flowforge/actions/runs/38457048103) aprovou 1.282 casos xUnit, 43 frontend e ambiente real; main integrada em 8c84658.
 - Novo roteiro PowerShell: sintaxe e execução real aprovadas. Dois ramos Succeeded, repetição do mesmo evento reutilizando ExecutionId e falha esperada httpDestinationDenied, sem chamadas externas. Layout explícito de seis cards, sem alterar semântica. O CI agora executa esse roteiro.
 - Compose isolado aprovado: imagens, migrations idempotentes, smoke, demonstração e shutdown do Worker exited:0:false. Apenas volumes de validação foram removidos; ambiente anterior do usuário preservado.
 - Capturas reais de workflows/editor/execução inspecionadas em desktop; 390/720px conferidos depois de carregar os dados. Sem overflow horizontal, pageerror ou console error; foco por teclado verificado. Identidade do usuário preservada. Tokens de CSS não mudaram: contrastes calculados na Fase 13 continuam válidos (texto mínimo 4,99:1; campo 3,67:1; foco 9,58:1).
 - Primeira captura de 720px mostrou loading e foi refeita esperando estado completo. O primeiro exemplo não declarava posições e sobrepunha cards; o roteiro passou a declarar layout. A captura final mostra os seis cards separados.
 
 Revisão documental independente somente leitura: quickstart, demo, CI, configuração/limites e garantias conferidos contra Compose, autenticação e política HTTP, sem problemas materiais identificados. Builds/testes e screenshots são as evidências executadas pelo agente principal.
+
+## Atualização de segurança detectada no fechamento
+
+O primeiro CI do PR #13 bloqueou restore em Pkcs/Xml 10.0.12 por NU1902/NU1903. Os [advisories Microsoft](https://github.com/advisories/GHSA-846f-f764-76mx) publicados em 13/10/2026 indicam 10.0.13 corrigido. Atualizamos DataProtection.Extensions para 10.0.13, que resolve DataProtection/Xml/Pkcs corrigidos, e Configuration.Abstractions para 10.0.13, exigido pela dependência Hosting.Abstractions. A auditoria permanece ativa; não suprimimos warnings nem alteramos os gates. Restore force-evaluate e locked aprovados; build Release com zero avisos/erros. No patch final passaram 25 testes Integration de proteção/credentials/HTTP/telemetria e 24 API de autenticação/bootstrap, sem skips. Auditoria NuGet final: zero vulnerabilidades reportadas. Revisão independente confirmou que somente as duas referências e sua cadeia transitiva necessária mudaram. O CI completo é repetido antes do merge.
 
 ## Revisão técnica
 
