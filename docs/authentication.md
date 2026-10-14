@@ -25,7 +25,9 @@ $env:FLOWFORGE_SMOKE_PASSWORD = [System.Net.NetworkCredential]::new('', (Read-Ho
 
 O helper mantém JWT somente na memória da execução PowerShell, tenta login e pode cadastrar conta em Development. Testes CI usam identidade fictícia, senha aleatória e quota explícita para a carga dos smokes. Não use contas/credenciais pessoais nesses testes.
 
-Default: 30 operações de login/cadastro por minuto e 120 requests por conta/minuto, sem fila. A quota por conta pode ser configurada por FLOWFORGE_ACCOUNT_PERMIT_LIMIT (1..10000); o default não muda para tráfego normal. Rate limit é local ao processo. Cinco falhas de senha bloqueiam a conta existente por quinze minutos, sem bloquear outros usuários.
+Default: 30 operações de login/cadastro e 120 requests de sessão (status, CSRF, refresh, logout) por minuto e por endereço de cliente, e 120 requests por conta autenticada/minuto, sem fila. Um cliente abusivo esgota só a própria cota; login e renovação de sessão dos demais seguem disponíveis. O endereço vem do X-Forwarded-For apenas quando a conexão parte de uma rede listada em FlowForge:Network:TrustedProxies; no Compose, as redes privadas onde o nginx roda. Sem essa lista, o header é ignorado. A quota por conta pode ser configurada por FLOWFORGE_ACCOUNT_PERMIT_LIMIT (1..10000). Rate limit é local ao processo.
+
+Cinco falhas de senha bloqueiam a conta existente por quinze minutos, sem bloquear outros usuários. É o trade-off conhecido do bloqueio por conta: ele impede força bruta contra uma senha, mas alguém que conheça o e-mail pode manter a conta bloqueada repetindo erros. A cota por endereço limita esse abuso a partir de um cliente; um atacante distribuído ainda consegue. A alternativa seria bloquear por conta e endereço com limite global mais alto, ao custo de uma tabela de tentativas.
 
 Preserve users, refresh_sessions, refresh_tokens e execution_keyring no backup. jwt-signing.protected precisa do mesmo keyring. Nunca versionar valores de keys, cookies, passwords ou variáveis de secrets. HTTPS é obrigatório ao implantar; Production não habilita cadastro/setup público automaticamente.
 

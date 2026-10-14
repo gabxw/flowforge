@@ -114,8 +114,9 @@ internal static class AuthenticationRuntime
             options.AddPolicy("Admin", p => p.RequireAuthenticatedUser().RequireRole("Admin"));
         });
         services.AddOptions<Microsoft.AspNetCore.RateLimiting.RateLimiterOptions>().Configure<IConfiguration>((options, configuration) => {
-            options.AddPolicy("login", _ => RateLimitPartition.GetFixedWindowLimiter("login", _ => new() { PermitLimit = 30, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
-            options.AddPolicy("auth", _ => RateLimitPartition.GetFixedWindowLimiter("auth", _ => new() { PermitLimit = 120, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+            // Por cliente: um abuso anônimo não bloqueia login, cadastro nem a renovação de sessão dos demais.
+            options.AddPolicy("login", context => RateLimitPartition.GetFixedWindowLimiter("login:" + ClientPartition.Key(context), _ => new() { PermitLimit = 30, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+            options.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter("auth:" + ClientPartition.Key(context), _ => new() { PermitLimit = 120, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
             var accountLimit = configuration.GetValue<int?>("FlowForge:Authentication:AccountPermitLimit") ?? 120;
             if (accountLimit is < 1 or > 10000) throw new RuntimeConfigurationException();
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context => context.User.Identity?.IsAuthenticated == true

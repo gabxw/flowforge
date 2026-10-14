@@ -4,7 +4,11 @@ using System.Text.Json;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 using FlowForge.Application.Users;
 using FlowForge.Infrastructure.Security;
 using Xunit;
@@ -178,6 +182,26 @@ public sealed class AuthenticationEndpointTests(WorkflowApiFixture fixture)
         var a=await Register(first);var b=await Register(other);bool limited=false;
         for(var i=0;i<125;i++) {using var r=await Bearer(first,a.AccessToken,"/api/workflows");if(r.StatusCode==HttpStatusCode.TooManyRequests){limited=true;break;}Assert.Equal(HttpStatusCode.OK,r.StatusCode);}
         Assert.True(limited);using var allowed=await Bearer(other,b.AccessToken,"/api/workflows");Assert.Equal(HttpStatusCode.OK,allowed.StatusCode);
+    }
+    [Fact]
+    public async Task Anonymous_sign_in_limit_is_partitioned_by_client_address()
+    {
+        // O TestServer não informa endereço; a conexão passa a vir do loopback, como o proxy confiável.
+        using var production=fixture.CreateAuthenticationApi();
+        using var api=production.WithWebHostBuilder(b=>b.ConfigureTestServices(s=>s.AddSingleton<IStartupFilter,LoopbackConnection>()));
+        using var abusive=Client(api);abusive.DefaultRequestHeaders.Add("X-Forwarded-For","203.0.113.10");await Csrf(abusive);bool limited=false;
+        for(var i=0;i<31;i++){using var r=await abusive.PostAsJsonAsync("/api/auth/login",new{email="nobody-"+i+"@flowforge.local",password="incorrect-long-password"});
+            if(r.StatusCode==HttpStatusCode.TooManyRequests){limited=true;break;}Assert.Equal(HttpStatusCode.Unauthorized,r.StatusCode);}
+        Assert.True(limited);
+        using var other=Client(api);other.DefaultRequestHeaders.Add("X-Forwarded-For","203.0.113.20");
+        var grant=await Login(other);using var active=await Bearer(other,grant.AccessToken,"/api/workflows");Assert.Equal(HttpStatusCode.OK,active.StatusCode);
+    }
+    private sealed class LoopbackConnection : IStartupFilter
+    {
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app => {
+            app.Use((context, call) => { context.Connection.RemoteIpAddress = IPAddress.Loopback; return call(context); });
+            next(app);
+        };
     }
     [Fact]
     public async Task Repeated_wrong_password_locks_only_the_existing_account()

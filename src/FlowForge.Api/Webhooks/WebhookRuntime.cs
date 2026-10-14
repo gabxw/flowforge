@@ -28,7 +28,7 @@ internal static class WebhookRuntime
             var windowSeconds = ReadLimit(configuration, "WindowSeconds", 60, 1, 3600);
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             // Uma única partição local evita crescimento com IDs/IPs fornecidos pelo cliente.
-            options.AddPolicy("webhooks", context => RateLimitPartition.GetFixedWindowLimiter("webhooks", partition => new()
+            options.AddPolicy("webhooks", context => RateLimitPartition.GetFixedWindowLimiter("webhooks:" + ClientPartition.Key(context), partition => new()
             { PermitLimit = permits, Window = TimeSpan.FromSeconds(windowSeconds), QueueLimit = 0, AutoReplenishment = true }));
             options.OnRejected = async (context, ct) => {
                 context.HttpContext.Response.Headers.CacheControl = "no-store";
