@@ -1,19 +1,19 @@
 # Editor visual — Fase 12
 
-O editor usa React Flow com cards dos seis tipos e portas next/true/false. O formulário de configuração JSON e a publicação/execução da Fase 11 continuam disponíveis. Tema, fonte e trace da interface redesenhada foram preservados.
+O editor usa React Flow com cards dos seis tipos e portas next/true/false. O mesmo componente mostra a versão publicada em modo leitura e o caminho percorrido por uma execução. A configuração fica num painel lateral com campos por tipo e um modo JSON. Tema e decisões visuais estão na [ADR 0017](decisions/0017-graphite-theme-and-single-canvas.md).
 
 ## Usar
 
 1. Crie um workflow ou abra novo rascunho de uma publicação.
-2. Use um exemplo ou selecione Tipo do novo node e Adicionar node.
-3. Arraste os cards; ligue a saída à entrada de outro node.
-4. Selecione um card e clique em Configurar node selecionado; também funciona por duplo clique. O formulário mantém JSON e referência de credencial.
-5. Use Organizar nodes se desejar um arranjo por profundidade/ramo. Essa ação altera somente posições e precisa ser salva.
+2. Use um exemplo ou escolha o tipo na barra do canvas e clique em Adicionar etapa.
+3. Arraste os cards; ligue a saída à entrada de outra etapa.
+4. Selecione um card para abrir o painel da etapa (duplo clique leva o foco ao painel). Use Campos para o formulário do tipo ou JSON para o texto completo; os dois editam a mesma configuração.
+5. Use Organizar etapas se desejar um arranjo por profundidade/ramo. Essa ação altera somente posições e precisa ser salva.
 6. Salve o rascunho. Reabra para confirmar o layout; publique e execute a versão aceita pelo servidor.
 
-Selecionar uma conexão permite removê-la explicitamente; a lista de conexões oferece o mesmo controle por formulário. Remover um node informa e remove suas conexões incidentes. Versões publicadas/arquivadas têm pan/zoom e configuração recolhida em modo de leitura, sem arrastar ou conectar.
+Selecionar uma conexão abre origem, porta e destino no painel; Todas as etapas volta à lista de etapas e conexões, que também cria e remove conexões por formulário. Remover uma etapa informa e remove suas conexões incidentes. Versões publicadas/arquivadas têm pan/zoom e abrem a etapa numa gaveta somente leitura, sem arrastar ou conectar.
 
-Teclado: Tab percorre elementos; Enter/Espaço seleciona o node focado; setas movem um node editável. Os formulários são a alternativa para criar/editar/remover conexões sem drag. A seleção e os controles mostram foco visível.
+Teclado: Tab percorre elementos; Enter/Espaço seleciona a etapa focada; setas movem uma etapa editável; Esc fecha a gaveta da versão publicada. O formulário Ligar a saída é a alternativa para criar conexões sem arrastar. As abas usam setas, Home e End.
 
 ## Regras
 
@@ -27,9 +27,9 @@ O campo de porta mostra opções do tipo de origem. Conexão incompatível já s
 
 Salvar continua usando o endpoint de rascunho com expectedRevision. Só os campos do contrato são enviados. Posições em grade de 20px são metadados visuais; nenhuma ordem de execução é derivada delas. A engine segue conexões e portas.
 
-Layout é versionado com a definição. Para mudar uma publicação, abra novo rascunho. IDs de nodes/configurações/credenciais são preservados. O esquema SVG agora representa coordenadas persistidas, inclusive negativas, em vez de inventar outro arranjo.
+Layout é versionado com a definição. Para mudar uma publicação, abra novo rascunho. IDs de nodes/configurações/credenciais são preservados.
 
-Dimensões do React Flow, seleção e zoom/pan ficam em memória. Não existe autosave, storage local de credenciais, tabela nova de layout ou algoritmo de layout externo. Algumas posições antigas se sobrepõem: Organizar nodes é uma ação explícita para esse caso.
+Dimensões do React Flow, seleção e zoom/pan ficam em memória. Não existe autosave, storage local de credenciais, tabela nova de layout ou algoritmo de layout externo. Algumas posições antigas se sobrepõem: Organizar etapas é uma ação explícita para esse caso.
 
 Precisão JSON, limites de configuração/grafo, input/output protegido e resultados incertos seguem [frontend.md](frontend.md). O editor permanece local/privado até autenticação na Fase 13.
 

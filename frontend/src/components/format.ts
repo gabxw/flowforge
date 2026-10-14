@@ -2,7 +2,7 @@ import type { NodeType } from '../workflows/templates'
 
 const labels: Record<string, string> = {
   pending: 'Pendente', running: 'Em execução', succeeded: 'Concluída', failed: 'Falhou',
-  cancelled: 'Cancelada', retrying: 'Aguardando nova tentativa', skipped: 'Ignorado',
+  cancelled: 'Cancelada', retrying: 'Aguardando nova tentativa', skipped: 'Ignorada',
   interrupted: 'Interrompida', draft: 'Rascunho', published: 'Publicada', archived: 'Arquivado',
 }
 export function statusLabel(status: string) {

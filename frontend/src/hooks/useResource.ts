@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { isAbortError } from '../api/client'
 
 // Uma leitura por vez; cada tela cancela suas leituras ao navegar.
-export function useResource<T>(load: (signal: AbortSignal) => Promise<T>, active?: (value: T) => boolean) {
+export function useResource<T>(load: (signal: AbortSignal) => Promise<T>, active?: (value: T) => boolean, pollMs = 3000) {
   const [data, replaceData] = useState<T | null>(null)
   const epoch = useRef(0)
   const currentController = useRef<AbortController | null>(null)
@@ -50,13 +50,13 @@ export function useResource<T>(load: (signal: AbortSignal) => Promise<T>, active
         inFlight = false
         if (!disposed && requestEpoch === epoch.current) {
           setLoading(false)
-          if (shouldPoll) timer = setTimeout(tick, 3000)
+          if (shouldPoll) timer = setTimeout(tick, pollMs)
         }
       }
     }
     function tick() {
       if (disposed) return
-      if (document.visibilityState === 'hidden') timer = setTimeout(tick, 3000)
+      if (document.visibilityState === 'hidden') timer = setTimeout(tick, pollMs)
       else void read()
     }
     function visible() {
@@ -73,7 +73,7 @@ export function useResource<T>(load: (signal: AbortSignal) => Promise<T>, active
       controller.abort()
       document.removeEventListener('visibilitychange', visible)
     }
-  }, [load, active, generation])
+  }, [load, active, generation, pollMs])
 
   return { data, setData, error, loading, updatedAt, refresh }
 }

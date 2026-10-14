@@ -30,6 +30,32 @@ export function LoginPage() {
       <button className="btn btn-primary" disabled={busy} type="submit">{busy ? 'Confirmando acesso…' : register ? 'Criar conta' : 'Entrar'}</button>
       {auth.canRegister && !auth.user && <button className="btn btn-link" type="button" disabled={busy} onClick={()=>{setRegister(!register);setError(null);setPassword('')}}>{register ? 'Já tenho uma conta' : 'Criar uma conta'}</button>}
     </form>
-    <aside className="access-context"><h2>Seu grafo, suas execuções</h2><p>Publique uma versão do workflow, receba eventos e investigue cada etapa pelo histórico.</p><p>As definições e credenciais ficam vinculadas à sua conta.</p></aside>
+    <aside className="access-context">
+      <AccessDiagram />
+      <h2>Seu grafo, suas execuções</h2>
+      <p>Publique uma versão, receba eventos pelo webhook e acompanhe o caminho que cada execução percorreu.</p>
+      <p>Definições e credenciais ficam vinculadas à sua conta.</p>
+    </aside>
   </section>
+}
+
+// Um workflow de exemplo desenhado com as mesmas peças do canvas: o sinal percorre o ramo true.
+function AccessDiagram() {
+  const card = (x: number, y: number, title: string, detail: string, tone: string) => <g transform={`translate(${x},${y})`}>
+    <rect width="150" height="52" rx="9" className="diagram-card" />
+    <rect x="0" y="10" width="3" height="32" rx="1.5" fill={tone} />
+    <text x="14" y="22" className="diagram-title">{title}</text>
+    <text x="14" y="38" className="diagram-detail">{detail}</text>
+  </g>
+  const wires = ['M154 96 C176 96 176 96 198 96', 'M348 84 C378 84 372 38 402 38', 'M348 108 C378 108 372 154 402 154']
+  return <svg className="access-diagram" viewBox="0 0 556 196" role="img" aria-label="Exemplo de workflow: Webhook Trigger, Condition e dois Logs, um por ramo.">
+    {wires.map((d, k) => <path key={k} d={d} className={'diagram-wire' + (k === 2 ? ' is-false' : k === 1 ? ' is-true' : '')} />)}
+    {wires.slice(0, 2).map((d, k) => <path key={k} d={d} className="diagram-signal" pathLength={1} style={{ animationDelay: k * .9 + 's' }} />)}
+    {card(4, 70, 'Webhook Trigger', 'entrada por webhook', '#ffb547')}
+    {card(198, 70, 'Condition', '/total > 100', '#ffd27a')}
+    {card(402, 12, 'Log', '“Pedido aprovado”', '#b0b0ba')}
+    {card(402, 128, 'Log', '“Revisão manual”', '#b0b0ba')}
+    <text x="354" y="72" className="diagram-port is-true">true</text>
+    <text x="354" y="128" className="diagram-port is-false">false</text>
+  </svg>
 }

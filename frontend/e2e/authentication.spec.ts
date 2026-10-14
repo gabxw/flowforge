@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { ids, mockApi } from './mock-api'
 import { mockSession } from './session-mock'
+import { stepJson } from './canvas-actions'
 test('entra usa bearer e sai sem persistir tokens no storage',async({page})=>{
   await mockApi(page)
   await mockSession(page,false)
@@ -22,14 +23,14 @@ test('sessão expirada conserva JSON local durante reautenticação',async({page
   await page.route('**/api/workflows/'+ids.workflow+'/draft',route=>expired?route.fulfill({status:401,json:{status:401}}):route.fallback())
   await page.goto('/#/workflows/'+ids.workflow)
   const local=JSON.stringify({type:'log',message:'Edição conservada durante login'})
-  await page.getByLabel('Configuração JSON do node 2',{exact:true}).fill(local)
+  await (await stepJson(page,2)).fill(local)
   session.expire()
   await page.getByRole('button',{name:'Salvar rascunho',exact:true}).click()
   await expect(page.getByRole('heading',{name:'Entre novamente',exact:true})).toBeVisible()
   await page.getByLabel('Senha',{exact:true}).fill('senha-ficticia-de-teste')
   expired=false
   await page.getByRole('button',{name:'Entrar',exact:true}).click()
-  await expect(page.getByLabel('Configuração JSON do node 2',{exact:true})).toHaveValue(local)
+  await expect(page.getByLabel('Configuração JSON da etapa 2',{exact:true})).toHaveValue(local)
   await expect(page.getByRole('button',{name:'Salvar rascunho',exact:true})).toBeEnabled()
 })
 test('login tem labels foco e reflow em 390 e 720px',async({page})=>{

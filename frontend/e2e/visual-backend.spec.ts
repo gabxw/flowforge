@@ -2,7 +2,7 @@ import { signInForBackend } from './backend-session'
 import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
 import type { WorkflowDetail, WorkflowExecution, NodeExecution } from '../src/api/contracts'
-import { dragNode, connectPorts } from './canvas-actions'
+import { dragNode, connectPorts, stepJson } from './canvas-actions'
 
 test('editor visual persiste layout publica e executa os dois ramos @backend',async({page})=>{
   test.setTimeout(90_000)
@@ -17,9 +17,10 @@ test('editor visual persiste layout publica e executa os dois ramos @backend',as
     await page.getByRole('button',{name:'Criar workflow',exact:true}).click()
     workflowId=((await (await creating).json()) as WorkflowDetail).id
     await page.getByRole('button',{name:'Usar exemplo com Condition, Transform e Delay',exact:true}).click()
-    await page.getByLabel('Configuração JSON do node 2',{exact:true}).fill(JSON.stringify({type:'condition',sourcePointer:'',operation:'exists'}))
+    await (await stepJson(page,2)).fill(JSON.stringify({type:'condition',sourcePointer:'',operation:'exists'}))
     const nodeIds=await page.locator('.react-flow__node').evaluateAll(els=>els.map(el=>el.getAttribute('data-id')!))
     expect(nodeIds).toHaveLength(6)
+    await page.getByRole('button',{name:'Todas as etapas',exact:true}).click()
     await page.getByRole('button',{name:'Remover conexão 3',exact:true}).click()
     await connectPorts(page,nodeIds[1],'false',nodeIds[5])
     await dragNode(page,nodeIds[3],60,60)
@@ -51,7 +52,7 @@ test('editor visual persiste layout publica e executa os dois ramos @backend',as
     await expect(page.getByText('Novo rascunho criado.',{exact:true})).toBeVisible()
     const copied=(await (await api.get('/api/workflows/'+workflowId)).json()) as WorkflowDetail
     expect(copied.versions.find(v=>v.id===copied.draftVersionId)?.nodes).toEqual(draft.nodes)
-    await page.getByLabel('Configuração JSON do node 2',{exact:true}).fill(JSON.stringify({type:'condition',sourcePointer:'/ausente',operation:'exists'}))
+    await (await stepJson(page,2)).fill(JSON.stringify({type:'condition',sourcePointer:'/ausente',operation:'exists'}))
     await page.getByRole('button',{name:'Salvar rascunho',exact:true}).click()
     await expect(page.getByText('Rascunho salvo.',{exact:true})).toBeVisible()
     await page.getByRole('button',{name:'Publicar versão',exact:true}).click()

@@ -1,14 +1,14 @@
 import { expect, test } from '@playwright/test'
 import { ids, mockApi } from './mock-api'
 
-import { dragNode, connectPorts } from './canvas-actions'
+import { dragNode, connectPorts, stepJson } from './canvas-actions'
 
 test('arrastar salvar e reabrir conserva configuração identidade e posição',async({page})=>{
   const api=await mockApi(page,{exists:true})
   await page.goto('/#/workflows/'+ids.workflow)
   await expect(page.getByTestId('canvas-node-'+ids.log)).toBeVisible()
   const local={type:'log',message:'Configuração preservada após arrastar'}
-  await page.getByLabel('Configuração JSON do node 2',{exact:true}).fill(JSON.stringify(local))
+  await (await stepJson(page,2)).fill(JSON.stringify(local))
   await dragNode(page,ids.log)
   await page.getByRole('button',{name:'Salvar rascunho',exact:true}).click()
   await expect.poll(()=>api.workflow.revision).toBe(2)
@@ -19,7 +19,7 @@ test('arrastar salvar e reabrir conserva configuração identidade e posição',
   expect(saved.connections).toHaveLength(1)
   await page.reload()
   await expect(page.getByTestId('canvas-node-'+ids.log)).toBeVisible()
-  await expect(page.getByLabel('Configuração JSON do node 2',{exact:true})).toHaveValue(JSON.stringify(local,null,2))
+  await expect(await stepJson(page,2)).toHaveValue(JSON.stringify(local,null,2))
   expect(api.workflow.versions[0]).toEqual(saved)
   const style=await page.locator('.react-flow__node[data-id="'+ids.log+'"]').getAttribute('style')
   const coordinates=style?.match(/translate\(([-\d.e+]+)px,\s*([-\d.e+]+)px\)/)
@@ -31,8 +31,8 @@ test('canvas conecta true e false e rejeita uma saída duplicada',async({page})=
   const api=await mockApi(page,{exists:true})
   await page.goto('/#/workflows/'+ids.workflow)
   await page.getByRole('button',{name:'Remover conexão 1',exact:true}).click()
-  await page.getByRole('combobox',{name:'Tipo do novo node',exact:true}).selectOption('condition')
-  await page.getByRole('button',{name:'Adicionar node',exact:true}).click()
+  await page.getByRole('combobox',{name:'Tipo da nova etapa',exact:true}).selectOption('condition')
+  await page.getByRole('button',{name:'Adicionar etapa',exact:true}).click()
   const condition=await page.locator('.react-flow__node').filter({hasText:'Condition'}).getAttribute('data-id')
   expect(condition).not.toBeNull()
   await connectPorts(page,ids.trigger,'next',condition!)
@@ -48,12 +48,12 @@ test('conflito mantém posição e JSON local após tentativa de salvar',async({
   await mockApi(page,{exists:true,conflict:true})
   await page.goto('/#/workflows/'+ids.workflow)
   const json=JSON.stringify({type:'log',message:'Edição local em conflito'})
-  await page.getByLabel('Configuração JSON do node 2',{exact:true}).fill(json)
+  await (await stepJson(page,2)).fill(json)
   await dragNode(page,ids.log)
   const before=await page.locator('.react-flow__node[data-id="'+ids.log+'"]').getAttribute('style')
   await page.getByRole('button',{name:'Salvar rascunho',exact:true}).click()
   await expect(page.getByRole('alert').filter({hasText:'Conflito ao salvar'})).toBeVisible()
-  await expect(page.getByLabel('Configuração JSON do node 2',{exact:true})).toHaveValue(json)
+  await expect(page.getByLabel('Configuração JSON da etapa 2',{exact:true})).toHaveValue(json)
   expect(await page.locator('.react-flow__node[data-id="'+ids.log+'"]').getAttribute('style')).toBe(before)
   await expect(page.getByRole('button',{name:'Salvar rascunho',exact:true})).toBeEnabled()
 })

@@ -11,7 +11,7 @@ export function WorkflowListPage() {
   const state = useResource(load)
   return <>
     <header className="page-head">
-      <div><h1>Workflows</h1><p className="lead">Cada workflow guarda suas versões. Execuções usam sempre a versão publicada naquele momento, então o histórico continua fiel ao que rodou.</p></div>
+      <div><h1>Workflows</h1><p className="lead">Cada execução roda a versão publicada naquele momento, então o histórico continua fiel ao que de fato rodou.</p></div>
       <a className="btn btn-primary" href="#/workflows/new">Novo workflow</a>
     </header>
     <section className="panel">
@@ -19,14 +19,14 @@ export function WorkflowListPage() {
         <button className="btn btn-quiet" onClick={state.refresh} disabled={state.loading}>Atualizar lista</button></div>
       <ErrorNotice error={state.error} retry={state.refresh} />
       {state.loading && <p role="status" className="muted">Carregando workflows…</p>}
-      {state.data && !state.error && (state.data.items.length ? <div className="table-scroll"><table>
-        <thead><tr><th>Workflow</th><th>Estado</th><th>Atualizado em</th><th>Revisão</th></tr></thead>
+      {state.data && !state.error && (state.data.items.length ? <table className="workflow-table">
+        <thead><tr><th>Workflow</th><th>Estado</th><th>Atualizado em</th></tr></thead>
         <tbody>{state.data.items.map(w => <tr key={w.id}>
           <td><a className="strong-link workflow-name" href={'#/workflows/' + w.id}>{w.name}</a><p className="table-description">{w.description ?? 'Sem descrição'}</p></td>
           <td><Badge status={w.archivedAt ? 'archived' : w.currentPublishedVersionId ? 'published' : 'draft'} /></td>
-          <td className="muted"><Timestamp value={w.updatedAt} /></td><td className="numeric">{w.revision}</td>
+          <td className="muted" data-label="Atualizado em"><Timestamp value={w.updatedAt} /></td>
         </tr>)}</tbody>
-      </table></div> : <div className="empty"><h2>Nenhum workflow nesta página</h2><p>Comece com um Trigger e um Log para acompanhar sua primeira execução.</p><a className="btn" href="#/workflows/new">Criar primeiro workflow</a></div>)}
+      </table> : <div className="empty"><h2>Nenhum workflow nesta página</h2><p>Comece com um Trigger e um Log para acompanhar sua primeira execução.</p><a className="btn" href="#/workflows/new">Criar primeiro workflow</a></div>)}
       {state.data && !state.error && <Pager offset={offset} count={state.data.items.length} loading={state.loading} change={setOffset} />}
     </section>
     <section className="panel compact">
