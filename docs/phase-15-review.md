@@ -21,4 +21,4 @@ Docker copia csproj/lockfiles antes das fontes e mantém usuário não root. Bui
 
 Nenhum destino de deploy foi escolhido. A fase entrega validação e promoção controlada de código; não declara deploy público ou operação de produção. [Política de segurança](../SECURITY.md) mantém os limites explícitos.
 
-Critérios verificados; o commit documental final também precisa dos três checks antes de integrar o PR #12. Resultado desse gate e SHA integrado são registrados no fechamento de portfólio da Fase 16.
+Critérios concluídos. [Gate do commit final 29da619](https://github.com/gabxw/flowforge/actions/runs/38457048103) aprovado nos três jobs; [PR #12](https://github.com/gabxw/flowforge/pull/12) integrado por rebase na main em 8c84658. A Fase 16 consolida apresentação e operação.

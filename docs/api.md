@@ -1,6 +1,6 @@
 # API privada de workflows
 
-A Fase 4 disponibiliza definição, edição e publicação com PostgreSQL. A Fase 5 acrescenta [solicitação e consulta de execuções](execution-dispatch.md); execução dos nodes e confiabilidade foram implementadas nas Fases 6 a 10. A Fase 11 acrescenta a [interface funcional](frontend.md) e listagem de execuções por workflow; os seis executores e a confiabilidade estão implementados. A API não tem autenticação: use somente ambiente local/privado. O proprietário vem de FlowForge:TechnicalOwnerId no servidor; headers, query ou corpo não escolhem o dono.
+A Fase 4 disponibiliza definição, edição e publicação com PostgreSQL. A Fase 5 acrescenta [solicitação e consulta de execuções](execution-dispatch.md); execução dos nodes e confiabilidade foram implementadas nas Fases 6 a 10. A Fase 11 acrescenta a [interface funcional](frontend.md) e listagem de execuções por workflow; os seis executores e a confiabilidade estão implementados. Desde a Fase 13, rotas privadas exigem JWT e usam o sub autenticado para ownership; headers, query ou corpo não escolhem o dono. TechnicalOwnerId serve apenas ao bootstrap legado/local. JWT/refresh/CSRF e setup da primeira conta estão em [autenticação](authentication.md). Production continua bloqueado até proteção externa do keyring.
 
 ## Subir e preparar o banco
 
@@ -20,17 +20,19 @@ docker compose up --build --detach --wait
 # Revise .local/migrations.sql antes de aplicar.
 .\scripts\migrate-compose.ps1
 .\scripts\smoke-compose.ps1
+# Crie a conta na interface e configure FLOWFORGE_SMOKE_EMAIL/PASSWORD
+# conforme README, sem guardar valores em arquivo.
 .\scripts\smoke-workflows.ps1
 .\scripts\smoke-workflows.ps1 -BaseUri http://127.0.0.1:5173
 ~~~
 
 O script gera SQL idempotente com dotnet-ef, verifica drift do modelo e aplica por psql dentro do container PostgreSQL. Não publica a porta do banco, não imprime senha e não modifica volumes de outro projeto. -GenerateOnly não altera banco; -ProjectName seleciona um projeto Compose explicitamente criado com docker compose -p. A aplicação não executa migrations no startup. Banco vazio/indisponível retorna 503 para workflows; /health/live continua respondendo.
 
-O Compose usa um proprietário técnico local fixo, visível no compose.yaml. Para usar outro, configure FLOWFORGE_TECHNICAL_OWNER_ID com um UUID não vazio antes de iniciar os serviços. Mantenha esse valor ao reabrir seus workflows; outro dono não verá os registros existentes. Isso demonstra isolamento por objeto, não autenticação.
+O proprietário das operações privadas é o sub do JWT validado. O UUID técnico do Compose identifica dados legados e pode ser adotado pelo setup inicial local, conforme a política de autenticação; ele não permite escolher dono de uma request. Recursos de outra conta retornam 404. Admin administra contas/sessões sem bypass de ownership.
 
 As portas padrão são 5080 (API) e 5173 (frontend). FLOWFORGE_API_PORT e FLOWFORGE_FRONTEND_PORT permitem outros números, sempre em 127.0.0.1. Use o mesmo segredo ao reutilizar o volume; trocar a variável não troca a senha de um PostgreSQL já inicializado. docker compose down preserva os dados.
 
-No host, configure FLOWFORGE_POSTGRES_CONNECTION_STRING por um mecanismo de segredos e FlowForge__TechnicalOwnerId no ambiente. A conexão deve alcançar um PostgreSQL com as migrations aplicadas. Não copie valores reais para appsettings, requests ou Git. O Compose monta o segredo em /run/secrets/postgres_password e fornece os demais campos por configuração.
+No host, configure FLOWFORGE_POSTGRES_CONNECTION_STRING por um mecanismo de segredos no ambiente. TechnicalOwnerId não substitui JWT/ownership. A conexão deve alcançar um PostgreSQL com as migrations aplicadas. Não copie valores reais para appsettings, requests ou Git. O Compose monta o segredo em /run/secrets/postgres_password e fornece os demais campos por configuração.
 
 ## Operações
 
