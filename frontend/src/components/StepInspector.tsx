@@ -16,38 +16,53 @@ const methods: HttpRequestMethod[] = ['get', 'post', 'put', 'patch', 'delete', '
 const ordering: ConditionOperator[] = ['greaterThan', 'greaterThanOrEqual', 'lessThan', 'lessThanOrEqual']
 const safeMethods: HttpRequestMethod[] = ['get', 'head', 'options']
 
+type Parsed = { ok: true; value: unknown } | { ok: false; error: string }
+
 // Texto local enquanto a pessoa digita; só valores válidos chegam à configuração.
+// Um valor recusado fica no campo com a explicação ao lado, sem apagar o que foi digitado.
 function DraftInput({ id, value, parse, onCommit, disabled, inputMode, placeholder, describedBy }: {
-  id: string; value: string; parse: (text: string) => { ok: true; value: unknown } | { ok: false }
+  id: string; value: string; parse: (text: string) => Parsed
   onCommit: (value: unknown) => void; disabled: boolean; inputMode?: 'decimal' | 'text'; placeholder?: string; describedBy?: string
 }) {
   const [text, setText] = useState(value)
-  const [invalid, setInvalid] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [lastValue, setLastValue] = useState(value)
-  if (value !== lastValue) { setLastValue(value); setText(value); setInvalid(false) }
-  return <input id={id} className="field" value={text} disabled={disabled} inputMode={inputMode} placeholder={placeholder}
-    aria-invalid={invalid || undefined} aria-describedby={describedBy} autoComplete="off" spellCheck={false}
-    onChange={event => {
-      setText(event.target.value)
-      const parsed = parse(event.target.value)
-      setInvalid(!parsed.ok)
-      if (parsed.ok) onCommit(parsed.value)
-    }} />
+  if (value !== lastValue) { setLastValue(value); setText(value); setError(null) }
+  const errorId = id + '-error'
+  return <>
+    <input id={id} className="field" value={text} disabled={disabled} inputMode={inputMode} placeholder={placeholder}
+      aria-invalid={error ? true : undefined} aria-describedby={[error ? errorId : null, describedBy].filter(Boolean).join(' ') || undefined}
+      autoComplete="off" spellCheck={false}
+      onChange={event => {
+        setText(event.target.value)
+        const parsed = parse(event.target.value)
+        setError(parsed.ok ? null : parsed.error)
+        if (parsed.ok) onCommit(parsed.value)
+      }} />
+    <p className="field-error" id={errorId} aria-live="polite">{error}</p>
+  </>
 }
 
-const asNumber = (text: string) => {
-  const value = Number(text.replace(',', '.'))
-  return text.trim() !== '' && Number.isFinite(value) ? { ok: true as const, value } : { ok: false as const }
+function asNumber(text: string): Parsed {
+  const value = Number(text.trim().replace(',', '.'))
+  return text.trim() !== '' && Number.isFinite(value) ? { ok: true, value } : { ok: false, error: 'Digite um número, como 100 ou 2,5. O valor anterior continua salvo no rascunho.' }
+}
+// O Domain aceita Delay maior que zero e de até 24 horas.
+function asDelaySeconds(text: string): Parsed {
+  const parsed = asNumber(text)
+  if (!parsed.ok) return parsed
+  const seconds = parsed.value as number
+  return seconds > 0 && seconds <= 86_400 ? parsed : { ok: false, error: 'Use um valor maior que 0 e de até 86.400 segundos (24 horas).' }
 }
 // Escalar JSON quando a pessoa usa a sintaxe; texto solto vira string.
-function asScalar(text: string): { ok: true; value: JsonScalar } {
+function asScalar(text: string): Parsed {
   try {
     const value = JSON.parse(text) as JsonValue
     if (value === null || ['string', 'number', 'boolean'].includes(typeof value)) return { ok: true, value: value as JsonScalar }
   } catch { /* texto solto */ }
   return { ok: true, value: text }
 }
-function asLiteral(text: string): { ok: true; value: JsonValue } {
+function asLiteral(text: string): Parsed {
   try { return { ok: true, value: JSON.parse(text) as JsonValue } } catch { return { ok: true, value: text } }
 }
 const kindOf = (value: unknown) => value === null ? 'null' : typeof value === 'string' ? 'texto' : typeof value === 'number' ? 'número' : typeof value === 'boolean' ? 'booleano' : 'JSON'
@@ -70,7 +85,7 @@ function ConfigurationFields({ prefix, value, locked, change, credential, change
       </Field>
     case 'delay':
       return <Field label="Duração em segundos" htmlFor={prefix + 'delay'} hint="Espera durável: o Worker libera a fila e retoma no prazo. Máximo de 24 horas.">
-        <DraftInput id={prefix + 'delay'} value={String(value.durationTicks / 10_000_000)} parse={asNumber} inputMode="decimal" disabled={locked}
+        <DraftInput id={prefix + 'delay'} value={String(value.durationTicks / 10_000_000)} parse={asDelaySeconds} inputMode="decimal" disabled={locked}
           describedBy={prefix + 'delay-hint'} onCommit={seconds => change({ ...value, durationTicks: Math.round((seconds as number) * 10_000_000) })} />
       </Field>
     case 'condition': {

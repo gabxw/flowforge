@@ -21,4 +21,4 @@ Manter o esquemático e esconder o React Flow em modo leitura mantinha duas impl
 
 ## Custos
 
-O replay depende dos horários registrados por etapa; etapas sem início não entram na animação. Grafos largos ficam pequenos no celular e pedem zoom manual. Os testes de navegador passaram a selecionar a etapa e abrir o modo JSON antes de editar, e os rótulos mudaram de "node" para "etapa".
+O replay depende dos horários registrados por etapa; etapas sem início não entram na animação. Em telas estreitas, leitura e execução usam um arranjo vertical derivado das conexões, só para exibição; o rascunho mantém as posições salvas e, no celular, depende de zoom. Os testes de navegador passaram a selecionar a etapa e abrir o modo JSON antes de editar, e os rótulos mudaram de "node" para "etapa".
