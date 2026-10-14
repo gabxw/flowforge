@@ -1,6 +1,7 @@
 import { mockSession } from './session-mock'
 import { expect, test } from '@playwright/test'
 import { ids, mockApi } from './mock-api'
+import { openStep, stepJson } from './canvas-actions'
 
 const editedLog = {type: 'log', message: 'Mensagem fictícia de validação'}
 
@@ -13,7 +14,7 @@ test('cria publica e acompanha execução sem expor conteúdo de logs', async ({
   await page.getByRole('button', {name: 'Criar workflow', exact: true}).click()
   await expect(page).toHaveURL(new RegExp('#/workflows/' + ids.workflow))
   await page.getByRole('button', {name: 'Usar exemplo Trigger → Log', exact: true}).click()
-  await page.getByRole('textbox', {name: 'Configuração JSON do node 2', exact: true}).fill(JSON.stringify(editedLog))
+  await (await stepJson(page, 2)).fill(JSON.stringify(editedLog))
   await page.getByRole('button', {name: 'Salvar rascunho', exact: true}).click()
   await expect.poll(() => api.workflow.revision).toBe(2)
   await page.getByRole('button', {name: 'Publicar versão', exact: true}).click()
@@ -21,7 +22,7 @@ test('cria publica e acompanha execução sem expor conteúdo de logs', async ({
   await page.getByRole('button', {name: 'Executar workflow', exact: true}).click()
   await expect(page).toHaveURL(new RegExp('#/executions/' + ids.execution))
   await expect(page.getByRole('heading', {name: 'Detalhes da execução', exact: true})).toBeVisible()
-  await expect(page.getByRole('heading', {name: 'Nodes', exact: true})).toBeVisible()
+  await expect(page.getByRole('heading', {name: 'Etapas', exact: true})).toBeVisible()
   await expect(page.getByRole('heading', {name: 'Logs', exact: true})).toBeVisible()
   await expect(page.getByText('Log registrado', {exact: true})).toBeVisible()
   await expect(page.getByText(editedLog.message, {exact: true})).toHaveCount(0)
@@ -37,7 +38,7 @@ test('cria publica e acompanha execução sem expor conteúdo de logs', async ({
 test('conflito de revisão preserva o rascunho local para decisão do usuário', async ({ page }) => {
   await mockApi(page, {exists: true, conflict: true})
   await page.goto('/#/workflows/' + ids.workflow)
-  const config = page.getByRole('textbox', {name: 'Configuração JSON do node 2', exact: true})
+  const config = await stepJson(page, 2)
   const localValue = JSON.stringify({type: 'log', message: 'Edição local preservada'})
   await config.fill(localValue)
   await page.getByRole('button', {name: 'Salvar rascunho', exact: true}).click()
@@ -86,9 +87,9 @@ test('JSON com propriedades duplicadas não é enviado ao servidor', async ({ pa
   const api = await mockApi(page, {exists: true})
   await page.goto('/#/workflows/' + ids.workflow)
   const ambiguous = '{"type":"log","message":"Primeiro","message":"Segundo"}'
-  await page.getByRole('textbox', {name: 'Configuração JSON do node 2', exact: true}).fill(ambiguous)
+  await (await stepJson(page, 2)).fill(ambiguous)
   await page.getByRole('button', {name: 'Salvar rascunho', exact: true}).click()
-  await expect(page.getByText('Node 2: Propriedades JSON duplicadas não são permitidas.', {exact: true})).toBeVisible()
+  await expect(page.getByText('Etapa 2: Propriedades JSON duplicadas não são permitidas.', {exact: true})).toBeVisible()
   expect(api.commands).toHaveLength(0)
 })
 
@@ -115,7 +116,7 @@ test('recusar navegação mantém a edição não salva no workflow atual', asyn
   await mockApi(page, {exists: true})
   await page.goto('/#/workflows/' + ids.workflow)
   const localValue = JSON.stringify({type: 'log', message: 'Rascunho local em edição'})
-  const config = page.getByRole('textbox', {name: 'Configuração JSON do node 2', exact: true})
+  const config = await stepJson(page, 2)
   await config.fill(localValue)
   await expect(page.getByText('Alterações locais não salvas', {exact: true})).toBeVisible()
   page.once('dialog', dialog => dialog.dismiss())
@@ -127,7 +128,7 @@ test('recusar navegação mantém a edição não salva no workflow atual', asyn
 test('publicação rejeitada pelo domínio mantém rascunho e exibe erro sanitizado', async ({ page }) => {
   const api = await mockApi(page, {exists: true, invalidPublish: true})
   await page.goto('/#/workflows/' + ids.workflow)
-  const config = page.getByRole('textbox', {name: 'Configuração JSON do node 2', exact: true})
+  const config = await stepJson(page, 2)
   const before = await config.inputValue()
   await page.getByRole('button', {name: 'Publicar versão', exact: true}).click()
   await expect(page.getByRole('alert').filter({hasText: 'Grafo inválido'})).toBeVisible()
@@ -142,6 +143,7 @@ test('publicação rejeitada pelo domínio mantém rascunho e exibe erro sanitiz
 test('edita detalhes abre outra versão e arquiva preservando publicação anterior', async ({ page }) => {
   const api = await mockApi(page, {exists: true})
   await page.goto('/#/workflows/' + ids.workflow)
+  await page.getByRole('tab', {name: 'Configurações', exact: true}).click()
   await page.getByLabel('Nome', {exact: true}).fill('Workflow renomeado')
   await page.getByLabel('Descrição', {exact: true}).fill('Descrição fictícia atualizada')
   await page.getByRole('button', {name: 'Salvar detalhes', exact: true}).click()
@@ -151,11 +153,12 @@ test('edita detalhes abre outra versão e arquiva preservando publicação anter
   await expect(page.getByText('Versão publicada.', {exact: true})).toBeVisible()
   await page.getByRole('button', {name: 'Abrir novo rascunho', exact: true}).click()
   await expect(page.getByText('Novo rascunho criado.', {exact: true})).toBeVisible()
-  await expect(page.getByRole('textbox', {name: 'Configuração JSON do node 2', exact: true})).toBeEnabled()
+  await expect(await stepJson(page, 2)).toBeEnabled()
   expect(api.workflow.versions).toHaveLength(2)
   expect(api.workflow.versions[0].status).toBe('published')
   expect(api.workflow.currentPublishedVersionId).toBe(ids.version)
   expect(api.workflow.draftVersionId).not.toBe(ids.version)
+  await page.getByRole('tab', {name: 'Configurações', exact: true}).click()
   page.once('dialog', dialog => dialog.accept())
   await page.getByRole('button', {name: 'Arquivar workflow', exact: true}).click()
   await expect(page.getByText('Workflow arquivado. Histórico preservado.', {exact: true})).toBeVisible()
@@ -171,12 +174,13 @@ test('edita detalhes abre outra versão e arquiva preservando publicação anter
 test('editor recusa decimal que perderia precisão antes de solicitar gravação', async ({ page }) => {
   const api = await mockApi(page, {exists: true})
   await page.goto('/#/workflows/' + ids.workflow)
-  await page.getByRole('combobox', {name: 'Tipo do node 2', exact: true}).selectOption('condition')
+  await openStep(page, 2)
+  await page.getByRole('combobox', {name: 'Tipo da etapa 2', exact: true}).selectOption('condition')
   const raw = '{"type":"condition","sourcePointer":"/valor","operation":"equals","expectedValue":0.1234567890123456789012345678}'
-  const config = page.getByRole('textbox', {name: 'Configuração JSON do node 2', exact: true})
+  const config = await stepJson(page, 2)
   await config.fill(raw)
   await page.getByRole('button', {name: 'Salvar rascunho', exact: true}).click()
-  await expect(page.getByText('Node 2: O JSON contém um número fora da precisão suportada pelo navegador. Nenhum valor foi convertido.', {exact: true})).toBeVisible()
+  await expect(page.getByText('Etapa 2: O JSON contém um número fora da precisão suportada pelo navegador. Nenhum valor foi convertido.', {exact: true})).toBeVisible()
   await expect(config).toHaveValue(raw)
   expect(api.commands).toHaveLength(0)
 })

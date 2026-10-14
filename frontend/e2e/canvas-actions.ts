@@ -21,3 +21,16 @@ export async function connectPorts(page:Page,source:string,port:string,target:st
   await page.mouse.move(to.x+to.width/2,to.y+to.height/2,{steps:16})
   await page.mouse.up()
 }
+// A configuração de uma etapa fica no painel lateral: seleciona o card e abre o modo JSON.
+export async function stepJson(page:Page,step:number) {
+  const field=page.getByLabel('Configuração JSON da etapa '+step,{exact:true})
+  if(!await field.count()) {
+    await page.locator('.react-flow__node').nth(step-1).click()
+    const json=page.getByRole('button',{name:'JSON',exact:true})
+    if(await json.getAttribute('aria-pressed')!=='true') await json.click()
+  }
+  return field
+}
+export async function openStep(page:Page,step:number) {
+  await page.locator('.react-flow__node').nth(step-1).click()
+}

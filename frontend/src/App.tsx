@@ -51,7 +51,7 @@ export default function App() {
     <a href="#main" className="skip-link" onClick={e => { e.preventDefault(); document.getElementById('main')?.focus() }}>Pular para o conteúdo</a>
     <header className="masthead">
       <a href="#/workflows" className="brand" aria-label="FlowForge, início"><BrandMark />FlowForge</a>
-      <nav aria-label="Navegação principal"><a href="#/workflows" aria-current={path[0] !== 'executions' ? 'page' : undefined}>Workflows</a></nav>
+      {auth.user && <nav aria-label="Navegação principal"><a href="#/workflows" aria-current={path[0] !== 'executions' ? 'page' : undefined}>Workflows</a></nav>}
       {auth.user ? <div className="session-actions"><span className="environment">{auth.user.email}</span><button className="btn" onClick={()=>void signOut()}>Sair</button></div> : <span className="environment">Ambiente privado</span>}
     </header>
     <main id="main" tabIndex={-1}>
@@ -65,8 +65,8 @@ export default function App() {
 // A marca é um workflow mínimo: gatilho, condição e saída ligados por um fio.
 function BrandMark() {
   return <svg width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden="true">
-    <rect x="1" y="1" width="28" height="28" rx="8" fill="#15304c" stroke="#24496d" />
-    <path d="M8 15h4.5M17.5 15H22" stroke="#3a6286" strokeWidth="1.5" />
+    <rect x="1" y="1" width="28" height="28" rx="8" fill="#1d1d22" stroke="#34343c" />
+    <path d="M8 15h4.5M17.5 15H22" stroke="#4a4a54" strokeWidth="1.5" />
     <path d="M8 15h4.5M17.5 15H22" stroke="#ffb547" strokeWidth="1.5" strokeDasharray="1.5 4" />
     <circle cx="7.5" cy="15" r="2.5" fill="#ffb547" />
     <path d="M15 11.2 18.8 15 15 18.8 11.2 15z" stroke="#ffd27a" strokeWidth="1.4" strokeLinejoin="round" />

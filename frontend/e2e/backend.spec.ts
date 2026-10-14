@@ -1,6 +1,7 @@
 import { signInForBackend } from './backend-session'
 import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
+import { stepJson } from './canvas-actions'
 
 test('jornada real cria publica executa e arquiva workflow @backend', async ({ page }) => {
   test.setTimeout(60_000)
@@ -21,7 +22,7 @@ test('jornada real cria publica executa e arquiva workflow @backend', async ({ p
     workflowId = payload.id
     await expect(page).toHaveURL(new RegExp('#/workflows/' + workflowId + '$'))
     await page.getByRole('button', {name: 'Usar exemplo Trigger → Log', exact: true}).click()
-    await page.getByRole('textbox', {name: 'Configuração JSON do node 2', exact: true}).fill(JSON.stringify({type: 'log', message: 'Mensagem fictícia de navegador'}))
+    await (await stepJson(page, 2)).fill(JSON.stringify({type: 'log', message: 'Mensagem fictícia de navegador'}))
     await page.getByRole('button', {name: 'Salvar rascunho', exact: true}).click()
     await expect(page.getByText('Rascunho salvo.', {exact: true})).toBeVisible()
     await page.getByRole('button', {name: 'Publicar versão', exact: true}).click()
@@ -30,7 +31,7 @@ test('jornada real cria publica executa e arquiva workflow @backend', async ({ p
     await page.getByRole('button', {name: 'Executar workflow', exact: true}).click()
     await expect(page.getByRole('heading', {name: 'Detalhes da execução', exact: true})).toBeVisible()
     await expect(page.locator('.page-head').getByText('Concluída', {exact: true})).toBeVisible({timeout: 30_000})
-    await expect(page.getByRole('heading', {name: 'Nodes', exact: true})).toBeVisible()
+    await expect(page.getByRole('heading', {name: 'Etapas', exact: true})).toBeVisible()
     await expect(page.getByText('Log registrado', {exact: true})).toBeVisible()
     await expect(page.getByText('Mensagem fictícia de navegador', {exact: true})).toHaveCount(0)
     await test.info().attach('execucao-concluida', {body: await page.screenshot({fullPage: true}), contentType: 'image/png'})
@@ -39,7 +40,8 @@ test('jornada real cria publica executa e arquiva workflow @backend', async ({ p
     expect(execution.ok()).toBeTruthy()
     expect(await execution.json()).toMatchObject({workflowId, status: 'succeeded'})
     await page.goto('/#/workflows/' + workflowId)
-    await expect(page.getByRole('link', {name: executionId, exact: true})).toBeVisible()
+    await page.getByRole('tab', {name: 'Execuções', exact: true}).click()
+    await expect(page.locator('a[href="#/executions/' + executionId + '"]')).toBeVisible()
   } finally {
     if (workflowId) {
       const current = await api.get('/api/workflows/' + workflowId)

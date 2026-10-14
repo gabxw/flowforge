@@ -51,5 +51,5 @@ export function arrangePositions(nodes: readonly GraphNode[], connections: reado
     occupied.add(column.get(node.nodeId) + ':' + row)
     rows.set(node.nodeId, row)
   }
-  return nodes.map(n => ({ nodeId: n.nodeId, position: { x: (column.get(n.nodeId) ?? 0) * 320, y: (rows.get(n.nodeId) ?? 0) * 200 } }))
+  return nodes.map(n => ({ nodeId: n.nodeId, position: { x: (column.get(n.nodeId) ?? 0) * 260, y: (rows.get(n.nodeId) ?? 0) * 140 } }))
 }
