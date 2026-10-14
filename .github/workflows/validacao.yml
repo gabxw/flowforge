@@ -153,6 +153,7 @@ jobs:
             ./scripts/migrate-compose.ps1
             ./scripts/migrate-compose.ps1
             ./scripts/smoke-compose.ps1
+            ./scripts/demo-workflow.ps1 -BaseUri http://127.0.0.1:5173 -IncludeFailure
             ./scripts/smoke-workflows.ps1
             ./scripts/smoke-workflows.ps1 -BaseUri 'http://127.0.0.1:5173'
             ./scripts/smoke-executions.ps1
