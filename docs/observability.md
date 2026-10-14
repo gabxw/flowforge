@@ -20,7 +20,7 @@ A atividade da request é salva como trace_parent em workflow_executions, metada
 
 Delay/retry terminam a entrega atual. A continuação usa o contexto persistido da execução, mantendo TraceId após pausa/recriação do Worker. Não existe span vivo ocupando a espera durável. Spans de continuação são ligados à aceitação; histórico persistido continua como fonte de verdade.
 
-Logs próprios incluem TraceId/SpanId, ExecutionId e CorrelationId. Exportação aceita só a categoria FlowForge. Trace usa allowlist de atributos: tipos/status e IDs de correlação; URL completa/query, corpos, configurações, e-mail, headers, password e descrições livres de exceção são removidos. Eventos de exceção do HTTP/ASP não são coletados.
+Logs próprios incluem TraceId/SpanId, ExecutionId e CorrelationId. Exportação aceita só a categoria FlowForge. Trace usa allowlist de atributos: tipos/status e IDs de correlação; URL completa/query, corpos, configurações, e-mail, headers, password e descrições livres de exceção são removidos. Eventos de exceção do HTTP/ASP não são coletados. Uma falha não mapeada na API responde 500 genérico e gera log de erro com EventCode unhandled_exception, tipo da exceção, método, rota (o padrão, sem IDs), TraceId e a pilha de chamadas; a mensagem da exceção fica de fora porque pode conter dados do request. Dependências indisponíveis (503) geram aviso dependency_unavailable com os mesmos campos, sem pilha.
 
 ## Métricas
 
