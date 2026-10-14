@@ -6,7 +6,7 @@ Status: concluída, revisada e publicada. Data: 2026-10-09. A Fase 3 não foi in
 
 Definições imutáveis de nodes/conexões, configurações tipadas dos seis tipos iniciais, referências de credencial por proprietário, validação de DAG e agregado Workflow com rascunho, publicação e arquivamento. Políticas puras definem transições iniciais de execução e node, incluindo Cancelled. Não há persistência, transporte HTTP dessas definições ou engine nesta entrega.
 
-O [contrato detalhado](superpowers/specs/2026-10-09-phase-2-domain-design.md), o [plano executado](superpowers/plans/2026-10-09-phase-2-domain.md) e a [ADR 0002](decisions/0002-workflow-domain-and-publication.md) registram requisitos, escolhas, alternativas e trade-offs.
+O [contrato detalhado](domain-contract.md) e a [ADR 0002](decisions/0002-workflow-domain-and-publication.md) registram requisitos, escolhas, alternativas e trade-offs.
 
 ## Verificação local
 
@@ -14,7 +14,7 @@ O [contrato detalhado](superpowers/specs/2026-10-09-phase-2-domain-design.md), o
 - Transições: RED com 488 falhas e 12 aprovações; GREEN com 500 testes Domain aprovados. Matriz independente verifica 100 pares Workflow e 144 pares Node em ambos os métodos, além dos valores numéricos dos enums. Revisão independente de aderência e qualidade aprovada.
 - Grafo e ciclo de vida: RED com 72 falhas por funcionalidade ausente; GREEN com 36 casos de grafo e 36 de agregado. Cobrem limites, duplicações, ciclos, alcance, escopo, proprietário, convergência, publicação inválida sem efeitos, clonagem, UTC, revisões e arquivamento.
 
-Verificação da solução integrada, repetida pelo agente principal após os três incrementos e novamente na main depois da integração por fast-forward:
+Verificação da solução integrada, repetida após os três incrementos e novamente na main depois da integração por fast-forward:
 
 | Comando | Resultado |
 | --- | --- |

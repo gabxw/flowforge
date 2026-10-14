@@ -20,8 +20,6 @@ Escolha: Domain, Application, Infrastructure, Api e Worker. API e Worker são pr
 
 Trade-offs: Worker e API exigem deploys/configuração compatíveis e um contrato de mensagem versionado. O banco compartilhado limita autonomia de evolução, mas reduz custo de consistência e operação. Interfaces genéricas prematuras não entram.
 
-Em entrevista: “Separei o ciclo HTTP da execução pesada porque têm necessidades diferentes de latência e concorrência. Mantive um único domínio e banco porque a equipe e o escopo não justificam transações distribuídas entre microsserviços.”
-
 ## 2. .NET 10 LTS e dependências introduzidas por necessidade
 
 Problema: começar com runtime moderno e suportado, evitando uma migração imediata e uma stack inflada.
@@ -31,8 +29,6 @@ Alternativas: uma versão STS, uma LTS anterior ou a LTS atual; instalar desde o
 Escolha: .NET 10 LTS, com global.json restrito à linha 10.0 estável (mínimo 10.0.100, rollForward latestFeature). EF Core, RabbitMQ, Testcontainers, React Flow e OpenTelemetry entram junto dos comportamentos que justificam seu uso. [Suporte oficial .NET](https://dotnet.microsoft.com/en-us/platform/support/policy)
 
 Trade-offs: bibliotecas precisam ser verificadas contra .NET 10; um ambiente sem SDK ou rede pode bloquear restore. A política evita mudar a versão major ou aceitar previews, mas permite feature bands diferentes; lockfiles e futura revisão de imagens completam a reprodução do ambiente.
-
-Em entrevista: “Escolhi a LTS atual pelo horizonte de suporte. Não transformei a lista desejada de tecnologias em dependências antecipadas: cada pacote entra com um caso de uso e sua validação.”
 
 ## 3. Grafo limitado e versões publicadas imutáveis
 
@@ -44,8 +40,6 @@ Escolha: DAG com um único trigger e caminho sequencial. Condition escolhe exclu
 
 Trade-offs: o MVP não resolve loops, fan-out ou joins. Imutabilidade aumenta armazenamento e exige um fluxo de publicação. Ganham-se validação simples, histórico confiável e recuperação sem misturar mudanças de edição.
 
-Em entrevista: “Um DAG com ramificação exclusiva cobre os primeiros casos sem introduzir coordenação de joins. Fixar a versão elimina o problema de um workflow mudar enquanto já está na fila.”
-
 ## 4. PostgreSQL relacional com JSONB seletivo
 
 Problema: conciliar configuração variável de nodes com integridade de relações, consulta de histórico e concorrência.
@@ -55,8 +49,6 @@ Alternativas: armazenar o grafo inteiro em JSON; modelar cada campo de cada node
 Escolha: entidades e relações em tabelas; JSONB para conteúdo que varia pelo tipo. FKs compostas garantem que nodes, conexões e execuções pertencem à mesma versão; ownership participa das relações sensíveis. Revisão explícita detecta edição concorrente.
 
 Trade-offs: duplicar chaves de owner/versão custa colunas e índices. JSONB ainda precisa de schema validado pelo domínio; não é licença para aceitar qualquer configuração. Novos índices dependem de consulta real.
-
-Em entrevista: “Usei JSONB onde o formato varia, mas preservei relações importantes no banco. Uma conexão não pode apontar acidentalmente para um node de outra versão.”
 
 ## 5. RabbitMQ com outbox e contrato at-least-once
 
@@ -68,8 +60,6 @@ Escolha: criar execução e outbox na mesma transação PostgreSQL. Dispatcher p
 
 Trade-offs: há dispatcher, limpeza e monitoramento adicionais. A publicação pode ser repetida após uma queda. Não prometemos exactly-once para chamadas HTTP; o destino pode ter produzido efeito sem confirmação local. [Confiabilidade RabbitMQ](https://www.rabbitmq.com/docs/reliability)
 
-Em entrevista: “A outbox elimina perda entre commit e publish, mas não elimina duplicação. Por isso o consumidor é idempotente no estado local, e efeitos externos usam chave estável quando o destino oferece esse contrato.”
-
 ## 6. Claim, lease e fencing no PostgreSQL; Redis opcional
 
 Problema: impedir Workers concorrentes de gravar a mesma execução e permitir recuperação quando um processo morre.
@@ -79,8 +69,6 @@ Alternativas: lock de linha durante todo o workflow; lock Redis separado do esta
 Escolha: claim atômico, lease com vencimento e renovação, fencing token exigido nos checkpoints. Transações são curtas. Redis fica no profile opcional, sem uso até surgir uma necessidade concreta.
 
 Trade-offs: renovar e recuperar leases cria lógica que deve ser testada; clock e latência precisam ser considerados. Fencing rejeita writes de um Worker antigo, mas não impede sozinho um efeito HTTP já em voo. Um lock Redis introduziria outro componente crítico e ainda exigiria coordenação com o banco.
-
-Em entrevista: “O lock precisa proteger o estado da execução. Mantê-lo no banco permite validar ownership e checkpoint atomicamente. Redis não resolveria a janela de efeito remoto nem dispensaria fencing.”
 
 ## 7. Delay e retry como agendamento durável
 
@@ -92,8 +80,6 @@ Escolha: ResumeAt persistido, checkpoint de suspensão, scheduler e outbox. Retr
 
 Trade-offs: é necessário scheduler e recuperação de continuações. Um mesmo prazo pode ser observado por dois processos; claim e idempotência precisam impedir trabalho duplicado. Retry de uma operação não idempotente pode duplicar efeitos, por isso não é padrão para POST/PATCH.
 
-Em entrevista: “Espera é estado durável, não uma thread dormindo. Ao gravar o prazo e soltar o consumer, o sistema retoma após reinício e não ocupa capacidade sem executar trabalho.”
-
 ## 8. Segredo do webhook em header e idempotência escopada
 
 Problema: autenticar webhooks sem espalhar o segredo por URLs e diferenciar uma repetição de um novo evento.
@@ -103,8 +89,6 @@ Alternativas: segredo na rota; segredo em header; assinatura HMAC; deduplicar so
 Escolha: endpointId público na rota e segredo de alta entropia em X-FlowForge-Webhook-Secret, armazenado como hash. Idempotency-Key opcional por owner/endpoint, associada ao hash da requisição e ExecutionId.
 
 Trade-offs: clientes precisam conseguir enviar o header. Headers também devem ser redigidos em logs/traces. Mesmo payload pode representar dois eventos legítimos; sem chave explícita não há deduplicação heurística. HMAC com proteção de replay pode ser uma evolução, mas fica fora do primeiro contrato.
-
-Em entrevista: “A URL é registrada em muitos lugares, então separei a identidade do endpoint do segredo. A chave de idempotência expressa a identidade da operação, e o hash detecta reutilização da mesma chave com conteúdo diferente.”
 
 ## 9. HTTP com allowlist e validação da conexão
 
@@ -116,8 +100,6 @@ Escolha: HTTPS/destinos/portas autorizados pelo operador; validar todos os ender
 
 Trade-offs: menor flexibilidade e cuidado com proxies, IPv6 e rotação DNS. Uma validação antes de uma segunda resolução livre é vulnerável. Conectores precisam de testes de rede, não apenas mocks de HttpClient. A orientação foi motivada por redirects e DNS pinning discutidos pela [OWASP SSRF Prevention](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html).
 
-Em entrevista: “O problema não é apenas uma URL malformada; é o endereço ao qual o socket realmente conecta. Limitei os destinos e vinculei validação DNS à conexão para fechar a janela de rebinding.”
-
 ## 10. Credenciais protegidas e captura limitada de payload
 
 Problema: API e Worker precisam usar segredos sem expor plaintext no banco, logs ou exportação do workflow.
@@ -127,8 +109,6 @@ Alternativas: texto no banco; criptografia caseira; chaves no mesmo banco; mecan
 Escolha: ciphertext autenticado via Data Protection, purpose específico e keyring compartilhado/persistente fora do banco. Proteção do keyring usa mecanismo externo apropriado ao ambiente. Logs e snapshots recebem dados limitados/sanitizados; não registram headers secretos ou bodies indiscriminadamente. O contexto operacional de retomada é persistido criptografado e separado de snapshots truncados, com purpose próprio e sem credenciais resolvidas.
 
 Trade-offs: keyring passa a exigir backup, controle de acesso, rotação e configuração idêntica nos dois hosts. Perda das chaves pode tornar as credenciais inutilizáveis. Redação de nomes conhecidos não garante segurança de um payload arbitrário; captura exige política explícita.
-
-Em entrevista: “Criptografar o banco só ajuda se a chave estiver protegida separadamente. Também tratei logs e snapshots como superfícies de vazamento, com limites e retenção próprios.”
 
 ## 11. Cancelamento cooperativo e estados explícitos
 
@@ -140,8 +120,6 @@ Escolha: CancelRequestedAt, observação entre nodes e CancellationToken durante
 
 Trade-offs: pedido e conclusão do cancelamento não são simultâneos. Interromper a espera local não cancela necessariamente o efeito remoto; UI e auditoria precisam refletir essa limitação.
 
-Em entrevista: “Cancelamento é uma intenção observada pelo Worker. Não transformei um timeout ou cancelamento em prova de que o destino externo não fez nada.”
-
 ## 12. Testes e documentação acompanham os incrementos
 
 Problema: uma arquitetura de portfólio precisa demonstrar comportamento sob falha, não apenas diagramas e código gerado.
@@ -151,8 +129,6 @@ Alternativas: implementar tudo e testar no final; testar somente unidades isolad
 Escolha: smoke do host na Fase 1; invariantes unitárias desde a Fase 2; Testcontainers quando PostgreSQL e RabbitMQ passam a ser usados. Fase 15 consolida CI e automação da suíte existente. Fase 16 fecha apresentação e guia operacional.
 
 Trade-offs: testes de integração custam tempo e exigem Docker; testes de falha precisam de cenários controlados. Não criamos testes que apenas repetem implementação ou atividade de Git artificial. Um ambiente bloqueado é relatado como pendência.
-
-Em entrevista: “Meu critério de entrega inclui testar as janelas de falha que justificaram a arquitetura. Se uso outbox e lease, preciso provar recuperação e duplicação, não só um caminho feliz.”
 
 ## Consequências e reavaliação
 

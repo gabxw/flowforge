@@ -43,7 +43,7 @@ O revisor reproduziu os dois casos menores com o binário compilado e PostgreSQL
 
 ## Decisões e limites
 
-[ADR 0004](decisions/0004-private-workflow-api.md), [contrato/roteiro](api.md), [spec](superpowers/specs/2026-10-09-phase-4-api-design.md) e [plano](superpowers/plans/2026-10-09-phase-4-api.md).
+[ADR 0004](decisions/0004-private-workflow-api.md) e [contrato/roteiro](api.md).
 
 Sem autenticação: portas locais/ambiente privado são obrigatórios até a Fase 13. Credencial é somente referência; Worker não executa nodes, publica mensagens ou recebe webhooks. Migrations são explícitas. Detalhe retorna histórico completo; paginação de versões e retenção não entram nesta fase.
 

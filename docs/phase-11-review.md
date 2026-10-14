@@ -16,7 +16,7 @@ Interface funcional para lista/criação/edição/publicação/versionamento/arq
 - GET paginado de execuções por workflow, owner-scoped e sem dados protegidos.
 - Playwright como única dependência nova de desenvolvimento; CI com mocks e serviços reais.
 
-[ADR 0011](decisions/0011-frontend-and-server-authority.md) registra alternativas/trade-offs/entrevista; [operação](frontend.md) explica execução e limites.
+[ADR 0011](decisions/0011-frontend-and-server-authority.md) registra alternativas e trade-offs; [operação](frontend.md) explica execução e limites.
 
 ## Validação
 

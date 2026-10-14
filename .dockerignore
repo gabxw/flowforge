@@ -1,6 +1,4 @@
 .git
-.agents
-.codex
 .local
 .env
 .env.*
@@ -11,5 +9,4 @@
 **/TestResults
 **/coverage
 .node_repl_cell_*.mjs
-Novo(a) Documento de Texto.txt
-.serena
+*.txt

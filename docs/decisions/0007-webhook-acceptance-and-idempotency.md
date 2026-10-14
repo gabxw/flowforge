@@ -49,9 +49,3 @@ Data Protection usa purpose FlowForge.TriggerInput.v1 e ExecutionId, diferente d
 - As chaves de Development ficam protegidas pelas permissões do volume, sem wrapping. Runtime recusa este perfil em Production. Preservar/restaurar keyring junto do banco; não expor APIs administrativas antes da autenticação da Fase 13.
 - Não capturamos body, headers ou secrets em logs operacionais. O teste HTTP inspeciona logs e tags de Activity; OpenTelemetry e políticas do exporter entram na Fase 14.
 - 202 significa commit confirmado pela API. A execução pode já terminar antes do GET. Se o cliente perde a resposta do commit, deve repetir a mesma chave/corpo; sem chave, pode duplicar a entrada.
-
-## Como explicar em entrevista
-
-“Uma repetição do remetente e uma repetição de mensagem na fila são problemas distintos. A primeira é resolvida pela chave do evento, reservada junto da execução e outbox em uma transação. A segunda continua coberta pela inbox/claim/checkpoints. Eu fixo a versão durante o aceite e guardo o payload protegido no banco, então o broker pode ficar indisponível sem perder uma entrada confirmada. Escolhi locks curtos do PostgreSQL e limites locais para este MVP; throughput, quota distribuída e retenção têm limites documentados.”
-
-Referências: [rate limiting do ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/performance/rate-limit?view=aspnetcore-10.0), [configuração e compartilhamento do Data Protection](https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/configuration/overview?view=aspnetcore-10.0).

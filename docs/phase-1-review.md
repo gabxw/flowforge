@@ -36,8 +36,6 @@ A verificação local usou SDK .NET 10.0.401, Node 22.19.0, npm 10.9.3 e Docker 
 
 O smoke HTTP local anterior verificou /health/live em Development e Production, OpenAPI disponível em Development e indisponível em Production. Essa verificação era distinta da suíte xUnit; agora os três testes também foram executados no CI.
 
-Os bloqueios de rede, Docker e escrita no Git da sessão anterior não se repetiram na retomada. Os artefatos foram baixados diretamente com `gh run download`, sem publicar seu conteúdo em resumos do CI.
-
 A atualização anterior de typescript-eslint para 8.71.1 removeu a cadeia transitiva vulnerável. A auditoria de fechamento continuou reportando zero vulnerabilidades; esse resultado descreve os pacotes e a base de alertas consultada naquele momento.
 
 Risco residual de manutenção: npm emite aviso de fim de suporte do ESLint 9.36.0. O lint continua passando, mas uma atualização da ferramenta deve ser planejada e verificada em incremento próprio. Os lockfiles não congelam SDKs nem digests de imagens Docker.
@@ -68,8 +66,8 @@ A Fase 1 está encerrada. A Fase 2, domínio de workflows e validação do grafo
 
 A publicação inicial em [gabxw/flowforge](https://github.com/gabxw/flowforge), na branch main, ocorreu pela interface web usando a sessão autenticada da conta gabxw. A seleção inicial continha 47 arquivos do projeto, com a hierarquia preservada.
 
-O [histórico de commits](https://github.com/gabxw/flowforge/commits/main/) preserva os incrementos reais já publicados. Novos commits usam mensagens curtas e descritivas em português, sem qualquer prefixo, conforme [AGENTS.md](../AGENTS.md). As mensagens anteriores não serão reescritas.
+O [histórico de commits](https://github.com/gabxw/flowforge/commits/main/) preserva os incrementos reais já publicados. Novos commits usam mensagens curtas e descritivas em português, sem qualquer prefixo. As mensagens anteriores não serão reescritas.
 
 O Git local foi reconciliado com o histórico remoto depois da comparação dos 48 arquivos publicados e de um backup em .local. Nenhum arquivo de trabalho foi substituído nessa operação. Novos commits usam a identidade gabxw e seu endereço noreply associado ao ID público da conta; a API do GitHub confirmou author.login e committer.login como gabxw no commit fe18380. A configuração global de Git não foi alterada.
 
-O arquivo Novo(a) Documento de Texto.txt preexistente não foi lido, modificado ou publicado. .local, .serena, .git, bin/obj e dependências geradas ficaram fora da seleção inicial. Nenhum segredo real foi incluído.
+Diretórios locais, .git, bin/obj e dependências geradas ficaram fora da seleção inicial. Nenhum segredo real foi incluído.

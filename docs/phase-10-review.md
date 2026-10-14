@@ -18,7 +18,7 @@ MVP de backend com seis executores, retry HTTP opt-in, tentativas auditáveis, d
 - Reserva de webhook ativa e tail de 24h após término; política de retenção definida sem limpeza automática.
 - Sétima migration, dezesseis tabelas; importação Legacy explícita sem inventar tentativas anteriores.
 
-[ADR 0010](decisions/0010-bounded-retries-and-explicit-recovery.md) e [operação](execution-reliability.md) explicam alternativas, garantias e roteiro de entrevista.
+[ADR 0010](decisions/0010-bounded-retries-and-explicit-recovery.md) e [operação](execution-reliability.md) explicam alternativas e garantias.
 
 ## Validação local executada
 
