@@ -29,7 +29,7 @@ Salvar continua usando o endpoint de rascunho com expectedRevision. Só os campo
 
 Layout é versionado com a definição. Para mudar uma publicação, abra novo rascunho. IDs de nodes/configurações/credenciais são preservados.
 
-Dimensões do React Flow, seleção e zoom/pan ficam em memória. Não existe autosave, storage local de credenciais, tabela nova de layout ou algoritmo de layout externo. Algumas posições antigas se sobrepõem: Organizar etapas é uma ação explícita para esse caso.
+Abaixo de 600 px de largura, a versão publicada e o caminho da execução são exibidos de cima para baixo, num arranjo calculado pelas conexões; isso não altera as posições salvas. Dimensões do React Flow, seleção e zoom/pan ficam em memória. Não existe autosave, storage local de credenciais, tabela nova de layout ou algoritmo de layout externo. Algumas posições antigas se sobrepõem: Organizar etapas é uma ação explícita para esse caso.
 
 Precisão JSON, limites de configuração/grafo, input/output protegido e resultados incertos seguem [frontend.md](frontend.md). O editor permanece local/privado até autenticação na Fase 13.
 

@@ -142,6 +142,8 @@ label { display: block; font-size: .85rem; font-weight: 600; color: var(--paper-
 .field:hover:not(:disabled) { border-color: #85858f; }
 .field:focus { outline: none; border-color: var(--run); box-shadow: 0 0 0 3px rgb(124 199 255 / .2); }
 .field[aria-invalid=true] { border-color: var(--fail); }
+.field-error { margin-top: .35rem; color: var(--fail); font-size: .78rem; line-height: 1.45; }
+.field-error:empty { display: none; }
 .field::placeholder { color: var(--paper-3); opacity: .9; }
 .field-compact { width: auto; min-height: 2.25rem; padding-top: .4rem; padding-bottom: .4rem; font-size: .85rem; }
 textarea.field { resize: vertical; line-height: 1.5; }
@@ -289,6 +291,10 @@ summary:hover { color: var(--paper); }
 .step-port-label.port-true { top: 44%; color: var(--ok); }
 .step-port-label.port-false { top: 76%; color: var(--fail); }
 .step-card.has-branches { padding-right: 52px; }
+.step-card.is-vertical { padding-right: 18px; padding-bottom: 22px; }
+.step-card.is-vertical .step-port-label { top: auto; right: auto; bottom: 5px; transform: translateX(-50%); }
+.step-card.is-vertical .step-port-label.port-true { left: 30%; top: auto; }
+.step-card.is-vertical .step-port-label.port-false { left: 70%; top: auto; }
 .step-card.is-selected { border-color: var(--sodium); box-shadow: 0 0 0 3px rgb(255 181 71 / .18); }
 .step-card.is-highlighted { border-color: var(--paper-2); }
 .step-lamp { position: absolute; top: 10px; right: 10px; width: 8px; height: 8px; border-radius: 50%; background: var(--state, var(--idle)); }
