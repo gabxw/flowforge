@@ -49,7 +49,3 @@ O perfil Development privado usa chaves XML sem wrapping criptográfico em disco
 - Contextos/logs permanecem após término. Limpeza/retenção, captura ampliada e retry de nodes não foram antecipados.
 - Retenção, backup do banco e backup do keyring precisam ser coordenados. Não usar down --volumes em dados que devam ser preservados.
 - Sem Redis, scheduler, endpoint webhook, executores externos ou abstração genérica de orquestração neste incremento.
-
-## Como explicar em entrevista
-
-“Separei executor de engine: o executor resolve uma etapa, a engine controla o grafo e o checkpoint. Uso PostgreSQL para guardar o progresso junto do resultado e uma inbox para reconhecer redelivery. Se o processo cair, retomo o próximo node com contexto cifrado; se perder a lease, não posso escrever com token antigo. Isso protege a consistência local, mas não promete exactly-once para um HTTP que possa ter sido aplicado antes da queda. Cancelamento do usuário é um pedido durável; shutdown apenas libera a oportunidade de recuperação.”

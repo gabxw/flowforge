@@ -1,6 +1,6 @@
 # ADR 0012 — Identidade visual, esquemático e trace de execução
 
-Status: aceita e integrada à main pelo [PR #9](https://github.com/gabxw/flowforge/pull/9) em 13/10/2026. Não inicia a Fase 12. A paleta azul e o esquemático SVG foram substituídos pela [ADR 0017](0017-graphite-theme-and-single-canvas.md).
+Status: aceita e integrada à main pelo [PR #9](https://github.com/gabxw/flowforge/pull/9) em 13/10/2026. A paleta azul e o esquemático SVG foram substituídos pela [ADR 0017](0017-graphite-theme-and-single-canvas.md).
 
 ## Problema
 

@@ -42,10 +42,6 @@ A lease atual atende ao handler curto. Execuções longas da Fase 6 precisam de 
 
 Queue durável e mensagem persistente não equivalem a alta disponibilidade: o Compose tem um único broker com volume local. Não adicionamos cluster ou quorum sem necessidade operacional.
 
-## Como explicar em entrevista
-
-“Não consigo fazer commit atômico entre banco e fila. Por isso gravo a intenção na mesma transação da execução e publico depois com confirmação. Uma queda após confirmar pode duplicar a mensagem, então uso inbox e claim recuperável. Confirmo o recebimento só depois do resultado durável. A garantia é entrega pelo menos uma vez e deduplicação do processamento local; efeitos externos precisam de sua própria estratégia de idempotência.”
-
 ## Validação e fontes
 
 A revisão da Fase 5 registra os resultados. Testes com PostgreSQL/RabbitMQ reais cobrem rollback da inserção e da conclusão, broker indisponível, mensagem sem rota, duas disputas concorrentes, duplicação após confirmação e interrupção após claim.

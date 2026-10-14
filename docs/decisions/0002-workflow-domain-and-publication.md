@@ -20,7 +20,7 @@ O grafo tem exatamente um Webhook Trigger e todos os nodes são alcançáveis. A
 
 Configurações são variantes tipadas e fechadas no assembly. O tipo declarado precisa corresponder à configuração; UUIDs, posições e valores são verificados na construção. Coleções são copiadas e JSON é clonado. Credenciais são referências por ID/proprietário, sem valor secreto: o domínio rejeita um proprietário divergente, mas existência, revogação e confirmação do dono no armazenamento são responsabilidades futuras da aplicação.
 
-Condition usa uma expressão declarativa com JSON Pointer e operadores limitados. Transform constrói um novo objeto por campos vindos de paths ou literais. Não há linguagem de scripts. A Fase 2 valida essas definições; avaliar payload, selecionar ramo ou produzir output pertence aos executores da Fase 9. O [contrato detalhado](../superpowers/specs/2026-10-09-phase-2-domain-design.md) especifica ausências, tipos, limites e erros.
+Condition usa uma expressão declarativa com JSON Pointer e operadores limitados. Transform constrói um novo objeto por campos vindos de paths ou literais. Não há linguagem de scripts. A Fase 2 valida essas definições; avaliar payload, selecionar ramo ou produzir output pertence aos executores da Fase 9. O [contrato detalhado](../domain-contract.md) especifica ausências, tipos, limites e erros.
 
 Os limites iniciais consolidados são 50 nodes, 100 conexões, 50 campos Transform e pointers de até 1.024 unidades UTF-16/32 segmentos. Delay aceita até 24 horas. São limites de definição, não implementação de scheduling, quotas de usuários ou proteção completa de HTTP.
 
@@ -34,12 +34,6 @@ Estados operacionais recebem enums e políticas puras de transição, sem entida
 - Variantes tipadas tornam configurações inválidas difíceis de construir, mas a futura API precisa traduzir e validar o discriminador recebido. Não há contrato de serialização HTTP implementado nesta fase.
 - HTTPS sintático na configuração não prova segurança de rede. Allowlist, resolução/conexão controlada, redirects, limites e política de credenciais permanecem na Fase 8.
 - Usar decimal para os comparandos de Condition evita coerção de strings e fixa o domínio numérico; inputs fora desse domínio devem gerar erro determinístico no executor futuro.
-
-## Como explicar em entrevista
-
-“Coloquei as invariantes na definição e no agregado, porque bloquear um botão de edição não torna uma versão imutável. Primeiro valido o grafo inteiro; só depois mudo o status e o ponteiro ativo. Um novo rascunho recebe outra identidade, então uma edição futura não altera uma execução que venha a fixar a publicação anterior.”
-
-“Usei alcance e ordenação topológica para testar um DAG pequeno. Condition tem duas saídas possíveis, mas a execução futura escolhe uma só; convergir ramos não implica sincronizar execução paralela. Limitei a linguagem de configuração em vez de colocar eval dentro do Worker.”
 
 ## Evidências
 

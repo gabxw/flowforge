@@ -22,8 +22,4 @@ Nenhum ID único é dimensão de métrica própria. Tags de trace usam allowlist
 
 Custo adicional: um read curto por claim, três consultas de backlog a cada cinco segundos no Worker e SDK nos dois hosts. Nenhum Redis/collector/AppHost foi introduzido. Painel tem retenção em memória e porta anônima em loopback; operação pública exige collector autenticado e política de retenção.
 
-## Entrevista
-
-“Persisti o contexto junto da execução porque a automação continua depois que a request termina e pode reiniciar. A outbox leva esse contexto ao broker sem alterar a mensagem de negócio. Separar duração ativa, espera e atraso de despacho explica onde a execução perdeu tempo. Os IDs ficam em traces, enquanto as métricas têm dimensões limitadas.”
-
-Critérios locais concluídos em 13/10/2026. Publicação e CI da Fase 14 serão registrados na revisão da Fase 15 autorizada.
+Critérios locais concluídos em 13/10/2026. Publicação e CI da Fase 14 serão registrados na revisão da Fase 15.

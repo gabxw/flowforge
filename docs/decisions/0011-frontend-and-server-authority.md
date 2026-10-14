@@ -46,9 +46,3 @@ URLs são relativas ao proxy existente; não se cria CORS amplo nem se coloca co
 Configuração do workflow não é um cofre de segredos. HTTP usa credentialId; o editor informa isso. React renderiza nomes, JSON e erros como texto, sem eval ou HTML injetado. Não há autenticação simulada: a interface permanece local/privada até a Fase 13.
 
 O histórico usa offset/limit 1..100 e ordem createdAt/id decrescente. Páginas não representam snapshot entre requests; inserções novas podem deslocar itens. O índice existente por proprietário/data atende a base atual, sem migration especulativa; um índice incluindo workflow deve ser decidido com medição do volume/plano.
-
-## Como explicar em entrevista
-
-“Construí a interface em cima do contrato existente, sem mover regras de negócio para o browser. Um 202 muda a tela para uma execução pendente e um cancelamento continua pendente até o Worker confirmar. Tratei revisão concorrente e resposta perdida como estados do produto, sem anunciar sucesso antes da confirmação.”
-
-“Usei formulário antes do editor visual e estado local antes de uma biblioteca de cache. A nova consulta paginada tornou o histórico persistente. Testei a jornada em um navegador com API, PostgreSQL, RabbitMQ e Worker reais; mocks cobrem falhas e corridas que seriam difíceis de reproduzir manualmente.”

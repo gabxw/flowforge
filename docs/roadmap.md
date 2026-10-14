@@ -42,7 +42,7 @@ Commit sugerido: Preparar solução e ambiente de desenvolvimento.
 
 ## Fase 2 — Domínio de workflows
 
-Status: concluída. Contrato na [spec da Fase 2](superpowers/specs/2026-10-09-phase-2-domain-design.md) e evidências na [revisão da Fase 2](phase-2-review.md).
+Status: concluída. Contrato no [contrato do domínio](domain-contract.md) e evidências na [revisão da Fase 2](phase-2-review.md).
 
 Entregas: entidades e valores mínimos de definição; tipo do node; portas; validação de DAG; publicação imutável; estados e transições iniciais. Especificar o contrato de Condition e Transform sem executar código livre.
 
@@ -214,7 +214,7 @@ Commit sugerido: Automatizar validação do backend frontend e containers.
 
 Status: implementada e validada localmente em 14/10/2026. README/ADRs/guias, exemplo com dois ramos e falha esperada, screenshots reais e QA concluídos. [Revisão](phase-16-review.md). Publicação/integração dependem dos três checks obrigatórios; não há deploy público configurado.
 
-Entregas: README profissional, diagrama, screenshots reais, exemplo de workflow reproduzível, ADRs finais, instruções de operação/retenção, limitações conhecidas, roteiro de demonstração e temas técnicos para entrevista/LinkedIn.
+Entregas: README profissional, diagrama, screenshots reais, exemplo de workflow reproduzível, ADRs finais, instruções de operação/retenção, limitações conhecidas e roteiro de demonstração.
 
 Critério de saída: outra pessoa inicia ambiente com configuração documentada, executa exemplo e investiga uma falha. Rever exposição de portas, secrets, SSRF, quotas, backup e persistência de keyring. Screenshot mostra sistema implementado; funcionalidades futuras ficam no roadmap.
 

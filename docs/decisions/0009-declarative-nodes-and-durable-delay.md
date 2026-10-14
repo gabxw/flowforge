@@ -56,12 +56,6 @@ Cada Delay acrescenta uma outbox/inbox concluída; retenção exige política fu
 
 Condições e transformações são determinísticas e podem ser repetidas após interrupção local. Essa propriedade não se estende a efeitos HTTP: uma chamada com resultado externo desconhecido continua sem replay automático. Retries, jitter, DLQ, tentativas individuais e deadline global pertencem à Fase 10.
 
-## Como explicar em entrevista
-
-“Eu precisava liberar o consumer durante uma espera e sobreviver à queda do Worker. O banco já tinha a outbox para fechar a falha entre commit e publicação. Gravei o prazo e a continuação na mesma transação que conclui a mensagem atual. Quando o prazo chega, uma mensagem nova retoma o mesmo node; sequência e inbox impedem que uma duplicata antiga avance a execução. Isso usa a infraestrutura existente, com atraso de polling explícito, sem prometer execução pontual ou exactly-once externo.”
-
-“Para Condition e Transform, limitei o contrato a operadores e projeções. Defini ausência, null, tipos, precisão e limites antes de executar. O objetivo é que o usuário consiga prever o resultado e investigar um erro sem executar código arbitrário ou expor payloads em logs.”
-
 ## Verificação
 
 Unitários cobrem resolução de Pointer, igualdade/ordem, precisão, ausência, duplicatas, profundidade e amplificação. Integração cobre ambos os ramos com convergência, contexto protegido, cancelamento, commit com falha, claims concorrentes, delays consecutivos e os seis tipos com RabbitMQ/HTTPS reais. Compose/CI recriam o Worker durante a suspensão e verificam contexto/keyring e continuidade. Resultados efetivos ficam em [phase-9-review.md](../phase-9-review.md).

@@ -8,9 +8,7 @@ Código/documentação validado em 4014160c1c2a9d9073b3786d6a2da308befd8fd7 (eng
 
 Commits em português, sem prefixos: Modelar execução de nodes e travessia do grafo; Executar workflows com checkpoints protegidos e cancelamento; Documentar checkpoints, proteção de dados e operação da engine. Não houve reescrita do histórico anterior.
 
-As imagens validadas API/Worker também ficaram nas tags locais flowforge-api/flowforge-worker para agilizar docker compose up. Frontend sem alterações mantém o cache anterior validado. Recursos operacionais e os dois itens pessoais não rastreados foram preservados.
-
-A skill memory-curator foi consultada; as ferramentas MCP de snapshot/proposta estão indisponíveis. Handoff mínimo salvo em .local/phase-6-evidence/handoff.md para continuidade, sem promoção ao vault nem ID de proposta inventado. Atualização curada permanece pendente.
+As imagens validadas API/Worker também ficaram nas tags locais flowforge-api/flowforge-worker para agilizar docker compose up. Frontend sem alterações mantém o cache anterior validado.
 
 ## Entrega
 
@@ -87,4 +85,4 @@ Revisão feita pelo próprio implementador, sem alegar revisão independente.
 - Pendência menor herdada: U+0000 em texto de definição persistido ainda retorna 500 sanitizado em vez de 400, sem gravação.
 - Limitação Docker Hub local permanece documentada; cache foi usado apenas para frontend sem alterações.
 
-Decisão para entrevista: [ADR 0006](decisions/0006-sequential-engine-and-checkpoints.md). Contrato/recuperação: [execution-engine.md](execution-engine.md).
+Decisão: [ADR 0006](decisions/0006-sequential-engine-and-checkpoints.md). Contrato/recuperação: [execution-engine.md](execution-engine.md).

@@ -68,4 +68,4 @@ Revisão técnica feita sobre o código, migration, testes e roteiro operacional
 - Autenticação/RBAC/rate limiting e observabilidade completa permanecem no roadmap. Ambiente continua privado.
 - Pendência menor da Fase 4: U+0000 em texto persistido ainda retorna 500 sanitizado em vez de 400; rejeitado pelo PostgreSQL, sem gravação.
 
-Decisão e explicação para entrevista: [ADR 0005](decisions/0005-durable-execution-dispatch.md). Operação: [execution-dispatch.md](execution-dispatch.md). Não iniciar a Fase 6 sem pedido do usuário.
+Decisão: [ADR 0005](decisions/0005-durable-execution-dispatch.md). Operação: [execution-dispatch.md](execution-dispatch.md).

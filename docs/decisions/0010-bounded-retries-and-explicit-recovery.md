@@ -67,9 +67,3 @@ São três tabelas novas: tentativas, redrives e replays. Elas atendem auditoria
 Retenção definida: inbox/outbox concluídas e DLQ por pelo menos 7 dias após término; ativos nunca são removidos. Auditoria/tentativas/replays por 30 dias; contexto por 7 dias após término. A chave de webhook permanece reservada enquanto a execução está ativa e por pelo menos 24h após término. Chave de replay não é reutilizada enquanto seu registro existir. Limpeza automática está pendente; a política não autoriza apagar volumes ou histórico durante upgrade.
 
 O prazo de garantia de deduplicação depende dessa retenção e do contrato do destino. Não prometemos exactly-once externo. A fila clássica e o único broker Compose não fornecem HA; não acrescentamos cluster para demonstrar uma tecnologia.
-
-## Como explicar em entrevista
-
-“Persisti o início de cada tentativa e a intenção de envio antes do HTTP. Se o processo cai, o banco conserva o resultado desconhecido. Só repito operações com contrato elegível e orçamento; a mesma chave identifica o efeito durante as tentativas. Retry usa a mesma outbox que já garantia o dispatch, então não há um timer em memória nem outra fonte de verdade.”
-
-“Separei falha de negócio, falha de transporte e ação do operador. O consumer transfere para DLQ com confirm antes do ACK; o envelope é sanitizado. Redrive retoma uma entrega atual, enquanto replay cria outra execução e preserva a anterior. Isso custa registros e pode atrasar por polling, mas torna o comportamento investigável.”

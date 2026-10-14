@@ -42,11 +42,9 @@ A allowlist reduz flexibilidade, e a política conservadora pode recusar endere�
 
 Validar a credencial ao salvar/publicar melhora o feedback, mas não congela sua disponibilidade. A resolução no Worker é a verificação válida no momento da chamada. O keyring precisa de backup junto do banco e controle de acesso próprio; strings secretas existem transitoriamente na memória gerenciada para montar o header e não são cacheadas.
 
-## Evidências e entrevista
+## Evidências
 
 Testes usam servidor Kestrel HTTPS independente, CA descartável e sockets reais. O mapeamento de IP para o fixture e confiança nessa CA existem somente em construtores internos acessíveis ao assembly de testes; o runtime não oferece exceção de rede privada/TLS. Há testes separados da política, do connector real e do hostname/certificado. PostgreSQL/RabbitMQ reais cobrem webhook → HTTP → Log, duplicação, rotação em voo, revogação e queda depois do efeito remoto.
-
-Em entrevista: “Validar o DNS e conectar pelo hostname deixaria uma janela de rebinding. Eu fixo o endereço validado no socket, preservando a identidade TLS. Também separo a consistência local do efeito remoto: a lease impede gravar um checkpoint antigo, mas não desfaz um POST. Uma redelivery não autoriza repeti-lo.”
 
 ## Referências
 

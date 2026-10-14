@@ -100,7 +100,7 @@ Limites: 50 nodes, 100 conexões, nome de até 200 e descrição/mensagem de at�
 
 Condition usa exists sem expectedValue; equals/notEquals aceitam escalar JSON, inclusive null; greaterThan/greaterThanOrEqual/lessThan/lessThanOrEqual exigem número representável por decimal. JSON null é distinto de propriedade omitida. JSON Pointer vazio representa a raiz; /a~1b representa a propriedade a/b.
 
-Transform permite literal JSON de qualquer tipo, inclusive null, objeto e array. Campos têm destinos únicos; sourcePointer vazio é um path válido. Os seis tipos seguem as regras do [domínio](superpowers/specs/2026-10-09-phase-2-domain-design.md). Enums e nomes de campos usam camelCase. Membros desconhecidos, propriedades duplicadas e números entre aspas são rejeitados. type pode aparecer em qualquer posição do objeto.
+Transform permite literal JSON de qualquer tipo, inclusive null, objeto e array. Campos têm destinos únicos; sourcePointer vazio é um path válido. Os seis tipos seguem as regras do [domínio](domain-contract.md). Enums e nomes de campos usam camelCase. Membros desconhecidos, propriedades duplicadas e números entre aspas são rejeitados. type pode aparecer em qualquer posição do objeto.
 
 ## Erros e OpenAPI
 

@@ -33,10 +33,8 @@ O handler usa Results.Problem com fallback JSON: o writer padrão pode recusar A
 - Proxy preserva /api; aliases de liveness/OpenAPI mantêm compatibilidade do shell inicial.
 - Configuração lazy permite inspecionar o host indisponível, mas requer verificar o CRUD para afirmar prontidão operacional.
 
-## Verificação e entrevista
+## Verificação
 
 WebApplicationFactory usa PostgreSQL 17 real em Testcontainers. Testes cobrem jornada, seis configurações, JSON null, erros, preservação de publicação, duas edições simultâneas e dois donos em servidores distintos. O roteiro Compose confirma migrations explícitas/idempotentes, persistência e proxy.
-
-Em entrevista: explicar por que o dono precisa ser confiável mesmo antes de JWT, por que uma checagem de revisão em memória não fecha a corrida, como o CAS preserva histórico e por que publicar definição ainda não executa automação.
 
 Referências primárias: [erros e Problem Details](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/error-handling-api?view=aspnetcore-10.0), [metadados OpenAPI e polimorfismo](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/openapi/include-metadata?view=aspnetcore-10.0), [propriedades JSON duplicadas](https://learn.microsoft.com/en-us/dotnet/api/system.text.json.jsonserializeroptions.allowduplicateproperties?view=net-10.0), [discriminador fora de ordem](https://learn.microsoft.com/en-us/dotnet/api/system.text.json.jsonserializeroptions.allowoutofordermetadataproperties?view=net-10.0) e [wrapper de falha transitória do provider](https://github.com/npgsql/efcore.pg/blob/v10.0.3/src/EFCore.PG/Storage/Internal/NpgsqlExecutionStrategy.cs).

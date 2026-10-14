@@ -38,10 +38,6 @@ Arquivamento é terminal e preserva histórico; os stores não oferecem exclusã
 
 users contém somente Id e CreatedAt. Ownership não é autenticação: na futura composição HTTP, a identidade do proprietário deve vir do contexto confiável do servidor. API e Worker ainda não usam os stores nesta fase. Roles de migration/runtime e proteção das credenciais serão definidas quando houver integração dos hosts, sem antecipar autenticação.
 
-## Como explicar em entrevista
-
-“Separei o domínio do armazenamento para preservar invariantes e histórico. FKs compostas impedem relações entre versões e usuários. Uso uma revisão esperada e uma transação para que uma edição concorrente perca claramente, sem sobrescrever dados. Testei tanto dois clientes concorrentes quanto uma falha depois do UPDATE, verificando que o banco inteiro volta ao estado anterior. Evitei Redis porque o PostgreSQL já resolve esse lock transacional.”
-
 ## Referências
 
 - [Concorrência otimista no EF Core](https://learn.microsoft.com/en-us/ef/core/saving/concurrency).

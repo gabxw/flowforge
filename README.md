@@ -137,7 +137,7 @@ Painel: **http://localhost:18888**. É anônimo e restrito à máquina local, co
 | Refresh roubado pode continuar renovando | Rotação/família/replay: reutilização revoga a família; exige serialização entre abas |
 | Trace pode expor dados ou inflar métricas | Allowlist de atributos, sem baggage e dimensões limitadas; menos detalhes automáticos |
 
-As garantias e limites estão em [confiabilidade](docs/execution-reliability.md), [segurança HTTP](docs/http-and-credentials.md), [sessões](docs/authentication.md) e [temas técnicos](docs/portfolio-topics.md). O projeto não promete exactly-once para sistemas externos.
+As garantias e limites estão em [confiabilidade](docs/execution-reliability.md), [segurança HTTP](docs/http-and-credentials.md) e [sessões](docs/authentication.md). O projeto não promete exactly-once para sistemas externos.
 
 ## Qualidade
 

@@ -15,7 +15,7 @@ Status: concluída, revisada, publicada pelo [PR #6](https://github.com/gabxw/fl
 - Os seis executores iniciais registrados no Worker; sexta migration, mantendo treze tabelas.
 - Smoke direto/proxy, retomada após recriação e critérios acrescidos ao GitHub Actions.
 
-[Contrato/operação](declarative-nodes-and-delay.md) e [ADR 0009](decisions/0009-declarative-nodes-and-durable-delay.md) registram alternativas, trade-offs e explicação para entrevista.
+[Contrato/operação](declarative-nodes-and-delay.md) e [ADR 0009](decisions/0009-declarative-nodes-and-durable-delay.md) registram alternativas e trade-offs.
 
 ## Verificação executada
 

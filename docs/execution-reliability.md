@@ -120,4 +120,4 @@ docker compose up --detach --force-recreate --no-deps worker
 
 O smoke cria dados fictícios e verifica tentativas, falha permanente sem retry, redrive e replay; arquiva o exemplo e preserva volumes. Sucesso/retry/efeito idempotente HTTP são verificados por HTTPS real controlado nos testes, sem liberar SSRF no produto.
 
-[ADR 0010](decisions/0010-bounded-retries-and-explicit-recovery.md) explica escolhas e entrevista; [revisão da Fase 10](phase-10-review.md) registra resultados reais.
+[ADR 0010](decisions/0010-bounded-retries-and-explicit-recovery.md) explica escolhas e alternativas; [revisão da Fase 10](phase-10-review.md) registra resultados reais.
