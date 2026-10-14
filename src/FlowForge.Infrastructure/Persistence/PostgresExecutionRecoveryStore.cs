@@ -7,12 +7,18 @@ using Microsoft.EntityFrameworkCore;
 namespace FlowForge.Infrastructure.Persistence;
 public sealed class PostgresExecutionRecoveryStore(IDbContextFactory<FlowForgeDbContext> factory) : IExecutionRecoveryStore
 {
+    // Mensagem publicada que nenhum Worker reivindicou (por exemplo, enviada à DLQ antes do claim).
+    // Depois desse intervalo ela volta à fila; uma que só estava atrasada vira duplicata absorvida pela inbox.
+    private static readonly TimeSpan UnclaimedGrace = TimeSpan.FromMinutes(5);
+    // Uma mensagem recusada sempre não deve circular até o prazo: após o limite, fica para deadline ou redrive.
+    private const int UnclaimedPublishLimit = 5;
+
     public async Task<bool> RecoverOneAsync(CancellationToken ct = default)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         // Sem locks durante publish. Ordem global: execução -> inbox -> outbox.
-        var rows = await db.WorkflowExecutions.FromSqlRaw("""
+        var rows = await db.WorkflowExecutions.FromSql($"""
             SELECT e.* FROM workflow_executions e
             JOIN outbox_messages o ON o.execution_id = e.id AND o.dispatch_sequence = e.dispatch_sequence
             LEFT JOIN inbox_messages i ON i.message_id = o.id AND i.completed_at IS NULL
@@ -20,7 +26,8 @@ public sealed class PostgresExecutionRecoveryStore(IDbContextFactory<FlowForgeDb
               AND (i.claim_until IS NULL OR i.claim_until <= clock_timestamp())
               AND (o.claim_until IS NULL OR o.claim_until <= clock_timestamp())
               AND (o.recovery_not_before IS NULL OR o.recovery_not_before <= clock_timestamp())
-              AND (e.deadline_at <= clock_timestamp() OR e.cancel_requested_at IS NOT NULL OR i.claim_until <= clock_timestamp())
+              AND (e.deadline_at <= clock_timestamp() OR e.cancel_requested_at IS NOT NULL OR i.claim_until <= clock_timestamp()
+                   OR (i.message_id IS NULL AND o.published_at <= clock_timestamp() - {UnclaimedGrace} AND o.publish_attempts < {UnclaimedPublishLimit}))
             ORDER BY e.deadline_at, e.id LIMIT 1 FOR UPDATE OF e SKIP LOCKED
             """).ToArrayAsync(ct);
         if (rows.SingleOrDefault() is not { } row) return false;
