@@ -200,7 +200,7 @@ Commit sugerido: Rastrear execuções entre API e Worker.
 
 ## Fase 15 — Testes e CI/CD
 
-Status: implementação e validação local/CI aprovadas em 13/10/2026. [PR #12](https://github.com/gabxw/flowforge/pull/12), clone limpo e PR negativo bloqueado; evidências na [revisão](phase-15-review.md). Merge final depende dos três checks obrigatórios.
+Status: concluída em 13/10/2026. [PR #12](https://github.com/gabxw/flowforge/pull/12) integrado na main em 8c84658, com [CI final](https://github.com/gabxw/flowforge/actions/runs/38457048103) aprovado. Clone limpo e PR negativo bloqueado, evidências na [revisão](phase-15-review.md).
 
 Entregas: GitHub Actions com restore/build/test, serviços de integração/Testcontainers, lint/typecheck/build do frontend e validação/build dos containers. Consolidar a suíte já criada e política de dependências/segredos. Deploy só entra quando houver destino escolhido e autorizado.
 
@@ -211,6 +211,8 @@ Revisão: testes verificam comportamento e falhas relevantes; não apenas getter
 Commit sugerido: Automatizar validação do backend frontend e containers.
 
 ## Fase 16 — Refino para portfólio
+
+Status: implementada e validada localmente em 14/10/2026. README/ADRs/guias, exemplo com dois ramos e falha esperada, screenshots reais e QA concluídos. [Revisão](phase-16-review.md). Publicação/integração dependem dos três checks obrigatórios; não há deploy público configurado.
 
 Entregas: README profissional, diagrama, screenshots reais, exemplo de workflow reproduzível, ADRs finais, instruções de operação/retenção, limitações conhecidas, roteiro de demonstração e temas técnicos para entrevista/LinkedIn.
 

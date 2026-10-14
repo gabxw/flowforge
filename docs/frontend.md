@@ -1,6 +1,6 @@
 # Operação do frontend — Fase 11
 
-A interface privada permite listar/criar workflows, editar detalhes e estrutura, publicar versões, abrir novo rascunho, executar a versão publicada, consultar histórico/etapas/tentativas/logs e solicitar cancelamento. A Fase 12 acrescenta o [editor visual](visual-editor.md) com posições/conexões persistentes; autenticação entra na Fase 13.
+A interface privada permite listar/criar workflows, editar detalhes e estrutura, publicar versões, abrir novo rascunho, executar a versão publicada, consultar histórico/etapas/tentativas/logs e solicitar cancelamento. A Fase 12 acrescenta o [editor visual](visual-editor.md) com posições/conexões persistentes; a Fase 13 entregou login/sessões e preservação de rascunho na reautenticação, descritos em [autenticação](authentication.md).
 
 ## Executar e navegar
 
@@ -23,7 +23,7 @@ Vite escuta 127.0.0.1:5173 e encaminha /api para localhost:5080. Não há URL de
 | /#/workflows/{id} | Detalhes, versões, estrutura e histórico |
 | /#/executions/{id} | Estado, nodes, tentativas, logs e cancelamento |
 
-Links podem ser copiados/recarregados. IDs inválidos mostram página não encontrada; recursos ausentes/de outro proprietário recebem 404. Proprietário técnico é escolhido somente pelo servidor, sem login ou RBAC na interface.
+Links podem ser copiados/recarregados. IDs inválidos mostram página não encontrada; recursos ausentes/de outro proprietário recebem 404. Desde a Fase 13, ownership usa a conta autenticada e os endpoints privados exigem JWT/RBAC. Admin não tem bypass de recursos de outro dono; login e reautenticação preservam o rascunho da mesma conta.
 
 ## Jornada inicial
 

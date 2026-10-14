@@ -1,6 +1,6 @@
 # Arquitetura e escopo do FlowForge
 
-Status: Fases 1 a 8 concluídas, publicadas e com CI aprovado. Webhook recebe input protegido, reserva idempotência e responde após commit; engine sequencial executa Trigger, HTTP Request e Log com checkpoints, histórico e cancelamento. HTTP/Credentials e suas evidências estão em [phase-8-review.md](phase-8-review.md). Outros executores e autenticação seguem nas fases indicadas.
+Status: backend, editor visual, autenticação e observabilidade entregues nas Fases 1–15. A Fase 16 consolida demonstração e operação de portfólio. API usa dono autenticado; os seis executores e a confiabilidade estão implementados. Ambiente local/privado: wrapping externo do keyring e destino de implantação permanecem pendentes.
 
 ## Problema e requisitos
 
