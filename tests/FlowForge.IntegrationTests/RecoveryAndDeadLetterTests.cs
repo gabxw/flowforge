@@ -49,6 +49,31 @@ public sealed class RecoveryAndDeadLetterTests(DispatchFixture fixture)
         Assert.Equal(2, (await db.InboxMessages.AsNoTracking().SingleAsync()).ClaimAttempts);
     }
     [Fact]
+    public async Task Recovery_republishes_a_message_never_claimed_and_stops_after_bounded_publications()
+    {
+        await fixture.ResetAsync(); var (_, request, _) = await EngineFixtures.RequestAsync(fixture);
+        var outbox = new PostgresExecutionOutboxStore(fixture.Factory); var recovery = new PostgresExecutionRecoveryStore(fixture.Factory);
+        await using var db = await fixture.Factory.CreateDbContextAsync();
+        // Simula a mensagem que foi para a DLQ antes de qualquer Worker criar a inbox.
+        async Task PublishAndAge(bool age)
+        {
+            Assert.True(await outbox.MarkPublishedAsync((await outbox.TryClaimAsync(EngineOptions.Default.Lease))!));
+            if (age) await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE outbox_messages SET created_at = created_at - interval '10 minutes', published_at = clock_timestamp() - interval '6 minutes', recovery_not_before = NULL WHERE id = {request.MessageId}");
+        }
+        await PublishAndAge(age: false);
+        Assert.False(await recovery.RecoverOneAsync());
+        await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE outbox_messages SET created_at = created_at - interval '10 minutes', published_at = clock_timestamp() - interval '6 minutes', recovery_not_before = NULL WHERE id = {request.MessageId}");
+        Assert.True(await recovery.RecoverOneAsync());
+        var returned = await db.OutboxMessages.AsNoTracking().SingleAsync();
+        Assert.Null(returned.PublishedAt); Assert.Equal(1, returned.PublishAttempts);
+        for (var publication = 2; publication < 5; publication++) { await PublishAndAge(age: true); Assert.True(await recovery.RecoverOneAsync()); }
+        await PublishAndAge(age: true);
+        Assert.False(await recovery.RecoverOneAsync());
+        var kept = await db.OutboxMessages.AsNoTracking().SingleAsync();
+        Assert.NotNull(kept.PublishedAt); Assert.Equal(5, kept.PublishAttempts); Assert.Empty(await db.InboxMessages.AsNoTracking().ToArrayAsync());
+        Assert.Equal(WorkflowExecutionStatus.Pending, (await Reader.GetAsync(request.ExecutionId, request.OwnerUserId))!.Status);
+    }
+    [Fact]
     public async Task Redrive_is_owner_scoped_idempotent_and_cannot_take_a_live_lease()
     {
         await fixture.ResetAsync(); var (_, request, _) = await EngineFixtures.RequestAsync(fixture);

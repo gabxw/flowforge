@@ -41,7 +41,7 @@ Deadline de 48h parte do aceite, usando relógio PostgreSQL; abrange backlog, De
 
 Prefetch 1 e execução sequencial limitam concorrência por host; várias instâncias podem processar execuções diferentes. Lease/token/geração/revisão/sequência impedem gravação concorrente da mesma execução. Antes do HTTP há nova checagem de autoridade; perder lease impede novo envio, mas não desfaz chamada anterior.
 
-Scanner periódico recupera até 10 itens por ciclo de 5s, por outbox, sem exigir redelivery. Intervalo de recuperação de 30s reduz republicações de um claim ainda não retomado. Cinco claims/replays locais esgotam recuperação com attemptLimitExceeded. Indisponibilidade do banco/broker pode atrasar a observação de deadline/cancelamento.
+Scanner periódico recupera até 10 itens por ciclo de 5s, por outbox, sem exigir redelivery. Intervalo de recuperação de 30s reduz republicações de um claim ainda não retomado. Uma mensagem publicada que nenhum Worker reivindicou em 5 minutos (por exemplo, enviada à DLQ antes de criar a inbox) também volta à fila; se ela só estava atrasada, a duplicata é absorvida pela inbox. Esse retorno automático para depois de cinco publicações da mesma mensagem, que então aguarda o deadline ou um redrive. Cinco claims/replays locais esgotam recuperação com attemptLimitExceeded. Indisponibilidade do banco/broker pode atrasar a observação de deadline/cancelamento.
 
 ## DLQ e transporte
 
