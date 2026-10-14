@@ -2,6 +2,7 @@ using FlowForge.Application.Users;
 using FlowForge.Application.Credentials;
 using FlowForge.Application.Webhooks;
 using FlowForge.Infrastructure.Runtime;
+using System.Diagnostics;
 using System.Text.Json;
 using FlowForge.Application.Workflows;
 using FlowForge.Domain.Workflows;
@@ -12,7 +13,7 @@ using Npgsql;
 
 namespace FlowForge.Api;
 
-internal sealed class ApiExceptionHandler : IExceptionHandler
+internal sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : IExceptionHandler
 {
     public async ValueTask<bool> TryHandleAsync(HttpContext context, Exception exception, CancellationToken cancellationToken)
     {
@@ -41,6 +42,7 @@ internal sealed class ApiExceptionHandler : IExceptionHandler
                 (503, "Workflows indisponíveis.", "O PostgreSQL não está disponível ou as migrations ainda não foram aplicadas."),
             _ => (500, "Erro interno.", "Não foi possível concluir a operação.")
         };
+        if (status >= 500) Record(context, exception, status);
         context.Response.StatusCode = status;
         if (status == 401) context.Response.Headers.WWWAuthenticate = "Bearer";
         var problem = new ProblemDetails { Status = status, Title = title, Detail = detail };
@@ -48,5 +50,31 @@ internal sealed class ApiExceptionHandler : IExceptionHandler
         // Results.Problem fornece fallback JSON mesmo quando Accept recusa o writer padrão.
         await Results.Problem(problem).ExecuteAsync(context);
         return true;
+    }
+
+    // A mensagem da exceção pode carregar dados do request ou do banco, então fica fora do log.
+    // Tipo, rota (o padrão, sem IDs), trace e pilha (só nomes de métodos) bastam para investigar.
+    private void Record(HttpContext context, Exception exception, int status)
+    {
+        // O middleware de exceção limpa o endpoint antes do handler; o original fica na feature.
+        var endpoint = context.Features.Get<IExceptionHandlerFeature>()?.Endpoint ?? context.GetEndpoint();
+        var route = (endpoint as RouteEndpoint)?.RoutePattern.RawText ?? "sem_rota";
+        var traceId = Activity.Current?.TraceId.ToString() ?? context.TraceIdentifier;
+        Activity.Current?.SetTag("error.type", exception.GetType().FullName);
+        Activity.Current?.SetStatus(ActivityStatusCode.Error);
+        if (status == 500)
+            logger.LogError("Falha não tratada na API. EventCode={EventCode} ErrorType={ErrorType} Method={Method} Route={Route} TraceId={TraceId} StackTrace={StackTrace}",
+                "unhandled_exception", exception.GetType().FullName, context.Request.Method, route, traceId, Stack(exception));
+        else
+            logger.LogWarning("Dependência indisponível na API. EventCode={EventCode} ErrorType={ErrorType} Method={Method} Route={Route} TraceId={TraceId}",
+                "dependency_unavailable", exception.GetType().FullName, context.Request.Method, route, traceId);
+    }
+
+    private static string Stack(Exception exception)
+    {
+        var parts = new List<string>();
+        for (var current = exception; current is not null && parts.Count < 4; current = current.InnerException)
+            parts.Add(current.GetType().FullName + Environment.NewLine + current.StackTrace);
+        return string.Join(Environment.NewLine + "--- exceção interna ---" + Environment.NewLine, parts);
     }
 }
