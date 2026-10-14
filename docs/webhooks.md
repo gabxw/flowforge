@@ -1,6 +1,6 @@
 # Operação de webhooks — Fase 7
 
-A API aceita POST /hooks/{endpointId}, grava input protegido, execução e outbox no PostgreSQL e responde 202. Worker executa Trigger → Log. HTTP Request, Condition, Transform e Delay ainda não possuem executores; usar esses tipos continua produzindo unsupportedNode.
+A API aceita POST /hooks/{endpointId}, grava input protegido, execução e outbox no PostgreSQL e responde 202. O Worker executa a versão publicada com os seis tipos de etapa.
 
 ## Administração privada
 
@@ -12,7 +12,7 @@ A API aceita POST /hooks/{endpointId}, grava input protegido, execução e outbo
 | PUT na mesma rota, {"enabled": true} | Reativa apenas se o workflow estiver ativo/publicado. |
 | POST /api/workflows/{id}/webhook/rotate-secret, sem corpo | Novo secret uma vez, mesmo ID; segredo anterior revogado. Preserva enabled e reservas. |
 
-Essas rotas usam o proprietário técnico configurado no servidor. São administrativas e ainda não têm login/RBAC; executá-las somente em ambiente privado. Owner/versão/IDs de execução não são parâmetros de ingresso. Criação duplicada retorna 409; um recurso de outro proprietário retorna 404. Arquivar workflow recusa novos eventos sem cancelar aqueles já aceitos.
+Essas rotas exigem sessão autenticada e só atuam sobre workflows da própria conta. Owner/versão/IDs de execução não são parâmetros de ingresso. Criação duplicada retorna 409; um recurso de outro proprietário retorna 404. Arquivar workflow recusa novos eventos sem cancelar aqueles já aceitos.
 
 ## Contrato do remetente
 

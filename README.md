@@ -2,28 +2,32 @@
 
 [![Validação](https://github.com/gabxw/flowforge/actions/workflows/validacao.yml/badge.svg)](https://github.com/gabxw/flowforge/actions/workflows/validacao.yml)
 
-Plataforma de automação por workflows construída com C#/.NET. Um usuário publica um grafo e acompanha execuções independentes, iniciadas por webhook ou pela interface. A API aceita o evento; um Worker executa etapas com checkpoints, histórico e recuperação após falhas.
+Motor de automação por workflows em C#/.NET. Você desenha um grafo, publica uma versão e cada evento recebido por webhook vira uma execução independente, processada por um Worker com checkpoints, retry e recuperação após queda.
 
-O problema central é conciliar processamento assíncrono, efeitos externos e consistência: uma mensagem pode chegar novamente, o processo pode cair e um timeout pode acontecer depois que o destino executou a ação. O projeto torna essas situações explícitas e testáveis.
+![Percurso: workflow publicado, evento recebido por webhook e caminho percorrido pela execução](docs/screenshots/percurso.gif)
 
-**Versão demonstrável de portfólio: backend, editor visual, autenticação e observabilidade.** Ambiente local/privado; implantação pública exige proteção externa do keyring e configuração operacional própria. Consulte [segurança](SECURITY.md) e [limites](docs/operations.md).
+O problema central não é chamar uma API, é fazer isso de forma confiável quando as coisas falham no meio: o banco confirma e a fila cai, o Worker morre depois de um POST, o remetente reenvia o mesmo evento, um timeout chega depois que o destino já agiu. O projeto trata essas situações de forma explícita e cada uma tem teste com PostgreSQL e RabbitMQ reais.
 
-## O que funciona
+## O que acontece quando
 
-- Workflows por proprietário, rascunho com controle de revisão e versões publicadas imutáveis.
-- Editor React Flow com configurações tipadas, posições persistidas e portas true/false.
-- Seis nodes: Webhook Trigger, HTTP Request, Condition, Transform JSON, Delay e Log.
-- Histórico de execução/node/tentativa, inputs/outputs protegidos, logs e cancelamento cooperativo.
-- Outbox/inbox, deduplicação, retry elegível com backoff/jitter, deadline, fencing, DLQ, redrive e replay explícitos.
-- HTTP com allowlist HTTPS, conexão ao IP aprovado, TLS, sem redirects/proxy/cookies e limites de resposta.
-- Contas Owner/Admin, JWT de cinco minutos, refresh rotativo em cookie, CSRF, revogação imediata e autorização por objeto.
-- Traces API → RabbitMQ → Worker → node/HTTP, logs correlacionados e métricas de execução/espera/backlog.
+| Situação | Comportamento | Prova |
+| --- | --- | --- |
+| O RabbitMQ está fora do ar quando o webhook chega | A API grava execução e outbox na mesma transação e responde 202. O Worker publica quando o broker volta. | [WebhookEndpointTests](tests/FlowForge.Api.Tests/WebhookEndpointTests.cs) `Webhook_is_durable_without_broker…` |
+| O remetente envia o mesmo evento duas vezes, ao mesmo tempo | Mesma `Idempotency-Key` e mesmo corpo devolvem a mesma execução; corpo diferente com a mesma chave é recusado com 409. | `Concurrent_duplicate_keys_return_one_execution…` |
+| Um Worker trava, perde a lease e outro assume | O token de geração (fencing) impede o Worker antigo de gravar checkpoints depois de perder a posse. | [ExecutionEngineTests](tests/FlowForge.IntegrationTests/ExecutionEngineTests.cs) `Expired_generation_cannot_renew_begin_or_save…` |
+| O Worker cai depois de enviar um POST e antes de gravar o resultado | O POST não é reenviado. A tentativa fica com resultado externo desconhecido, sem fingir que nada aconteceu. | [HttpExecutionTests](tests/FlowForge.IntegrationTests/HttpExecutionTests.cs) `Remote_effect_before_checkpoint_loss_is_not_sent_again…` |
+| Um destino falha e o node tem retry | Só repete o que é seguro: métodos idempotentes ou destinos que aceitam `Idempotency-Key`, sempre com a mesma chave. | [RetryExecutionTests](tests/FlowForge.IntegrationTests/RetryExecutionTests.cs) `Unsafe_post_is_not_repeated…` |
+| A mensagem vai para a DLQ antes de qualquer Worker pegá-la | O scanner devolve a mensagem à fila depois de 5 minutos, até 5 publicações. | [RecoveryAndDeadLetterTests](tests/FlowForge.IntegrationTests/RecoveryAndDeadLetterTests.cs) `Recovery_republishes_a_message_never_claimed…` |
+| Um Delay de horas está em andamento | A espera é estado no banco. O Worker libera a mensagem e retoma no prazo, mesmo depois de reiniciar. | [DeclarativeExecutionTests](tests/FlowForge.IntegrationTests/DeclarativeExecutionTests.cs) `Waiting_delay_releases_lease…` |
+| Uma URL resolve para a rede interna (SSRF, DNS rebinding) | A conexão é feita no IP validado; um segundo lookup não troca o destino. | [HttpRequestNodeTests](tests/FlowForge.IntegrationTests/HttpRequestNodeTests.cs) `Dns_rebinding_cannot_change…` |
+| Uma conta tenta ler workflow, execução ou credencial de outra | 404, sem revelar que o recurso existe. Nem o Admin ignora o dono. | [AuthenticationEndpointTests](tests/FlowForge.Api.Tests/AuthenticationEndpointTests.cs) `Owner_isolated_by_object…` |
+| Um refresh token roubado é reutilizado | A família inteira de sessões é revogada, inclusive os access tokens já emitidos. | `Refresh_rotation_replay_revokes_the_family…` |
 
-Cada versão contém um DAG com um trigger. A execução percorre um caminho sequencial; ciclos, fan-out paralelo e joins de sincronização ficam fora do escopo.
+O projeto não promete exactly-once em sistemas externos. Garante at-least-once com deduplicação local e deixa explícito quando o efeito remoto é desconhecido. Detalhes em [confiabilidade](docs/execution-reliability.md).
 
 ## Arquitetura
 
-Monólito modular com dois processos implantáveis. PostgreSQL guarda estado e autoridade de gravação; RabbitMQ desacopla o aceite do processamento.
+Monólito modular com dois processos: a API aceita comandos e eventos; o Worker publica a outbox, consome a fila e executa. O PostgreSQL é a autoridade do estado; o RabbitMQ só transporta.
 
 ~~~mermaid
 flowchart LR
@@ -35,39 +39,36 @@ flowchart LR
     MQ --> Consumer[Consumer / Engine]
     Consumer -->|Inbox + lease + checkpoints| DB
     Consumer --> HTTP[Origem HTTPS autorizada]
-    API -. OTLP opcional .-> OTEL[Painel local de observabilidade]
+    API -. OTLP opcional .-> OTEL[Painel de observabilidade]
     Consumer -. OTLP opcional .-> OTEL
 ~~~
 
 | Projeto | Responsabilidade |
 | --- | --- |
-| Domain | Grafo, publicação, estados, limites e políticas; sem ASP.NET/EF |
+| Domain | Grafo, publicação, estados e limites, sem ASP.NET nem EF |
 | Application | Casos de uso, contratos e engine sequencial |
-| Infrastructure | EF/PostgreSQL, RabbitMQ, HTTP aprovado, criptografia e exportação OTLP |
-| API | Contratos HTTP, autenticação/autorização, limites e aceite de eventos |
-| Worker | Despacho, consumo, retomada e recuperação |
-| frontend | Editor, publicação e investigação de execuções |
+| Infrastructure | EF Core/PostgreSQL, RabbitMQ, HTTP com política de rede, criptografia e OTLP |
+| API | HTTP, autenticação, autorização, rate limit e aceite de eventos |
+| Worker | Despacho da outbox, consumo, retomada e recuperação |
+| frontend | Editor do grafo, publicação e investigação de execuções |
 
-[Arquitetura](docs/architecture.md), [modelo de dados](docs/data-model.md) e [ADRs](docs/decisions) explicam as escolhas. Código gerado de migrations representa o schema; regras de negócio permanecem explícitas no domínio e na engine.
+Cada versão publicada é um DAG imutável com um trigger. A execução percorre um caminho sequencial; fan-out paralelo e joins ficam fora do escopo. [Arquitetura](docs/architecture.md), [modelo de dados](docs/data-model.md), [contrato do domínio](docs/domain-contract.md) e as [ADRs](docs/decisions) explicam as escolhas.
 
-## Stack e motivo
+## Decisões e trade-offs
 
-| Tecnologia | Problema resolvido |
-| --- | --- |
-| .NET 10 / ASP.NET Core / EF Core | API tipada, DI/lifetime e persistência com migrations revisáveis |
-| PostgreSQL 17 | Transações, relações, revisões, leases/fencing e estado durável |
-| RabbitMQ 4.2 | Entrega assíncrona, confirms, ACK e isolamento da request |
-| React / TypeScript / Vite / Tailwind / React Flow | Interface tipada e edição de grafo com biblioteca especializada |
-| Data Protection + Identity hashing | Proteção de contexto/credentials e hash de password |
-| OpenTelemetry + Aspire standalone | Investigar processos separados e distinguir trabalho, espera e fila |
-| xUnit / Testcontainers / Playwright | Comportamento, falhas e jornadas com serviços reais |
-| Docker Compose / GitHub Actions | Ambiente reproduzível e gates de integração |
-
-Redis é um profile opcional de laboratório, sem consumidor no produto. Locks e idempotência usam PostgreSQL. Acrescentá-lo ao caminho crítico agora duplicaria a autoridade do estado.
+| Problema | Escolha | Custo |
+| --- | --- | --- |
+| Commit no banco seguido de publish pode perder a mensagem | Outbox transacional | Polling e atraso de despacho |
+| Entrega repetida ou Worker antigo ainda vivo | Inbox, lease e fencing por geração | Heartbeats e consultas a mais; não desfaz efeito remoto |
+| Timeout não prova que o destino não agiu | Retry só elegível e chave estável quando o destino coopera | Depende do contrato do destino |
+| Espera longa prenderia mensagem e thread | `ResumeAt` e continuação durável | Mais estado e checkpoints |
+| Edição mudaria execuções já na fila | Versão publicada imutável, fixada na execução | Novo rascunho para cada mudança |
+| Refresh token roubado continuaria renovando | Rotação com família de sessão e detecção de reuso | Abas precisam serializar o refresh |
+| Trace pode vazar dados | Allowlist de atributos e dimensões de métrica limitadas | Menos detalhe automático |
 
 ## Executar localmente
 
-Requisitos: Docker com containers Linux/Compose v2, SDK .NET 10 e PowerShell 7. Node 22 é necessário para desenvolver/testar o frontend fora da imagem. Não há passwords padrão.
+Requisitos: Docker com Compose v2, SDK .NET 10 e PowerShell 7. Node 22 para desenvolver o frontend fora da imagem. Não há senhas padrão.
 
 ~~~powershell
 git clone https://github.com/gabxw/flowforge.git
@@ -83,13 +84,9 @@ docker compose up --build --detach --wait
 ./scripts/smoke-compose.ps1
 ~~~
 
-Abra **http://localhost:5173** e crie a primeira conta local. O setup inicial cria Admin; contas seguintes são Owner. Faça isso antes de compartilhar acesso. A interface usa a API pelo proxy, sem tokens no storage do navegador.
+Abra **http://localhost:5173** e crie a primeira conta, que vira Admin do ambiente local. Migrations são explícitas: o startup não altera o schema. Os volumes preservam PostgreSQL, RabbitMQ e o keyring; mantenha os mesmos secrets ao recriar serviços. [API](docs/api.md), [autenticação](docs/authentication.md) e [operação](docs/operations.md) detalham configuração e recuperação.
 
-Migrations são explícitas: o startup não altera schema. GenerateOnly no script permite revisar o SQL antes de aplicar. Os três volumes preservam PostgreSQL, RabbitMQ e keyring. Mantenha os mesmos secrets ao recriar serviços; não execute down --volumes em um ambiente que precisa preservar dados.
-
-API: http://localhost:5080. OpenAPI local: /openapi/v1.json. Banco, broker e OTLP não publicam portas. Portas de API/frontend/painel ficam em loopback. [API](docs/api.md), [autenticação](docs/authentication.md) e [operação](docs/operations.md) detalham configuração e recuperação.
-
-## Exemplo reproduzível
+### Exemplo reproduzível
 
 ~~~mermaid
 flowchart LR
@@ -100,48 +97,36 @@ flowchart LR
     B -->|false| F[Log: alternativo]
 ~~~
 
-Na mesma sessão PowerShell, use a conta criada na interface:
+Com a conta criada na interface:
 
 ~~~powershell
 $env:FLOWFORGE_SMOKE_EMAIL = Read-Host 'E-mail da conta local'
 $env:FLOWFORGE_SMOKE_PASSWORD = [System.Net.NetworkCredential]::new(
-  '', (Read-Host 'Password da conta local' -AsSecureString)
+  '', (Read-Host 'Senha da conta local' -AsSecureString)
 ).Password
 ./scripts/demo-workflow.ps1 -IncludeFailure
 ~~~
 
-O roteiro deixa workflows/histórico na interface: executa os dois ramos, repete um evento com a mesma chave e confirma a mesma execução. Também cria uma falha esperada de HTTP fora da allowlist, sem depender de um serviço externo. Imprime apenas IDs/resultados, nunca o secret do webhook ou o JWT. Cada chamada do roteiro cria uma nova demonstração.
+O roteiro cria esse workflow e um segundo com HTTP para um destino fora da allowlist. Envia eventos pelos dois ramos, repete um evento com a mesma chave para confirmar a deduplicação e deixa uma falha esperada para investigar na interface. Imprime só IDs e resultados, nunca o secret do webhook ou o token. O [roteiro de demonstração](docs/demo.md) mostra como investigar a falha.
 
-[Roteiro de demonstração](docs/demo.md) mostra como investigar a falha e apresentar as decisões. [HTTP/credentials](docs/http-and-credentials.md) explica como autorizar uma origem real com segurança.
-
-## Observabilidade
-
-Antes de subir/recriar o ambiente, na sessão que contém os secrets:
+### Observabilidade
 
 ~~~powershell
 $env:FLOWFORGE_OTLP_ENDPOINT = 'http://dashboard:18889'
 docker compose --profile observability up --build --detach --wait
 ~~~
 
-Painel: **http://localhost:18888**. É anônimo e restrito à máquina local, com retenção em memória. Exportação começa desligada; não é necessária para executar automações. [Guia de investigação](docs/observability.md) descreve correlação, métricas e sanitização.
+Painel em **http://localhost:18888**, local e com retenção em memória. Um trace atravessa API, outbox, RabbitMQ, Worker e cada node; as métricas separam tempo ativo, espera e atraso de despacho. [Guia de investigação](docs/observability.md).
 
-## Decisões que vale discutir
+## Testes
 
-| Problema | Escolha e trade-off |
-| --- | --- |
-| Commit do banco seguido de publish pode falhar | Outbox transacional: aceite durável, com atraso e polling adicionais |
-| Delivery pode se repetir ou Worker antigo continuar | Inbox + lease/fencing: protege gravações locais; não desfaz efeito remoto |
-| Timeout não prova ausência de efeito externo | Retry só elegível, chave estável quando o destino coopera e resultado externo explícito |
-| Espera longa prenderia delivery/thread | ResumeAt + continuação durável: mais estado/checkpoints, menos recursos retidos |
-| CRUD aceitar mudanças em execução histórica | Versão publicada imutável: execução fixa configuração e contexto |
-| Refresh roubado pode continuar renovando | Rotação/família/replay: reutilização revoga a família; exige serialização entre abas |
-| Trace pode expor dados ou inflar métricas | Allowlist de atributos, sem baggage e dimensões limitadas; menos detalhes automáticos |
-
-As garantias e limites estão em [confiabilidade](docs/execution-reliability.md), [segurança HTTP](docs/http-and-credentials.md) e [sessões](docs/authentication.md). O projeto não promete exactly-once para sistemas externos.
-
-## Qualidade
-
-**1.282 testes xUnit**, **43 jornadas frontend** e **duas jornadas com Docker real**, além de lint/typecheck/build, migrations idempotentes e auditoria de dependências. A main exige três checks do GitHub Actions, inclusive para o administrador. Uma falha real de compilação foi verificada em [PR descartável bloqueado](https://github.com/gabxw/flowforge/pull/11).
+| Conjunto | Quantidade | O que cobre |
+| --- | --- | --- |
+| Domínio | 794 | Grafo, publicação e a matriz completa de transições de estado (boa parte dos casos) |
+| Aplicação | 111 | Engine sequencial, política de retry e casos de uso |
+| Integração | 232 | PostgreSQL, RabbitMQ e servidor HTTPS reais em Testcontainers: falhas, recuperação, fencing, SSRF |
+| API | 148 | Endpoints com banco real: contratos, autenticação, isolamento entre contas, rate limit |
+| Navegador | 44 + 2 | Playwright com API simulada, e duas jornadas contra o ambiente Docker completo |
 
 ~~~powershell
 dotnet restore FlowForge.slnx --locked-mode
@@ -149,24 +134,18 @@ dotnet build FlowForge.slnx -c Release --no-restore
 dotnet test FlowForge.slnx -c Release --no-build -m:1
 npm --prefix frontend ci
 npm --prefix frontend run lint
-npm --prefix frontend run build
 npm --prefix frontend test
 ~~~
 
-[Catálogo e CI](docs/validation.md), [revisão da Fase 13](docs/phase-13-review.md), [Fase 14](docs/phase-14-review.md), [Fase 15](docs/phase-15-review.md) e [Fase 16](docs/phase-16-review.md) registram evidência e riscos. Pipeline não depende de serviços de produção. Não existe destino de deploy público configurado.
+A main exige os três jobs do GitHub Actions (backend, frontend e ambiente Docker), inclusive para o administrador. [Catálogo de validação](docs/validation.md).
 
-## Screenshots reais
+## Telas
 
-![Login da plataforma](docs/screenshots/phase-13-login.png)
+| | |
+| --- | --- |
+| ![Editor do workflow com o painel da etapa Condition](docs/screenshots/editor.png) | ![Execução com o caminho percorrido e a linha do tempo](docs/screenshots/execution.png) |
+| ![Falha explicada a partir do código registrado](docs/screenshots/execution-failure.png) | ![Trace atravessando API e Worker no painel](docs/screenshots/phase-14-dashboard.png) |
 
-![Workflows e execuções de demonstração](docs/screenshots/phase-16-workflows.png)
+## Limites
 
-![Editor visual em modo de leitura](docs/screenshots/phase-16-editor.png)
-
-![Investigação de uma execução](docs/screenshots/phase-16-execution.png)
-
-![Trace atravessando API e Worker](docs/screenshots/phase-14-dashboard.png)
-
-## Evolução
-
-As 16 fases e seus critérios estão no [roadmap](docs/roadmap.md). Próximos incrementos exigem necessidade concreta: proteção externa do keyring/collector para implantação, retenção executável, Schedule Trigger e novos conectores. Equipes, fan-out, plugins de código, cobrança e microsserviços permanecem fora do escopo entregue.
+Ambiente local e privado. Uma implantação pública exige proteção externa do keyring, collector autenticado para telemetria e política de retenção; não há destino de deploy configurado. Consulte [segurança](SECURITY.md) e [operação](docs/operations.md). As 16 fases de construção e seus critérios estão no [roadmap](docs/roadmap.md).
